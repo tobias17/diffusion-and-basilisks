@@ -3,6 +3,7 @@
 
 The game at any point in time will be in 1 of many possible global states. The current state dictates what kind of prompt the LLM is provided, along with the possible actions it can take. Some of those actions prompt a state transition to switch the current global state.
 
+
 ## Hub States
 
 The game world is comprised of "hubs" where the player can peacefully interact with other characters. The term hub is an abstract one, and the LLM is prompted to create a more suitable name given the world background. For a fantasy world, "town" would be the most appropriate name for a hub. The LLM is provided context based on the current hub, so switching hubs will exclude it from previous hub specific details, but returning to a previously visited hub will re-inject that context.
@@ -15,6 +16,9 @@ This state provides a lot of state transition options since they can do anything
 
 #### Talk to Hub Character
 
+A new character is created or an existing one is assumed for the player to talk with. In this, the player is able to talk directly to the character (which the LLM is playing the role of) and can request various things. While the LLM can roleplay as the character and say anything they want back, the LLM is limited in the actions they can perform on the character's behalf. These might be things like "sell an item" or "give a quest" that will cause in-game actions to be performed.
 
 
+## Travel States
 
+The player can be put into various travel states. These could be the player trying to travel from one hub to another, or a player leaving a hub to take on a quest (with the intention of returning to the hub).
