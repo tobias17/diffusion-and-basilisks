@@ -22,3 +22,15 @@ A new character is created or an existing one is assumed for the player to talk 
 ## Travel States
 
 The player can be put into various travel states. These could be the player trying to travel from one hub to another, or a player leaving a hub to take on a quest (with the intention of returning to the hub).
+
+#### Talk to Travel Character
+
+A new character (or characters) are created and the player is able to talk with one of them. They can interact with the character, similar to the talk state in the hub, but in the travel version there is an option to transition into combat depending on how the interaction goes.
+
+#### Combat
+
+The player is put into a combat state which has turn based actions and rolls associated.
+
+#### Travel Event
+
+This is a seperate state where, when the player is traveling, they can encounter an event. While it is similar to the Talk to Travel Character state, the user is requested to act in isolation without another character responding back to them.
