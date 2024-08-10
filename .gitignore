@@ -1,0 +1,9 @@
+# project specific folders
+saves/
+
+# general filetypes
+*.pyc
+
+# package/editor files/folders
+.mypy_cache
+.vscode
