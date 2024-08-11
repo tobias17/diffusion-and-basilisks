@@ -1,13 +1,7 @@
-from enum import Enum
+from common import State
+
 from typing import List
 
-class State(Enum):
-   HUB_IDLE = "HubIdle"
-   HUB_TALKING = "HubTalking"
-   TRAVEL_IDLE = "TravelIdle"
-   TRAVEL_TALK = "TravelTalk"
-   TRAVEL_COMBAT = "TravelCombat"
-   TRAVEL_EVENT = "TravelEvent"
 
 class HubDescription: pass
 def list_hubs() -> List[HubDescription]:
@@ -37,6 +31,7 @@ def give_player_item(item_name:str, item_description:str, physical_description:s
 
 def player_use_item(item_name:str, action_description:str, consume_amount:int=0) -> None:
    pass
+
 
 
 
