@@ -31,6 +31,11 @@ class Character(Serializable):
    physical_description: str
 
 @dataclass
+class Converstation(Serializable):
+   character_name: str
+   dialogs: List[str]
+
+@dataclass
 class Hub(Serializable):
    characters: List[Character]
    @classmethod
