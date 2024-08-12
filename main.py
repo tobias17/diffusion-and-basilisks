@@ -16,10 +16,10 @@ def list_npcs() -> List[NpcDescription]:
    return []
 
 def create_npc(character_name:str, character_description:str, physical_description:str) -> None:
-   pass
+   """Creates a new NPC with the given properties."""
 
 def talk_to_npc(character_name:str) -> None:
-   pass
+   """Initiates a converstation between the player and the specified NPC."""
 
 
 class ItemDescription: pass
