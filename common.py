@@ -11,6 +11,23 @@ class State(Enum):
    TRAVEL_COMBAT = "TravelCombat"
    TRAVEL_EVENT = "TravelEvent"
 
+class Event: pass
+
+@dataclass
+class SpeakEvent(Event):
+   with_character: str
+   is_player_speaking: bool
+   text: str
+
+@dataclass
+class StateEvent(Event):
+   from_state: State
+   to_state: State
+
+
+
+
+
 @dataclass
 class Serializable(ABC):
    def to_json(self) -> Dict:
