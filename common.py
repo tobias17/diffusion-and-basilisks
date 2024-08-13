@@ -4,6 +4,7 @@ from enum import Enum
 from abc import ABC
 
 class State(Enum):
+   INITIALIZING  = "INITIALIZING"
    HUB_IDLE      = "HUB_IDLE"
    HUB_TALKING   = "HUB_TALKING"
    TRAVEL_IDLE   = "TRAVEL_IDLE"
@@ -25,9 +26,8 @@ class SpeakEvent(Event):
 class StateTransitionEvent(Event):
    from_state: State
    to_state: State
-   description: str
    def __str__(self) -> str:
-      return f"Transition from {self.from_state} to {self.to_state}: {self.description}"
+      return f"Transition from {self.from_state} to {self.to_state}"
 
 
 

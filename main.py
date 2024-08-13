@@ -1,14 +1,25 @@
 from common import State
 
-from typing import List
+from typing import List, Dict
 
+
+class Functions:
+   state_to_methods_map: Dict[State,List]
+   @staticmethod
+   def register(fxn, *states:State):
+      for state in states:
+         if state not in Functions.state_to_methods_map:
+            Functions.state_to_methods_map[state] = []
+         Functions.state_to_methods_map[state].append(fxn)
 
 class HubDescription: pass
 def list_hubs() -> List[HubDescription]:
    return []
+Functions.register(list_hubs, State.HUB_IDLE, State.HUB_TALKING, State.TRAVEL_IDLE, State.TRAVEL_TALK)
 
 def create_hub(hub_name:str, hub_description) -> None:
    pass
+Functions.register(list_hubs, State.HUB_IDLE, State.HUB_TALKING, State.TRAVEL_IDLE, State.TRAVEL_TALK)
 
 
 class NpcDescription: pass
