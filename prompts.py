@@ -1,5 +1,32 @@
 from common import State
 from typing import Dict
+import re
+
+class Template:
+   PATTERN = re.compile(r'%%([a-zA-Z_]+)%%')
+   template: str
+   mapping: Dict[str,str]
+
+   def __init__(self, template:str):
+      self.template = template
+      self.mapping = {}
+   
+   def __getitem__(self, key:str) -> str:
+      return self.mapping[key]
+
+   def __setitem__(self, key:str, value:str) -> None:
+      self.mapping[key] = value
+   
+   def render(self) -> str:
+      matches = Template.PATTERN.findall(self.template)
+      text = self.template
+      for match in matches:
+         value = self.mapping.get(match, None)
+         if value is None:
+            raise ValueError(f"Failed to find key '{match}' in mapping, existing keys are {list(self.mapping.keys())}")
+         text = text.replace(f"%%{match}%%", value)
+      return text
+
 
 intro = """
 You are a large language model tasked with helping a human play a video game. You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.

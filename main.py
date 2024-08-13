@@ -1,10 +1,11 @@
 from common import State, Event, StateTransitionEvent
+from prompts import Template
 
 from typing import List, Dict
 
 
 class Functions:
-   state_to_methods_map: Dict[State,List]
+   state_to_methods_map: Dict[State,List] = {}
    @staticmethod
    def register(fxn, *states:State):
       for state in states:
@@ -69,7 +70,10 @@ def game_loop(game:Game):
 
 
 def main():
-   pass
+   t = Template("%%SOME_TEXT%% in a %%OTHER_ENTRY%% here !")
+   t["SOME_TEXT"] = "apple"
+   t["OTHER_ENTRY"] = "bananas"
+   print(t.render())
 
 if __name__ == "__main__":
    main()
