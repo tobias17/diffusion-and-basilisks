@@ -4,12 +4,12 @@ from enum import Enum
 from abc import ABC
 
 class State(Enum):
-   HUB_IDLE = "HubIdle"
-   HUB_TALKING = "HubTalking"
-   TRAVEL_IDLE = "TravelIdle"
-   TRAVEL_TALK = "TravelTalk"
-   TRAVEL_COMBAT = "TravelCombat"
-   TRAVEL_EVENT = "TravelEvent"
+   HUB_IDLE      = "HUB_IDLE"
+   HUB_TALKING   = "HUB_TALKING"
+   TRAVEL_IDLE   = "TRAVEL_IDLE"
+   TRAVEL_TALK   = "TRAVEL_TALK"
+   TRAVEL_COMBAT = "TRAVEL_COMBAT"
+   TRAVEL_EVENT  = "TRAVEL_EVENT"
 
 class Event: pass
 
@@ -18,13 +18,16 @@ class SpeakEvent(Event):
    with_character: str
    is_player_speaking: bool
    text: str
+   def __str__(self) -> str:
+      return (f"Player to {self.with_character}" if self.is_player_speaking else f"{self.with_character} to Player") + f": {self.text}"
 
 @dataclass
-class StateEvent(Event):
+class StateTransitionEvent(Event):
    from_state: State
    to_state: State
-
-
+   description: str
+   def __str__(self) -> str:
+      return f"Transition from {self.from_state} to {self.to_state}: {self.description}"
 
 
 
