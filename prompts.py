@@ -1,14 +1,14 @@
 from common import State
-from typing import Dict
+from typing import Dict, List
 import re
 
 class Template:
    PATTERN = re.compile(r'%%([a-zA-Z_]+)%%')
-   template: str
+   chunks: List[str]
    mapping: Dict[str,str]
 
-   def __init__(self, template:str):
-      self.template = template
+   def __init__(self, *chunks:str):
+      self.chunks = list(chunks)
       self.mapping = {}
    
    def __getitem__(self, key:str) -> str:
@@ -18,8 +18,8 @@ class Template:
       self.mapping[key] = value
    
    def render(self) -> str:
-      matches = Template.PATTERN.findall(self.template)
-      text = self.template
+      text = "\n\n".join(self.chunks)
+      matches = Template.PATTERN.findall(text)
       for match in matches:
          value = self.mapping.get(match, None)
          if value is None:

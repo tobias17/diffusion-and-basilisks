@@ -13,8 +13,8 @@ class Functions:
          Functions.state_to_methods_map[state].append(fxn)
    
    @staticmethod
-   def describe_functions_in(state:State) -> List[str]:
-      return Functions.state_to_methods_map.get(state, []).copy()
+   def from_state(state:State) -> str:
+      return "$$begin_python_api$$\n" + "\n\n".join(Functions.state_to_methods_map.get(state, [])) + "\n$$end_python_api$$"
 
 class HubDescription: pass
 def list_hubs() -> List[HubDescription]:
@@ -25,6 +25,11 @@ Functions.register('''
 def create_hub(hub_name:str, hub_description:str) -> None:
    """Creates a new hub with the given name and description"""
 '''.strip(), State.INITIALIZING)
+
+Functions.register('''
+def travel_to_hub(hub_name:str, hub_description:str) -> None:
+   """Moves the player into the specified hub, allowing them to act in this hub"""
+'''.strip(), State.TRAVEL_IDLE)
 
 
 class NpcDescription: pass
