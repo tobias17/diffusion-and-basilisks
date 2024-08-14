@@ -3,7 +3,7 @@ from common import State
 from typing import List, Dict
 
 class Functions:
-   state_to_methods_map: Dict[State,List] = {}
+   state_to_methods_map: Dict[State,List[str]] = {}
 
    @staticmethod
    def register(fxn, *states:State):
@@ -13,17 +13,18 @@ class Functions:
          Functions.state_to_methods_map[state].append(fxn)
    
    @staticmethod
-   def describe_functions_in(state:State) -> str:
-      return ""
+   def describe_functions_in(state:State) -> List[str]:
+      return Functions.state_to_methods_map.get(state, []).copy()
 
 class HubDescription: pass
 def list_hubs() -> List[HubDescription]:
    return []
-Functions.register(list_hubs, State.HUB_IDLE, State.HUB_TALKING, State.TRAVEL_IDLE, State.TRAVEL_TALK)
+# Functions.register(list_hubs, State.HUB_IDLE, State.HUB_TALKING, State.TRAVEL_IDLE, State.TRAVEL_TALK)
 
-def create_hub(hub_name:str, hub_description) -> None:
-   pass
-Functions.register(list_hubs, State.HUB_IDLE, State.HUB_TALKING, State.TRAVEL_IDLE, State.TRAVEL_TALK)
+Functions.register('''
+def create_hub(hub_name:str, hub_description:str) -> None:
+   """Creates a new hub with the given name and description"""
+'''.strip(), State.INITIALIZING)
 
 
 class NpcDescription: pass
