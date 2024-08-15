@@ -1,6 +1,6 @@
 from common import State, Event, StateTransitionEvent
 from prompts import Template, intro, state_map
-from functions import Functions
+from functions import Function_Map
 
 from typing import List
 from openai import OpenAI
@@ -24,8 +24,11 @@ class Game:
 def game_loop(game:Game):
    current_state = game.get_current_state()
    
+   def process_functions(text:str):
+      
+
    if current_state == State.INITIALIZING:
-      template = Template(intro, Functions.from_state(current_state), state_map[current_state])
+      template = Template(intro, Function_Map.render(current_state), state_map[current_state])
       prompt = template.render()
       print(prompt)
       client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
@@ -36,7 +39,7 @@ def game_loop(game:Game):
          ],
          temperature=0.7,
          max_tokens=128,
-         # stop=["```", "$$end_"],
+         stop=["$$end_calling$$"],
       )
       print(completion.choices[0].message.content)
       # game.add_event(StateTransitionEvent(from_state=current_state, to_state=State.HUB_IDLE))
