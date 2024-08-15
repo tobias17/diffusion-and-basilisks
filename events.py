@@ -6,6 +6,10 @@ from dataclasses import dataclass
 class CreateHubEvent(Event):
    hub_name: str
    hub_description: str
+   def __init__(self, hub_name:str, hub_description:str):
+      self.hub_name = hub_name
+      hub_description = hub_description.strip().strip(".,")
+      self.hub_description = hub_description[0].lower() + hub_description[1:]
    def __str__(self) -> str:
       return f"You discover {self.hub_name}, {self.hub_description}"
 
