@@ -41,16 +41,13 @@ You are a large language model tasked with helping a human play a video game. Yo
 
 Your interactions with the game world will be through an API where you will call python functions to generate content and make decisions. The following is an example of how you might follow this API.
 
-$$begin_example_api$$
-def create_apple(color:str, physical_description:str) -> None:
-   """Creates a new apple with the given color and physical description"""
-$$end_example_api$$
+$$begin_api$$
+def create_apple(color:str, physical_description:str) -> None: # Creates a new apple with the given color and physical description
+$$end_api$$
 
-$$begin_code_example$$
-```python
+$$begin_calling$$
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
-```
-$$end_code_example$$
+$$end_calling$$
 
 You will be fed information based on the current state of the game world. While there are a few, most fall under the HUB or TRAVEL umbrella.
 A Hub in this game is any combat-disabled location where the player is free to roam, inspect, and talk with other characters. This could be a town, village, outpost, or any other locations like that.
@@ -65,15 +62,13 @@ state_map: Dict[State,str] = {}
 state_map[State.INITIALIZING] = f"""
 The player is currently in the INIALIZING state. Please call the create_hub function to generate the world's first hub.
 
-$$begin_code_block$$
-```python
+$$begin_calling$$
 """.strip()
 
 ask_for_function_calls = """
 Please call the necessary functions to progress the game state in a fun-but-in-the-guide-rails manner.
 
-$$begin_code_block$$
-```python
+$$begin_calling$$
 """.strip()
 
 

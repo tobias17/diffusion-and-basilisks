@@ -19,6 +19,8 @@ class Game:
    def add_event(self, event:Event) -> None:
       self.events.append(event)
 
+
+
 def game_loop(game:Game):
    current_state = game.get_current_state()
    

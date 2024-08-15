@@ -21,14 +21,12 @@ def list_hubs() -> List[HubDescription]:
    return []
 # Functions.register(list_hubs, State.HUB_IDLE, State.HUB_TALKING, State.TRAVEL_IDLE, State.TRAVEL_TALK)
 
-Functions.register('''
-def create_hub(hub_name:str, hub_description:str) -> None:
-   """Creates a new hub with the given name and description"""
-'''.strip(), State.INITIALIZING)
+Functions.register("""
+def create_hub(hub_name:str, hub_description:str) -> None: # Creates a new hub with the given name and description
+""".strip(), State.INITIALIZING)
 
 Functions.register('''
-def travel_to_hub(hub_name:str, hub_description:str) -> None:
-   """Moves the player into the specified hub, allowing them to act in this hub"""
+def travel_to_hub(hub_name:str, hub_description:str) -> None: # Moves the player into the specified hub, allowing them to act in this hub
 '''.strip(), State.TRAVEL_IDLE)
 
 
