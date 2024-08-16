@@ -1,9 +1,9 @@
 from common import State, Event
 from events import StateTransitionEvent
 from prompts import Template, intro, state_map
-from functions import Function_Map, Function
+from functions import Function_Map, Function, Parameter
 
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Callable, Type, Any
 from openai import OpenAI
 import re
 
@@ -68,6 +68,53 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
          return None, "Found too many '=' characters in a single parameter"
    
    return (func_name, args, kwargs), ""
+
+
+def cast_value(value:str, param:Parameter) -> Tuple[Any,str]:
+   if param.dtype is str:
+      for quote in ('"', "'"):
+         if value.startswith(quote) and value.endswith(quote) and len(quote) >= 2:
+            return value[1:-1], ""
+      return None, f"Paramater '{param.name}' expected string value but failed to find quote characters"
+   elif param.dtype is int:
+      try:
+         return int(value), ""
+      except Exception:
+         return None, f"Error converting parameter '{param.name}' to an integer"
+   else:
+      raise RuntimeError(f"Got Parameter.dtype of '{param.dtype.__name__}' which is not get supported by cast_value()")
+
+def match_function(func_name:str, args:List, kwargs:Dict, functions:List[Function]) -> Tuple[Optional[Callable],str]:
+   cleaned_args:   List = []
+   cleaned_kwargs: Dict = {}
+   for function in functions:
+      if func_name == function:
+         arg_idx = 0
+         for param in function.params:
+            if arg_idx < len(args):
+               value, err = cast_value(args[arg_idx], param)
+               if value is None:
+                  return None, err
+               cleaned_args.append(value)
+               arg_idx += 1
+            else:
+               if param.name in kwargs:
+                  value, err = cast_value(kwargs[param.name], param)
+                  if value is None:
+                     return None, err
+                  cleaned_kwargs[param.name] = value
+               else:
+                  return None, f"Unknown keyword argument '{param.name}' to function '{func_name}'"
+         
+         if arg_idx < len(args):
+            return None, f"Found {len(args)} positional arguments but function '{func_name}' expected only {len(function.params)}"
+         for name in kwargs.keys():
+            if name not in cleaned_kwargs:
+               return None, f"Unexpected keyword argument '{name}' for function '{func_name}'"
+         
+         return (lambda: function.call(*cleaned_args, **cleaned_kwargs)), ""
+   
+   return None, f"Could not find function named '{func_name}'"
 
 
 client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")

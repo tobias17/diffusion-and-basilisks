@@ -7,10 +7,10 @@ from dataclasses import dataclass
 @dataclass
 class Parameter:
    name: str
-   type: Type
+   dtype: Type
    default: Optional[str] = None
    def render(self) -> str:
-      return f"{self.name}:{self.type.__name__}" + (f"={self.default}" if self.default is not None else "")
+      return f"{self.name}:{self.dtype.__name__}" + (f"={self.default}" if self.default is not None else "")
 
 class Function:
    call: Callable
