@@ -12,4 +12,6 @@ class State(Enum):
    TRAVEL_COMBAT = "TRAVEL_COMBAT"
    TRAVEL_EVENT  = "TRAVEL_EVENT"
 
-class Event: pass
+class Event:
+   def render(self) -> str:
+      return str(self)
