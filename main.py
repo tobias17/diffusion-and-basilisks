@@ -22,71 +22,7 @@ class Game:
       for event in events:
          self.events.append(event)
 
-func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.+\))$')
-def process_functions(text:str, funcs:List[Function]) -> List[Event]:
-   text  = text.split("$$end_")[0]
-   lines = [l.strip() for l in text.split("\n") if l]
-
-   events = []
-   for line in lines:
-      if line.startswith("#"):
-         continue
-      match = func_pattern.match(line)
-      if not match:
-         print(f"WARNING: Failed to match function pattern to line:\n<|{line}|>")
-      else:
-         func_name = match.group(1)
-         for func in funcs:
-            if func.name == func_name:
-               scope_key = None
-               ended = False
-               args, kwargs = [], {} # type: ignore
-               name, block = None, ""
-               params = match.group(2)
-               for c in params:
-                  if scope_key is not None:
-                     if c == scope_key:
-                        if name is None:
-                           assert len(kwargs) == 0
-                           args.append(block)
-                           # print(f"{c}: Added block as pos arg")
-                        else:
-                           kwargs[name.strip()] = block
-                           # print(f"{c}: Added block as kwarg")
-                        name, block = None, ""
-                        scope_key = None
-                        ended = True
-                     else:
-                        block += c
-                        # print(f"{c}: Appended to scoped block")
-                  elif c in ['"', '"']:
-                     scope_key = c
-                     # print(f"{c}: Entered scope")
-                  elif c == "=":
-                     assert name is None
-                     assert block, f"name={name}, block={block}, scope_key={scope_key}"
-                     name = block
-                  elif c in [",", ")"]:
-                     if ended:
-                        # print(f"{c}: skipping")
-                        pass
-                     else:
-                        assert block, f"name={name}, block={block}, scope_key={scope_key}"
-                        if name is None:
-                           assert len(kwargs) == 0
-                           args.append(block)
-                        else:
-                           kwargs[name.strip()] = block
-                           name, block = None, ""
-                  elif c:
-                     block += c
-               
-               assert scope_key is None
-
-         events.extend(func.call(*args, **kwargs))
-
-   return events
-
+func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.+)\)$')
 def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
    if "\t" in line: return None, "Function calling blocks cannont contain the \\t character"
    if "\r" in line: return None, "Function calling blocks cannont contain the \\r character"
@@ -125,9 +61,9 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
       if len(pieces) == 1:
          if len(kwargs) > 0:
             return None, "Found position argument after keyword argument"
-         args.append(pieces[0])
+         args.append(pieces[0].strip())
       elif len(pieces) == 2:
-         kwargs[pieces[0]] = pieces[1]
+         kwargs[pieces[0].strip()] = pieces[1].strip()
       else:
          return None, "Found too many '=' characters in a single parameter"
    
