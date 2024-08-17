@@ -13,7 +13,6 @@ class Game:
    events: List[Event]
    def __init__(self):
       self.events = []
-      self.register_functions()
 
    def get_last_event_of_type(self, target_type:Type[T], default:Optional[T]=None) -> T:
       for event in reversed(self.events):
@@ -26,18 +25,18 @@ class Game:
    def get_current_state(self) -> State:
       return self.get_last_event_of_type(E.State_Transition_Event, E.State_Transition_Event(State.INITIALIZING, State.INITIALIZING)).to_state
    
-   def get_current_hub(self) -> E.Create_Hub_Event:
-      return self.get_last_event_of_type(E.Create_Hub_Event)
+   def get_current_location(self) -> E.Create_Location_Event:
+      return self.get_last_event_of_type(E.Create_Location_Event)
 
-   def create_hub(self, hub_description:str, hub_name:str):
-      self.events.append(E.Create_Hub_Event(hub_name, hub_description))
+   def create_location(self, hub_description:str, hub_name:str):
+      self.events.append(E.Create_Location_Event(hub_name, hub_description))
 
    def create_npc(self, name:str, character_background:str, physical_description:str):
-      self.events.append(E.Create_Character_Event(name, self.get_current_hub().name, character_background, physical_description))
+      self.events.append(E.Create_Character_Event(name, self.get_current_location().name, character_background, physical_description))
 
 Function_Map.register(
    Function(
-      Game.create_hub, "create_hub", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
+      Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
       Parameter("hub_description",str), Parameter("hub_name",str)
    ),
    State.INITIALIZING
@@ -48,7 +47,7 @@ Function_Map.register(
       Game.create_npc, "create_npc", "Creates a new NPC that the player could interact with",
       Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
    ),
-   State.HUB_IDLE, State.HUB_TALKING
+   State.LOCATION_IDLE, State.LOCATION_TALK
 )
 
 

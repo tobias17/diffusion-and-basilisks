@@ -3,20 +3,20 @@ from common import State, Event
 from dataclasses import dataclass
 
 @dataclass
-class Create_Hub_Event(Event):
+class Create_Location_Event(Event):
    name: str
    description: str
-   def __init__(self, hub_name:str, hub_description:str):
-      self.name = hub_name
-      description = hub_description.strip().strip(".,")
+   def __init__(self, location_name:str, location_description:str):
+      self.name = location_name
+      description = location_description.strip().strip(".,")
       self.description = description[0].lower() + description[1:]
    def render(self) -> str:
       return f"You discover {self.name}: {self.description}"
 
 @dataclass
 class Create_Character_Event(Event):
-   npc_name: str
-   hub_name: str
+   character_name: str
+   location_name: str
    background: str
    description: str
    def render(self) -> str:
