@@ -3,7 +3,7 @@ from prompts import Template, intro, state_map
 from functions import Function_Map, Function, Parameter
 import events as E
 
-from typing import List, Optional, Type, TypeVar
+from typing import List, Optional, Type, TypeVar, Tuple
 from openai import OpenAI
 
 T = TypeVar('T')
@@ -19,14 +19,6 @@ class Game:
    def __init__(self):
       self.events = []
 
-   def get_last_event_of_type(self, target_type:Type[T], default:Optional[T]=None) -> T:
-      for event in reversed(self.events):
-         if isinstance(event, target_type):
-            return event
-      if default is not None:
-         return default
-      raise RuntimeError(f"get_last_event() failed to find an instance of {target_type.__name__} with no default provided")
-
    def get_current_state(self) -> State:
       for event in reversed(self.events):
          state = event.implication()
@@ -35,13 +27,34 @@ class Game:
       return State.INITIALIZING
    
    def get_current_location(self) -> E.Create_Location_Event:
-      return self.get_last_event_of_type(E.Create_Location_Event)
+      for event in reversed(self.events):
+         if isinstance(event, E.Create_Location_Event):
+            return event
+      raise RuntimeError(f"get_current_location failed to find Create_Location_Event in the event list")
 
-   def create_location(self, hub_description:str, hub_name:str):
+
+   def create_location(self, hub_description:str, hub_name:str) -> Tuple[bool,Optional[str]]:
       self.events.append(E.Create_Location_Event(hub_name, hub_description))
+      return True, None
 
-   def create_npc(self, name:str, character_background:str, physical_description:str):
+   def create_npc(self, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
+      current_location = self.get_current_location()
+      for event in reversed(self.events):
+         if isinstance(event, E.Create_Character_Event) and event.location_name == current_location and event.character_name == name:
+            return False, f"Location '{current_location}' already has a character with the name '{name}'"
       self.events.append(E.Create_Character_Event(name, self.get_current_location().name, character_background, physical_description))
+      return True, None
+
+   def talk_to_npc(self, name:str) -> Tuple[bool,Optional[str]]:
+      location_names = []
+      current_location = self.get_current_location()
+      for event in reversed(self.events):
+         if isinstance(event, E.Create_Character_Event) and event.location_name == current_location:
+            if name == event.character_name:
+               self.events.append(E.Start_Conversation_Event(name))
+               return True, None
+            location_names.append(event.character_name)
+      return False, f"Failed to find character named '{name}', the current location ({current_location}) has characters with the following names: {location_names}"
 
 
 
