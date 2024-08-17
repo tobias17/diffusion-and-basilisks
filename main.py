@@ -73,7 +73,7 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
 def cast_value(value:str, param:Parameter) -> Tuple[Any,str]:
    if param.dtype is str:
       for quote in ('"', "'"):
-         if value.startswith(quote) and value.endswith(quote) and len(quote) >= 2:
+         if value.startswith(quote) and value.endswith(quote) and len(value) >= 2:
             return value[1:-1], ""
       return None, f"Paramater '{param.name}' expected string value but failed to find quote characters"
    elif param.dtype is int:
@@ -88,7 +88,7 @@ def match_function(func_name:str, args:List, kwargs:Dict, functions:List[Functio
    cleaned_args:   List = []
    cleaned_kwargs: Dict = {}
    for function in functions:
-      if func_name == function:
+      if func_name == function.name:
          arg_idx = 0
          for param in function.params:
             if arg_idx < len(args):

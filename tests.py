@@ -1,4 +1,4 @@
-from main import parse_function
+from main import parse_function, match_function
 from functions import Function, Parameter
 
 from typing import List, Dict, Optional
@@ -52,6 +52,23 @@ class TestParseFunction(unittest.TestCase):
       self.__sad('add_text("this is some text", "a mistmatched string)')
    def test_arg_after_kwarg(self):
       self.__sad('add_text(first="Hello,", " sailor!")')
+
+
+function_pool = [
+   Function((lambda a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str))
+]
+
+class TestMatchFunction(unittest.TestCase):
+   
+   def __happy(self, func_name:str, args:List, kwargs:Dict, expected_output):
+      call, err = match_function(func_name, args, kwargs, function_pool)
+      self.assertIsNotNone(call, err)
+      assert call is not None
+      out = call()
+      self.assertEqual(out, expected_output)
+   
+   def test_simple_cast(self):
+      self.__happy("add_text", ('"Hello,"', '" sailor!"'), {}, "Hello, sailor!")
 
 if __name__ == "__main__":
    unittest.main()
