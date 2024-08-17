@@ -43,11 +43,15 @@ class TestParseFunction(unittest.TestCase):
 
    def test_simple_case(self):
       self.__happy('add_text("Hello,", " sailor!")', 'add_text', ('"Hello,"', '" sailor!"'), {})
+   def test_mixed_args(self):
+      self.__happy('add_text("Hello,", second=" sailor!")', 'add_text', ('"Hello,"',), {"second": '" sailor!"'})
    def test_kwargs(self):
       self.__happy('add_text(first="Hello,", second=" sailor!")', 'add_text', tuple(), {"first": '"Hello,"', "second": '" sailor!"'})
    
    def test_mismatched_quotes(self):
       self.__sad('add_text("this is some text", "a mistmatched string)')
+   def test_arg_after_kwarg(self):
+      self.__sad('add_text(first="Hello,", " sailor!")')
 
 if __name__ == "__main__":
    unittest.main()
