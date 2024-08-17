@@ -79,11 +79,11 @@ $$end_player_input$$
 """.strip()
 
 
-state_map[State.LOCATION_IDLE] = f"""
-The player is currently in the LOCATION_IDLE state where they are interacting with %%NPC_NAME%%.
+state_map[State.LOCATION_TALK] = f"""
+The player is currently in the LOCATION_TALK state where they are interacting with %%NPC_NAME%%.
 
 %%NPC_NAME%%:
-%%NPC_BIO%%
+%%NPC_DESCRIPTION%%
 
 $$begin_conversation$$
 %%CONVERSATION%%

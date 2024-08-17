@@ -28,7 +28,11 @@ class Game:
       raise RuntimeError(f"get_last_event() failed to find an instance of {target_type.__name__} with no default provided")
 
    def get_current_state(self) -> State:
-      return self.get_last_event_of_type(E.State_Transition_Event, E.State_Transition_Event(State.INITIALIZING, State.INITIALIZING)).to_state
+      for event in reversed(self.events):
+         state = event.implication()
+         if state is not None:
+            return state
+      return State.INITIALIZING
    
    def get_current_location(self) -> E.Create_Location_Event:
       return self.get_last_event_of_type(E.Create_Location_Event)
