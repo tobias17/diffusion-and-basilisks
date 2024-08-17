@@ -1,7 +1,6 @@
-from main import parse_function, match_function
-from functions import Function, Parameter
+from functions import Function, Parameter, parse_function, match_function
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 import unittest
 
 add_text = Function(lambda a, b: a + b, "add_text", "", Parameter("a",str), Parameter("b",str))
