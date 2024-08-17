@@ -3,6 +3,13 @@ from common import State, Event
 from dataclasses import dataclass
 
 @dataclass
+class State_Transition_Event(Event):
+   from_state: State
+   to_state: State
+   def render(self) -> str:
+      return f"Transition from {self.from_state} to {self.to_state}"
+
+@dataclass
 class Create_Location_Event(Event):
    name: str
    description: str
@@ -29,10 +36,3 @@ class Speak_Event(Event):
    text: str
    def render(self) -> str:
       return (f"Player to {self.with_character}" if self.is_player_speaking else f"{self.with_character} to Player") + f": {self.text}"
-
-@dataclass
-class State_Transition_Event(Event):
-   from_state: State
-   to_state: State
-   def render(self) -> str:
-      return f"Transition from {self.from_state} to {self.to_state}"

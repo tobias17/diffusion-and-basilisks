@@ -6,8 +6,13 @@ import events as E
 from typing import List, Optional, Type, TypeVar
 from openai import OpenAI
 
-
 T = TypeVar('T')
+
+
+
+########################
+###  Game State Obj  ###
+########################
 
 class Game:
    events: List[Event]
@@ -34,6 +39,12 @@ class Game:
    def create_npc(self, name:str, character_background:str, physical_description:str):
       self.events.append(E.Create_Character_Event(name, self.get_current_location().name, character_background, physical_description))
 
+
+
+#########################
+### Func Registration ###
+#########################
+
 Function_Map.register(
    Function(
       Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
@@ -50,6 +61,11 @@ Function_Map.register(
    State.LOCATION_IDLE, State.LOCATION_TALK
 )
 
+
+
+########################
+###  Main Game Loop  ###
+########################
 
 client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 def make_completion(prompt:str):
@@ -68,7 +84,6 @@ def make_completion(prompt:str):
    resp = completion.choices[0].message.content
    assert resp is not None
    return resp
-
 
 def game_loop(game:Game):
    while True:

@@ -48,10 +48,6 @@ $$end_api$$
 $$begin_calling$$
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
 $$end_calling$$
-
-You will be fed information based on the current state of the game world. While there are a few, most fall under the HUB or TRAVEL umbrella.
-A Hub in this game is any combat-disabled location where the player is free to roam, inspect, and talk with other characters. This could be a town, village, outpost, or any other locations like that.
-The Travel states indicate the player traversing combat-enabled area, such as a road or a cave.
 '''.strip()
 
 
@@ -60,7 +56,7 @@ state_map: Dict[State,str] = {}
 
 
 state_map[State.INITIALIZING] = f"""
-The player is currently in the INIALIZING state. Please call the create_hub function to generate the world's first hub.
+The player is currently in the INIALIZING state. Please call the `create_location` function to generate the world's first hub.
 
 $$begin_calling$$
 """.strip()
@@ -72,8 +68,8 @@ $$begin_calling$$
 """.strip()
 
 
-state_map[State.HUB_IDLE] = f"""
-The player is currently in the HUB_IDLE state. The player has been prompted what they would like to do next.
+state_map[State.LOCATION_IDLE] = f"""
+The player is currently in the LOCATION_IDLE state. The player has been prompted what they would like to do next.
 
 $$begin_player_input$$
 %%PLAYER_INPUT%%
@@ -83,8 +79,8 @@ $$end_player_input$$
 """.strip()
 
 
-state_map[State.HUB_TALKING] = f"""
-The player is currently in the HUB_TALKING state where they are interacting with %%NPC_NAME%%.
+state_map[State.LOCATION_IDLE] = f"""
+The player is currently in the LOCATION_IDLE state where they are interacting with %%NPC_NAME%%.
 
 %%NPC_NAME%%:
 %%NPC_BIO%%
@@ -97,12 +93,13 @@ $$end_conversation$$
 """.strip()
 
 
-state_map[State.TRAVEL_IDLE] = f"""
-The player is currently in the TRAVEL_IDLE state. The player has been prompted what they would like to do next.
+state_map[State.TRAVELING] = f"""
+The player is currently in the TRAVELING state.
 
-$$begin_player_input$$
-%%PLAYER_INPUT%%
-$$end_player_input$$
+Use the `describe_travel` function to give the player a description of their environment as they are in this traveling state.
+
+If you want to have the player arrive at their destination, use the `move_to_location` function to put them at the right location.
+If instead you want to spawn an event or an interesting area, use the `create_location` function first and then `move_to_location` to kick it off.
 
 {ask_for_function_calls}
 """.strip()
