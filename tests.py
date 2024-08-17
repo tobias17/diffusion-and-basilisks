@@ -11,35 +11,31 @@ def parse_function_helper():
 class TestParseFunction(unittest.TestCase):
 
    def __happy(self, input:str, exp_func_name:str, exp_args:List, exp_kwargs:Dict):
-      try:
-         out, err = parse_function(input)
-         self.assertIsNotNone(out, err)
-         self.assertIsInstance(out, tuple)
-         assert out is not None
-         
-         self.assertEqual(len(out), 3)
-         act_func_name, act_args, act_kwargs = out
-         
-         self.assertEqual(act_func_name, exp_func_name)
+      ctx = f"Input: <|{input}|>"
+      out, err = parse_function(input)
+      self.assertIsNotNone(out, ctx)
+      self.assertIsInstance(out, tuple, ctx)
+      assert out is not None
+      
+      self.assertEqual(len(out), 3, ctx)
+      act_func_name, act_args, act_kwargs = out
+      
+      self.assertEqual(act_func_name, exp_func_name, ctx)
 
-         self.assertEqual(len(act_args), len(exp_args))
-         for act_arg, exp_arg in zip(act_args, exp_args):
-            self.assertEqual(act_arg, exp_arg)
-         
-         self.assertEqual(len(act_kwargs), len(exp_kwargs))
-         for (act_key,act_val), (exp_key,exp_val) in zip(act_kwargs.items(), exp_kwargs.items()):
-            self.assertEqual(act_key, exp_key)
-            self.assertEqual(act_val, exp_val)
-      except Exception as ex:
-         raise ex.__class__(f"{ex}: {input}")
+      self.assertEqual(len(act_args), len(exp_args), ctx)
+      for act_arg, exp_arg in zip(act_args, exp_args):
+         self.assertEqual(act_arg, exp_arg, ctx)
+      
+      self.assertEqual(len(act_kwargs), len(exp_kwargs), ctx)
+      for key, exp_val in exp_kwargs.items():
+         self.assertIn(key, act_kwargs, ctx)
+         self.assertEqual(act_kwargs[key], exp_val, ctx)
 
    def __sad(self, input:str):
-      try:
-         out, err = parse_function(input)
-         self.assertIsNone(out, "Got an output when an error was expected")
-         self.assertTrue(err, "Got an empty error message when output was None")
-      except Exception as ex:
-         raise ex.__class__(f"{ex}: {input}")
+      ctx = f"Input: <|{input}|>"
+      out, err = parse_function(input)
+      self.assertIsNone(out, ctx)
+      self.assertTrue(err, ctx)
 
    def test_simple_case(self):
       self.__happy('add_text("Hello,", " sailor!")', 'add_text', ('"Hello,"', '" sailor!"'), {})
@@ -47,6 +43,8 @@ class TestParseFunction(unittest.TestCase):
       self.__happy('add_text("Hello,", second=" sailor!")', 'add_text', ('"Hello,"',), {"second": '" sailor!"'})
    def test_kwargs(self):
       self.__happy('add_text(first="Hello,", second=" sailor!")', 'add_text', tuple(), {"first": '"Hello,"', "second": '" sailor!"'})
+   def test_out_of_order_kwargs(self):
+      self.__happy('add_text(second=" sailor!", first="Hello,")', 'add_text', tuple(), {"first": '"Hello,"', "second": '" sailor!"'})
    
    def test_mismatched_quotes(self):
       self.__sad('add_text("this is some text", "a mistmatched string)')
@@ -55,7 +53,8 @@ class TestParseFunction(unittest.TestCase):
 
 
 function_pool = [
-   Function((lambda a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str))
+   Function((lambda a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str)),
+   Function((lambda a,b: a+b), "add_nums", "", Parameter("a",int), Parameter("b",int))
 ]
 
 class TestMatchFunction(unittest.TestCase):
@@ -67,8 +66,24 @@ class TestMatchFunction(unittest.TestCase):
       out = call()
       self.assertEqual(out, expected_output)
    
+   def __sad(self, func_name:str, args:List, kwargs:Dict):
+      call, err = match_function(func_name, args, kwargs, function_pool)
+      self.assertIsNone(call, "Expected output to fail but got non-None value back")
+      self.assertTrue(err, "Got None back but error message was empty")
+
    def test_simple_cast(self):
       self.__happy("add_text", ('"Hello,"', '" sailor!"'), {}, "Hello, sailor!")
+   def test_int_cast(self):
+      self.__happy("add_nums", ("5", "7"), {}, 12)
+   def test_negative_int_cast(self):
+      self.__happy("add_nums", ("-5", "7"), {}, 2)
+   def test_pos_and_kwargs_mix(self):
+      self.__happy("add_nums", ("5"), {"b": "7"}, 12)
+   
+   def test_bad_int_cast(self):
+      self.__sad("add_nums", ("5", "7.8"), {})
+   def test_kwarg_before_pos_arg(self):
+      self.__sad("add_nums", ("5"), {"a": "7"})
 
 if __name__ == "__main__":
    unittest.main()
