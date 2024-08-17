@@ -1,26 +1,56 @@
 from common import State, Event
-from events import StateTransitionEvent
 from prompts import Template, intro, state_map
 from functions import Function_Map, Function, Parameter
+import events as E
 
-from typing import List, Dict, Tuple, Optional, Callable, Type, Any
+from typing import List, Optional, Type, TypeVar
 from openai import OpenAI
-import re
+
+
+T = TypeVar('T')
 
 class Game:
    events: List[Event]
    def __init__(self):
       self.events = []
+      self.register_functions()
+
+   def get_last_event_of_type(self, target_type:Type[T], default:Optional[T]=None) -> T:
+      for event in reversed(self.events):
+         if isinstance(event, target_type):
+            return event
+      if default is not None:
+         return default
+      raise RuntimeError(f"get_last_event() failed to find an instance of {target_type.__name__} with no default provided")
 
    def get_current_state(self) -> State:
-      for event in reversed(self.events):
-         if isinstance(event, StateTransitionEvent):
-            return event.to_state
-      return State.INITIALIZING
+      return self.get_last_event_of_type(E.State_Transition_Event, E.State_Transition_Event(State.INITIALIZING, State.INITIALIZING)).to_state
+   
+   def get_current_hub(self) -> E.Create_Hub_Event:
+      return self.get_last_event_of_type(E.Create_Hub_Event)
 
-   def add_events(self, *events:Event) -> None:
-      for event in events:
-         self.events.append(event)
+   def create_hub(self, hub_description:str, hub_name:str):
+      self.events.append(E.Create_Hub_Event(hub_name, hub_description))
+
+   def create_npc(self, name:str, character_background:str, physical_description:str):
+      self.events.append(E.Create_Character_Event(name, self.get_current_hub().name, character_background, physical_description))
+
+Function_Map.register(
+   Function(
+      Game.create_hub, "create_hub", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
+      Parameter("hub_description",str), Parameter("hub_name",str)
+   ),
+   State.INITIALIZING
+)
+
+Function_Map.register(
+   Function(
+      Game.create_npc, "create_npc", "Creates a new NPC that the player could interact with",
+      Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
+   ),
+   State.HUB_IDLE, State.HUB_TALKING
+)
+
 
 client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 def make_completion(prompt:str):

@@ -7,7 +7,7 @@ add_text = Function(lambda a, b: a + b, "add_text", "", Parameter("a",str), Para
 
 def parse_function_helper():
    pass
-class TestParseFunction(unittest.TestCase):
+class Test_Parse_Function(unittest.TestCase):
 
    def __happy(self, input:str, exp_func_name:str, exp_args:List, exp_kwargs:Dict):
       ctx = f"Input: <|{input}|>"
@@ -52,17 +52,17 @@ class TestParseFunction(unittest.TestCase):
 
 
 function_pool = [
-   Function((lambda a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str)),
-   Function((lambda a,b: a+b), "add_nums", "", Parameter("a",int), Parameter("b",int))
+   Function((lambda s,a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str)),
+   Function((lambda s,a,b: a+b), "add_nums", "", Parameter("a",int), Parameter("b",int))
 ]
 
-class TestMatchFunction(unittest.TestCase):
+class Test_Match_Function(unittest.TestCase):
    
    def __happy(self, func_name:str, args:List, kwargs:Dict, expected_output):
       call, err = match_function(func_name, args, kwargs, function_pool)
       self.assertIsNotNone(call, err)
       assert call is not None
-      out = call()
+      out = call(None)
       self.assertEqual(out, expected_output)
    
    def __sad(self, func_name:str, args:List, kwargs:Dict):
