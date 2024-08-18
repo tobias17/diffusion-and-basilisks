@@ -1,5 +1,6 @@
 # project specific folders
 saves/
+logs/
 
 # general filetypes
 *.pyc

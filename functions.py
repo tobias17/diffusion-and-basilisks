@@ -56,6 +56,7 @@ class Function_Map:
 #######################
 
 func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.+)\)$')
+
 def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
    if "\t" in line: return None, "Function calling blocks cannont contain the \\t character"
    if "\r" in line: return None, "Function calling blocks cannont contain the \\r character"

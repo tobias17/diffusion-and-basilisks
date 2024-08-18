@@ -1,6 +1,6 @@
-from common import State, Event
+from common import State, Event, logger
 from prompts import Template, intro, state_map
-from functions import Function_Map, Function, Parameter
+from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
 from typing import List, Optional, Type, TypeVar, Tuple
@@ -31,6 +31,29 @@ class Game:
          if isinstance(event, E.Create_Location_Event):
             return event
       raise RuntimeError(f"get_current_location failed to find Create_Location_Event in the event list")
+
+   def process_response(self, text:str):
+      logger.debug(f"Processing response:\n<|{text}|>")
+
+      lines = []
+      for line in text.split("\n"):
+         line = line.strip()
+         if not line or line.startswith("#"):
+            continue
+         lines.append(line)
+      
+      for line in lines:
+         out, msg = parse_function(line)
+         if out is None:
+            logger.warning(f"Got error parsing function\n\tinput: <|{line}|>\n\tmessage: {msg}")
+            continue
+         call, msg = match_function(*out, Function_Map.get(self.get_current_state()))
+         if call is None:
+            logger.warning(f"Got error matching function\n\tinput: <|{line}|>\n\tmessage: {msg}")
+            continue
+         ok, msg = call(self)
+         if not ok:
+            logger.warning(f"Got back not-ok when calling function\n\tinput: <|{line}|>\n\tmessage: {msg}")
 
 
    def create_location(self, hub_description:str, hub_name:str) -> Tuple[bool,Optional[str]]:
@@ -100,7 +123,7 @@ def make_completion(prompt:str):
 
    resp = completion.choices[0].message.content
    assert resp is not None
-   return resp
+   return resp.strip()
 
 def game_loop(game:Game):
    while True:
@@ -110,21 +133,14 @@ def game_loop(game:Game):
          template = Template(intro, Function_Map.render(current_state), state_map[current_state])
          prompt = template.render()
          print(prompt)
+         
          resp = make_completion(prompt)
-         events = process_functions(resp, Function_Map.get(current_state))
-         assert len(events) == 1, f"len(events)={len(events)}"
-         print(events[0].render())
-         game.add_events(*events, StateTransitionEvent(from_state=current_state, to_state=State.HUB_IDLE))
-      elif current_state == State.HUB_IDLE:
-         template = Template(intro, Function_Map.render(current_state), state_map[current_state])
-         template["PLAYER_INPUT"] = input("What would you like to do?\n").strip()
-         prompt = template.render()
-         print(prompt)
-         resp = make_completion(prompt)
-         events = process_functions(resp, Function_Map.get(current_state))
-         print(events)
+         print(resp)
+         game.process_response(resp)
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")
+
+      input("next loop? ")
 
 
 
@@ -133,4 +149,5 @@ def main():
    game_loop(game)
 
 if __name__ == "__main__":
+   logger.warning("JIHIJHTIJHTRJIHRTJI")
    main()

@@ -12,7 +12,7 @@ class Test_Parse_Function(unittest.TestCase):
    def __happy(self, input:str, exp_func_name:str, exp_args:List, exp_kwargs:Dict):
       ctx = f"Input: <|{input}|>"
       out, err = parse_function(input)
-      self.assertIsNotNone(out, ctx)
+      self.assertIsNotNone(out, f"{ctx}, Message: {err}")
       self.assertIsInstance(out, tuple, ctx)
       assert out is not None
       
@@ -44,6 +44,9 @@ class Test_Parse_Function(unittest.TestCase):
       self.__happy('add_text(first="Hello,", second=" sailor!")', 'add_text', tuple(), {"first": '"Hello,"', "second": '" sailor!"'})
    def test_out_of_order_kwargs(self):
       self.__happy('add_text(second=" sailor!", first="Hello,")', 'add_text', tuple(), {"first": '"Hello,"', "second": '" sailor!"'})
+   
+   def test_single_quote_in_double_quote(self):
+      self.__happy('create_location("A great sprawling city", "Eldrida\'s Pride")', 'create_location', ('"A great sprawling city"', '"Eldrida\'s Pride"'), {})
    
    def test_mismatched_quotes(self):
       self.__sad('add_text("this is some text", "a mistmatched string)')
