@@ -1,4 +1,5 @@
 from common import State
+from prompts import api_description
 
 from typing import List, Dict, Optional, Type, Callable, Tuple, Any
 from dataclasses import dataclass
@@ -47,7 +48,7 @@ class Function_Map:
 
    @staticmethod
    def render(key:State) -> str:
-      return "$$begin_api$$\n" + "\n".join(f.render() for f in Function_Map.get(key)) + "\n$$end_api$$" # type: ignore
+      return api_description.replace("%%API_DESCRIPTION%%", "\n".join(f.render() for f in Function_Map.get(key)))
 
 
 

@@ -44,12 +44,17 @@ class Start_Conversation_Event(Event):
       return State.LOCATION_TALK
 
 @dataclass
+class End_Converstation_Event(Event):
+   def implication(self) -> Optional[State]:
+      return State.LOCATION_IDLE
+
+@dataclass
 class Speak_Event(Event):
    with_character: str
    is_player_speaking: bool
    text: str
    def render(self) -> str:
-      return (f"Player to {self.with_character}" if self.is_player_speaking else f"{self.with_character} to Player") + f": {self.text}"
+      return ("Player" if self.is_player_speaking else self.with_character) + f": {self.text}"
 
 @dataclass
 class Begin_Traveling_Event(Event):

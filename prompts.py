@@ -52,16 +52,31 @@ create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of
 $$end_calling$$
 
 end_example
-
-The following is the real API that you will have access to.
 '''.strip()
 
+api_description = """
+The following is the real API that you will have access to.
+$$begin_api$$
+%%API_DESCRIPTION%%
+$$end_api$$
+""".strip()
 
 
-state_map: Dict[State,str] = {}
+
+need_more_function_calls = """
+%%AI_RESPONSE%%
+$$end_calling$$
+
+%%SYSTEM_RESPONSE%%
+$$begin_calling$$
+""".strip()
 
 
-state_map[State.INITIALIZING] = f"""
+
+state_prompts: Dict[State,str] = {}
+
+
+state_prompts[State.INITIALIZING] = f"""
 The player is currently in the INIALIZING state. Call the `create_location` function to generate a location and then call `move_to_location` to get there.
 $$begin_calling$$
 """.strip()
@@ -72,7 +87,7 @@ $$begin_calling$$
 """.strip()
 
 
-state_map[State.LOCATION_IDLE] = f"""
+state_prompts[State.LOCATION_IDLE] = f"""
 The player is currently in the LOCATION_IDLE state. The player has been prompted what they would like to do next.
 $$begin_player_input$$
 %%PLAYER_INPUT%%
@@ -82,7 +97,7 @@ $$end_player_input$$
 """.strip()
 
 
-state_map[State.LOCATION_TALK] = f"""
+state_prompts[State.LOCATION_TALK] = f"""
 The player is currently in the LOCATION_TALK state where they are interacting with:
 %%NPC_NAME%%
 %%NPC_DESCRIPTION%%
@@ -95,7 +110,7 @@ $$end_conversation$$
 """.strip()
 
 
-state_map[State.TRAVELING] = f"""
+state_prompts[State.TRAVELING] = f"""
 The player is currently in the TRAVELING state.
 
 Use the `describe_travel` function to give the player a description of their environment as they are in this traveling state.
