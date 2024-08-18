@@ -5,6 +5,7 @@ import events as E
 
 from typing import List, Optional, Type, TypeVar, Tuple
 from openai import OpenAI
+import logging, os, datetime
 
 T = TypeVar('T')
 
@@ -56,9 +57,19 @@ class Game:
             logger.warning(f"Got back not-ok when calling function\n\tinput: <|{line}|>\n\tmessage: {msg}")
 
 
-   def create_location(self, hub_description:str, hub_name:str) -> Tuple[bool,Optional[str]]:
-      self.events.append(E.Create_Location_Event(hub_name, hub_description))
+   def create_location(self, location_description:str, location_name:str) -> Tuple[bool,Optional[str]]:
+      self.events.append(E.Create_Location_Event(location_name, location_description))
       return True, None
+
+   def move_to_location(self, location_name:str) -> Tuple[bool,Optional[str]]:
+      existing_locations = []
+      for event in reversed(self.events):
+         if isinstance(event, E.Create_Location_Event):
+            if event.name == location_name:
+               self.events.append(E.Move_To_Location_Event(location_name))
+               return True, None
+            existing_locations.append(event.name)
+      return False, f"Could not find location with name '{location_name}', existing locations are: {existing_locations}"
 
    def create_npc(self, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
       current_location = self.get_current_location()
@@ -69,15 +80,15 @@ class Game:
       return True, None
 
    def talk_to_npc(self, name:str) -> Tuple[bool,Optional[str]]:
-      location_names = []
+      existing_characters = []
       current_location = self.get_current_location()
       for event in reversed(self.events):
          if isinstance(event, E.Create_Character_Event) and event.location_name == current_location:
             if name == event.character_name:
                self.events.append(E.Start_Conversation_Event(name))
                return True, None
-            location_names.append(event.character_name)
-      return False, f"Failed to find character named '{name}', the current location ({current_location}) has characters with the following names: {location_names}"
+            existing_characters.append(event.character_name)
+      return False, f"Failed to find character named '{name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
 
 
 
@@ -88,7 +99,15 @@ class Game:
 Function_Map.register(
    Function(
       Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
-      Parameter("hub_description",str), Parameter("hub_name",str)
+      Parameter("location_description",str), Parameter("location_name",str)
+   ),
+   State.INITIALIZING
+)
+
+Function_Map.register(
+   Function(
+      Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
+      Parameter("location_name",str)
    ),
    State.INITIALIZING
 )
@@ -149,5 +168,16 @@ def main():
    game_loop(game)
 
 if __name__ == "__main__":
-   logger.warning("JIHIJHTIJHTRJIHRTJI")
+   logger.setLevel(logging.DEBUG)
+   FORMAT = logging.Formatter("%(levelname)s: %(message)s")
+   console = logging.StreamHandler()
+   console.setLevel(logging.INFO)
+   console.setFormatter(FORMAT)
+   logger.addHandler(console)
+   if not os.path.exists("logs"):
+      os.mkdir("logs")
+   file = logging.FileHandler(datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S.log"))
+   file.setLevel(logging.DEBUG)
+   file.setFormatter(FORMAT)
+   logger.addHandler(file)
    main()

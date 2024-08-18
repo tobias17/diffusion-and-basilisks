@@ -56,7 +56,7 @@ state_map: Dict[State,str] = {}
 
 
 state_map[State.INITIALIZING] = f"""
-The player is currently in the INIALIZING state. Please call the `create_location` function to generate the world's first hub.
+The player is currently in the INIALIZING state. Call the `create_location` function to generate a location and then call `move_to_location` to get there.
 
 $$begin_calling$$
 """.strip()

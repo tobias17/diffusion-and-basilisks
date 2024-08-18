@@ -75,7 +75,7 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
    quote_char = None
    for char in orig_params:
       if quote_char:
-         if char in ("'", '"'):
+         if char == quote_char:
             quote_char = None
       else:
          if char in ("'", '"'):
