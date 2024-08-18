@@ -90,12 +90,28 @@ class Game:
             existing_characters.append(event.character_name)
       return False, f"Failed to find character named '{name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
 
+   def add_quest(self, quest_description:str, quest_name:str) -> Tuple[bool,Optional[str]]:
+      for event in reversed(self.events):
+         if isinstance(event, E.Quest_Start) and event.quest_name == quest_name:
+            return False, f"A quest with the name '{quest_name}' already exists"
+      self.events.append(E.Quest_Start(quest_name, quest_description))
+      return True, None
+
+   def complete_quest(self, quest_name:str) -> Tuple[bool,Optional[str]]:
+      for event in reversed(self.events):
+         if isinstance(event, E.Quest_Complete) and event.quest_name == quest_name:
+            return False, f"The quest named '{quest_name}' has already been completed"
+         if isinstance(event, E.Quest_Start) and event.quest_name == quest_name:
+            self.events.append(E.Quest_Complete(quest_name))
+            return True, None
+      return False, f"Failed to find a quest with the name '{quest_name}'"
 
 
 #########################
 ### Func Registration ###
 #########################
 
+# Location
 Function_Map.register(
    Function(
       Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
@@ -103,7 +119,6 @@ Function_Map.register(
    ),
    State.INITIALIZING
 )
-
 Function_Map.register(
    Function(
       Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
@@ -112,10 +127,27 @@ Function_Map.register(
    State.INITIALIZING
 )
 
+# NPC
 Function_Map.register(
    Function(
       Game.create_npc, "create_npc", "Creates a new NPC that the player could interact with",
       Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
+   ),
+   State.LOCATION_IDLE, State.LOCATION_TALK
+)
+
+# Quests
+Function_Map.register(
+   Function(
+      Game.add_quest, "add_quest", "Adds a new quest for the player to complete",
+      Parameter("quest_description",str), Parameter("quest_name",str)
+   ),
+   State.LOCATION_IDLE, State.LOCATION_TALK
+)
+Function_Map.register(
+   Function(
+      Game.add_quest, "complete_quest", "Marks the specified quest as completed",
+      Parameter("quest_name",str)
    ),
    State.LOCATION_IDLE, State.LOCATION_TALK
 )

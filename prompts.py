@@ -41,6 +41,8 @@ You are a large language model tasked with helping a human play a video game. Yo
 
 Your interactions with the game world will be through an API where you will call python functions to generate content and make decisions. The following is an example of how you might follow this API.
 
+begin_example
+
 $$begin_api$$
 def create_apple(color:str, physical_description:str) -> None: # Creates a new apple with the given color and physical description
 $$end_api$$
@@ -48,6 +50,10 @@ $$end_api$$
 $$begin_calling$$
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
 $$end_calling$$
+
+end_example
+
+The following is the real API that you will have access to.
 '''.strip()
 
 
@@ -57,20 +63,17 @@ state_map: Dict[State,str] = {}
 
 state_map[State.INITIALIZING] = f"""
 The player is currently in the INIALIZING state. Call the `create_location` function to generate a location and then call `move_to_location` to get there.
-
 $$begin_calling$$
 """.strip()
 
 ask_for_function_calls = """
 Please call the necessary functions to progress the game state in a fun-but-in-the-guide-rails manner.
-
 $$begin_calling$$
 """.strip()
 
 
 state_map[State.LOCATION_IDLE] = f"""
 The player is currently in the LOCATION_IDLE state. The player has been prompted what they would like to do next.
-
 $$begin_player_input$$
 %%PLAYER_INPUT%%
 $$end_player_input$$
@@ -80,9 +83,8 @@ $$end_player_input$$
 
 
 state_map[State.LOCATION_TALK] = f"""
-The player is currently in the LOCATION_TALK state where they are interacting with %%NPC_NAME%%.
-
-%%NPC_NAME%%:
+The player is currently in the LOCATION_TALK state where they are interacting with:
+%%NPC_NAME%%
 %%NPC_DESCRIPTION%%
 
 $$begin_conversation$$
@@ -103,3 +105,4 @@ If instead you want to spawn an event or an interesting area, use the `create_lo
 
 {ask_for_function_calls}
 """.strip()
+

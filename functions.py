@@ -64,7 +64,7 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
       ",": "\t",
       "=": "\r",
    }
-   
+
    match = func_pattern.match(line)
    if not match:
       return None, "Go bad input, could not parse a function from this"
@@ -100,7 +100,7 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
          kwargs[pieces[0].strip()] = pieces[1].strip()
       else:
          return None, "Found too many '=' characters in a single parameter"
-   
+
    return (func_name, args, kwargs), ""
 
 

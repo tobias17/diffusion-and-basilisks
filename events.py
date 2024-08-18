@@ -56,3 +56,12 @@ class Begin_Traveling_Event(Event):
    description: str
    def implication(self) -> Optional[State]:
       return State.TRAVELING
+
+@dataclass
+class Quest_Start(Event):
+   quest_name: str
+   quest_description: str
+
+@dataclass
+class Quest_Complete(Event):
+   quest_name: str
