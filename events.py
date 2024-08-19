@@ -29,6 +29,11 @@ class Move_To_Location_Event(Event):
       return State.LOCATION_IDLE
 
 @dataclass
+class Describe_Environment_Event(Event):
+   description: str
+   location_name: str
+
+@dataclass
 class Create_Character_Event(Event):
    character_name: str
    location_name: str

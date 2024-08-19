@@ -15,3 +15,5 @@ class Event:
       return None
    def render(self) -> str:
       return str(self)
+   def player(self)-> str:
+      return str(self)

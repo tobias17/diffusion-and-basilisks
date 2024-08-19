@@ -79,6 +79,10 @@ class Game:
             existing_locations.append(event.name)
       return False, f"Could not find location with name '{location_name}', existing locations are: {existing_locations}"
 
+   def describe_environment(self, description:str) -> Tuple[bool,Optional[str]]:
+      self.events.append(E.Describe_Environment_Event(description, self.get_last_event(E.Move_To_Location_Event).location_name))
+      return True, None
+
    def create_npc(self, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
       current_location = self.get_last_event(E.Move_To_Location_Event)
       for event in reversed(self.events):
@@ -132,6 +136,15 @@ Function_Map.register(
       Parameter("location_name",str)
    ),
    State.INITIALIZING
+)
+
+# System
+Function_Map.register(
+   Function(
+      Game.describe_environment, "describe_environment", "Allows you to describe any part of the environment to the player, generally called after the player requests an action like looking around",
+      Parameter("description",str)
+   ),
+   State.LOCATION_IDLE
 )
 
 # NPC
@@ -224,7 +237,18 @@ def game_loop(game:Game):
             prompt = template.render()
 
       elif current_state == State.LOCATION_IDLE:
-         pass
+         current_location = game.get_last_event(E.Move_To_Location_Event).location_name
+         player_input = ""
+         while not player_input:
+            player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
+         
+         template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
+         template["PLAYER_INPUT"] = player_input
+         prompt = template.render()
+
+         resp = make_completion(prompt)
+         print(resp)
+         game.process_response(resp)
 
       elif current_state == State.LOCATION_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
