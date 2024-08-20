@@ -90,6 +90,7 @@ $$begin_calling$$
 
 ask_for_function_calls = """
 Please call the necessary functions to progress the game state in a fun-but-in-the-guide-rails manner.
+Make sure to ONLY call the functions required, based on the player input or system instructions. Do NOT add extra functions.
 $$begin_calling$$
 """.strip()
 
@@ -112,6 +113,8 @@ The player is currently in the LOCATION_TALK state where they are interacting wi
 $$begin_conversation$$
 %%CONVERSATION%%
 $$end_conversation$$
+
+While you have access to a library of functions, try and use just `respond_as_npc` unless others are absolutely necessary.
 
 {ask_for_function_calls}
 """.strip()

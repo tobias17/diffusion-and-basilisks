@@ -89,11 +89,16 @@ class Game:
 
 
    def create_location(self, location_description:str, location_name:str) -> Tuple[bool,Optional[str]]:
+      for event in self.events:
+         if isinstance(event, E.Create_Location_Event) and event.name == location_name:
+            return False, f"A location with the name '{location_name}' already exists, you do no need to create another"
       self.events.append(E.Create_Location_Event(location_name, location_description))
       return True, None
    def move_to_location(self, location_name:str) -> Tuple[bool,Optional[str]]:
       existing_locations = []
       for event in reversed(self.events):
+         if isinstance(event, E.Move_To_Location_Event) and event.location_name == location_name:
+            return False, f"You are already in '{location_name}', moving there is not required"
          if isinstance(event, E.Create_Location_Event):
             if event.name == location_name:
                self.events.append(E.Move_To_Location_Event(location_name))
@@ -106,7 +111,7 @@ class Game:
       return True, None
 
    def create_npc(self, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
-      current_location = self.get_last_event(E.Move_To_Location_Event)
+      current_location = self.get_last_event(E.Move_To_Location_Event).location_name
       for event in reversed(self.events):
          if isinstance(event, E.Create_Character_Event) and event.location_name == current_location and event.character_name == name:
             return False, f"Location '{current_location}' already has a character with the name '{name}'"
@@ -122,6 +127,12 @@ class Game:
                return True, None
             existing_characters.append(event.character_name)
       return False, f"Failed to find character named '{character_name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
+   def stop_converstation(self) -> Tuple[bool,Optional[str]]:
+      self.events.append(E.End_Converstation_Event())
+      return True, None
+   def respond_as_npc(self, response_text:str) -> Tuple[bool,Optional[str]]:
+      self.events.append(E.Speak_Event(self.get_last_event(E.Start_Conversation_Event).character_name, False, response_text))
+      return True, None
 
    def add_quest(self, quest_description:str, quest_name:str) -> Tuple[bool,Optional[str]]:
       for event in reversed(self.events):
@@ -183,6 +194,19 @@ Function_Map.register(
       Parameter("character_name",str), Parameter("event_description",str)
    ),
    State.LOCATION_IDLE
+)
+Function_Map.register(
+   Function(
+      Game.stop_converstation, "stop_converstation", "Ends the current conversation, allowing other actiosn to be performed in the world, should be the last function called in a block",
+   ),
+   State.LOCATION_TALK
+)
+Function_Map.register(
+   Function(
+      Game.respond_as_npc, "respond_as_npc", "Responds to the player through the NPC they are currently talking with, do not add any prefixes just the raw text the player should say",
+      Parameter("response_text",str)
+   ),
+   State.LOCATION_TALK
 )
 
 # Quests
@@ -285,7 +309,7 @@ def game_loop(game:Game):
       elif current_state == State.LOCATION_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
          conv_history = game.get_conversation_history(speak_target)
-         if len(conv_history) == 0 or conv_history[-1].is_player_speaking:
+         if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
             # prompt AI for response
             template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
             template["OVERVIEW"] = game.get_overview()
