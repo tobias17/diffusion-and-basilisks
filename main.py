@@ -3,8 +3,9 @@ from prompts import Template, intro, state_prompts, need_more_function_calls, ov
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
-from typing import List, Optional, Type, TypeVar, Tuple, Callable
+from typing import List, Optional, Type, TypeVar, Tuple, Callable, Dict, Any
 import logging, os, datetime, json
+from dataclasses import asdict
 from openai import OpenAI
 
 T = TypeVar('T')
@@ -19,6 +20,14 @@ class Game:
    events: List[Event]
    def __init__(self):
       self.events = []
+
+   def to_json(self) -> List[Dict[str,Any]]:
+      data: List[Dict[str,Any]] = []
+      for event in self.events:
+         entry: Dict[str,Any] = { "cls": event.__class__.__name__ }
+         entry.update(asdict(event))
+         data.append(entry)
+      return data
 
    def get_current_state(self) -> State:
       for event in reversed(self.events):
@@ -105,7 +114,7 @@ class Game:
       return True, None
    def talk_to_npc(self, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
       existing_characters = []
-      current_location = self.get_last_event(E.Move_To_Location_Event)
+      current_location = self.get_last_event(E.Move_To_Location_Event).location_name
       for event in reversed(self.events):
          if isinstance(event, E.Create_Character_Event) and event.location_name == current_location:
             if character_name == event.character_name:
@@ -186,7 +195,7 @@ Function_Map.register(
 )
 Function_Map.register(
    Function(
-      Game.add_quest, "complete_quest", "Marks the specified quest as completed",
+      Game.complete_quest, "complete_quest", "Marks the specified quest as completed",
       Parameter("quest_name",str)
    ),
    State.LOCATION_IDLE, State.LOCATION_TALK
@@ -208,7 +217,7 @@ def make_completion(prompt:str):
       messages=[
          { "role":"system", "content":prompt },
       ],
-      temperature=0.7,
+      temperature=0.5,
       max_tokens=128,
       stop=["$$end_"],
    )
@@ -224,8 +233,8 @@ def make_completion(prompt:str):
       else:
          data = { "queries": [] }
       data["queries"].append({
-         "prompt": prompt,
-         "response": resp,
+         "prompt":   prompt.strip().split("\n"),
+         "response": resp  .strip().split("\n"),
       })
       with open(json_log, "w") as f:
          json.dump(data, f, indent="\t")
@@ -276,13 +285,26 @@ def game_loop(game:Game):
       elif current_state == State.LOCATION_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
          conv_history = game.get_conversation_history(speak_target)
-         if conv_history[-1].is_player_speaking:
+         if len(conv_history) == 0 or conv_history[-1].is_player_speaking:
             # prompt AI for response
             template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
             template["OVERVIEW"] = game.get_overview()
             template["NPC_NAME"] = speak_target
             template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
             template["CONVERSATION"] = "\n".join(e.render() for e in conv_history)
+            prompt = template.render()
+
+            event_count = 0
+            while True:
+               resp = make_completion(prompt)
+               print(resp)
+               event_count += game.process_response(resp)
+               if event_count > 0:
+                  break
+               template = Template(prompt + need_more_function_calls)
+               template["AI_RESPONSE"] = resp
+               template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
+               prompt = template.render()
          else:
             # prompt player for response
             resp = input("How to respond? ").strip()
@@ -292,7 +314,10 @@ def game_loop(game:Game):
                game.events.append(E.Speak_Event(speak_target, True, resp))
 
       else:
-         raise ValueError(f"game_loop() does not support {current_state} state yet")
+         raise ValueError(f"game_loop() does not support {current_state} state yet")\
+   
+      with open("logs/events.json", "w") as f:
+         json.dump(game.to_json(), f, indent="\t")
 
 
 
