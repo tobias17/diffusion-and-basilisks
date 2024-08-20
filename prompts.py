@@ -54,6 +54,13 @@ $$end_calling$$
 end_example
 '''.strip()
 
+overview_prompt = """
+The following is an overview of the current game:
+$$begin_overview$$
+%%OVERVIEW%%
+$$end_overview$$
+""".strip()
+
 api_description = """
 The following is the real API that you will have access to.
 $$begin_api$$

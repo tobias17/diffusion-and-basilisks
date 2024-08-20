@@ -17,3 +17,5 @@ class Event:
       return str(self)
    def player(self)-> str:
       return str(self)
+   def system(self, current_location_name:str) -> Optional[str]:
+      return None

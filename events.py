@@ -21,17 +21,25 @@ class Create_Location_Event(Event):
       self.description = description[0].lower() + description[1:]
    def render(self) -> str:
       return f"You discover {self.name}: {self.description}"
+   def system(self, current_location_name:str) -> Optional[str]:
+      return f"A new location is created, '{self.name}', {self.description}"
 
 @dataclass
 class Move_To_Location_Event(Event):
    location_name: str
    def implication(self) -> Optional[State]:
       return State.LOCATION_IDLE
+   def system(self, current_location_name:str) -> Optional[str]:
+      return f"You move locations to '{self.location_name}'"
 
 @dataclass
 class Describe_Environment_Event(Event):
    description: str
    location_name: str
+   def system(self, current_location_name:str) -> Optional[str]:
+      if self.location_name == current_location_name:
+         return f"Environment Description in '{self.location_name}': {self.description}"
+      return None
 
 @dataclass
 class Create_Character_Event(Event):
@@ -41,6 +49,10 @@ class Create_Character_Event(Event):
    description: str
    def render(self) -> str:
       return ""
+   def system(self, current_location_name:str) -> Optional[str]:
+      if self.location_name == current_location_name:
+         return f"A new character is created, '{self.character_name}', {self.background}, {self.description}"
+      return None
 
 @dataclass
 class Start_Conversation_Event(Event):

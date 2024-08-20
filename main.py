@@ -1,5 +1,5 @@
 from common import State, Event, logger
-from prompts import Template, intro, state_prompts, need_more_function_calls
+from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
@@ -42,8 +42,18 @@ class Game:
             history.append(event)
       return history
 
-   def process_response(self, text:str):
+   def get_overview(self) -> str:
+      overview = []
+      current_location = self.get_last_event(E.Move_To_Location_Event).location_name
+      for event in self.events:
+         text = event.system(current_location)
+         if text is not None:
+            overview.append(text)
+      return "\n".join(overview)
+
+   def process_response(self, text:str) -> int:
       logger.debug(f"Processing response:\n<|{text}|>")
+      event_count = 0
 
       lines = []
       for line in text.split("\n"):
@@ -64,6 +74,9 @@ class Game:
          ok, msg = call(self)
          if not ok:
             logger.warning(f"Got back not-ok when calling function\n\tinput: <|{line}|>\n\tmessage: {msg}")
+            continue
+         event_count += 1
+      return event_count
 
 
    def create_location(self, location_description:str, location_name:str) -> Tuple[bool,Optional[str]]:
@@ -242,20 +255,30 @@ def game_loop(game:Game):
          while not player_input:
             player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
          
-         template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
+         template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
+         template["OVERVIEW"] = game.get_overview()
          template["PLAYER_INPUT"] = player_input
          prompt = template.render()
 
-         resp = make_completion(prompt)
-         print(resp)
-         game.process_response(resp)
+         event_count = 0
+         while True:
+            resp = make_completion(prompt)
+            print(resp)
+            event_count += game.process_response(resp)
+            if event_count > 0:
+               break
+            template = Template(prompt + need_more_function_calls)
+            template["AI_RESPONSE"] = resp
+            template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
+            prompt = template.render()
 
       elif current_state == State.LOCATION_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
          conv_history = game.get_conversation_history(speak_target)
          if conv_history[-1].is_player_speaking:
             # prompt AI for response
-            template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
+            template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
+            template["OVERVIEW"] = game.get_overview()
             template["NPC_NAME"] = speak_target
             template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
             template["CONVERSATION"] = "\n".join(e.render() for e in conv_history)
@@ -269,8 +292,6 @@ def game_loop(game:Game):
 
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")
-
-      input("next loop? ")
 
 
 
