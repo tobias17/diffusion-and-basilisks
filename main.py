@@ -103,13 +103,13 @@ class Game:
             return False, f"Location '{current_location}' already has a character with the name '{name}'"
       self.events.append(E.Create_Character_Event(name, self.get_last_event(E.Move_To_Location_Event).location_name, character_background, physical_description))
       return True, None
-   def talk_to_npc(self, character_name:str) -> Tuple[bool,Optional[str]]:
+   def talk_to_npc(self, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
       existing_characters = []
       current_location = self.get_last_event(E.Move_To_Location_Event)
       for event in reversed(self.events):
          if isinstance(event, E.Create_Character_Event) and event.location_name == current_location:
             if character_name == event.character_name:
-               self.events.append(E.Start_Conversation_Event(character_name))
+               self.events.append(E.Start_Conversation_Event(character_name, event_description))
                return True, None
             existing_characters.append(event.character_name)
       return False, f"Failed to find character named '{character_name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
@@ -141,14 +141,14 @@ Function_Map.register(
       Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
       Parameter("location_description",str), Parameter("location_name",str)
    ),
-   State.INITIALIZING
+   State.INITIALIZING, State.LOCATION_IDLE, State.LOCATION_TALK
 )
 Function_Map.register(
    Function(
       Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
       Parameter("location_name",str)
    ),
-   State.INITIALIZING
+   State.INITIALIZING, State.LOCATION_IDLE
 )
 
 # System
@@ -170,9 +170,10 @@ Function_Map.register(
 )
 Function_Map.register(
    Function(
-      Game.talk_to_npc, "talk_to_npc", "Begins a talking interation between the player and the specified NPC",
-      Parameter("character_name",str)
-   )
+      Game.talk_to_npc, "talk_to_npc", "Begins a talking interation between the player and the specified NPC, the `event_description` is shown to the player to explain how the interaction starts",
+      Parameter("character_name",str), Parameter("event_description",str)
+   ),
+   State.LOCATION_IDLE
 )
 
 # Quests

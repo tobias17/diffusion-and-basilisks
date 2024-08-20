@@ -57,6 +57,7 @@ class Create_Character_Event(Event):
 @dataclass
 class Start_Conversation_Event(Event):
    character_name: str
+   event_description: str
    def implication(self) -> Optional[State]:
       return State.LOCATION_TALK
 
