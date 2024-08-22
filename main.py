@@ -1,5 +1,5 @@
 from common import State, Event, logger
-from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt
+from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt, error_in_function_calls
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
@@ -18,8 +18,11 @@ T = TypeVar('T')
 
 class Game:
    events: List[Event]
-   def __init__(self):
-      self.events = []
+   def __init__(self, events:Optional[List[Event]]=None):
+      self.events = [] if events is None else events
+
+   def copy(self) -> 'Game':
+      return Game(self.events.copy())
 
    def to_json(self) -> List[Dict[str,Any]]:
       data: List[Dict[str,Any]] = []
@@ -59,6 +62,18 @@ class Game:
          if text is not None:
             overview.append(text)
       return "\n".join(overview)
+
+   def process_line(self, line:str) -> Tuple[bool,str]:
+      out, err = parse_function(line)
+      if out is None:
+         return False, err
+      call, err = match_function(*out, Function_Map.get(self.get_current_state()))
+      if call is None:
+         return False, err
+      ok, err = call(self)
+      if not ok:
+         return False, err
+      return True, ""
 
    def process_response(self, text:str) -> int:
       logger.debug(f"Processing response:\n<|{text}|>")
@@ -114,7 +129,7 @@ class Game:
       current_location = self.get_last_event(E.Move_To_Location_Event).location_name
       for event in reversed(self.events):
          if isinstance(event, E.Create_Character_Event) and event.location_name == current_location and event.character_name == name:
-            return False, f"Location '{current_location}' already has a character with the name '{name}'"
+            return False, f"Character '{name}' already exists, you can interact with them directly without calling `create_npc` again"
       self.events.append(E.Create_Character_Event(name, self.get_last_event(E.Move_To_Location_Event).location_name, character_background, physical_description))
       return True, None
    def talk_to_npc(self, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
@@ -168,7 +183,7 @@ Function_Map.register(
       Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
       Parameter("location_name",str)
    ),
-   State.INITIALIZING, State.LOCATION_IDLE
+   State.LOCATION_IDLE
 )
 
 # System
@@ -241,9 +256,9 @@ def make_completion(prompt:str):
       messages=[
          { "role":"system", "content":prompt },
       ],
-      temperature=0.5,
-      max_tokens=128,
-      stop=["$$end_"],
+      temperature=0.8,
+      max_tokens=256,
+      stop=["$$end_", "<|end_of_text|>", "end_calling"],
    )
 
    resp = completion.choices[0].message.content
@@ -265,6 +280,46 @@ def make_completion(prompt:str):
 
    return resp.strip()
 
+MAX_LOOPS = 3
+def update_from_prompt(prompt:str, game:Game) -> Game:
+   original_prompt = prompt
+   loops = 0
+
+   while True:
+      if loops >= MAX_LOOPS:
+         logger.warning("Reached maximum loops, restarting")
+         prompt = original_prompt
+         loops = 0
+      loops += 1
+
+      resp = make_completion(prompt)
+      print(resp + "\n")
+
+      event_count = 0
+      processed_lines: List[str] = []
+      delta_game = game.copy()
+      for line in resp.split("\n"):
+         processed_lines.append(line)
+
+         ok, err = delta_game.process_line(line)
+
+         if ok:
+            event_count += 1
+         else:
+            template = Template(prompt + error_in_function_calls)
+            template["AI_RESPONSE"] = resp
+            template["OUTPUT"] = "".join(f">>> {l}\n" for l in processed_lines) + err
+            prompt = template.render()
+            break
+      else:
+         if event_count > 0:
+            return delta_game
+         template = Template(prompt + need_more_function_calls)
+         template["AI_RESPONSE"] = resp
+         template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
+         prompt = template.render()
+
+
 def game_loop(game:Game):
    while True:
       current_state = game.get_current_state()
@@ -272,16 +327,10 @@ def game_loop(game:Game):
       if current_state == State.INITIALIZING:
          template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
          prompt = template.render()
-         while True:
-            resp = make_completion(prompt)
-            print(resp)
-            game.process_response(resp)
-            if game.get_current_state() != State.INITIALIZING:
-               break
-            template = Template(prompt + need_more_function_calls)
-            template["AI_RESPONSE"] = resp
-            template["SYSTEM_RESPONSE"] = "Make sure to call `move_to_location` to navigate to the created location"
-            prompt = template.render()
+
+         game = update_from_prompt(prompt, game)
+         last_location = game.get_last_event(E.Create_Location_Event).name
+         game.events.append(E.Move_To_Location_Event(last_location))
 
       elif current_state == State.LOCATION_IDLE:
          current_location = game.get_last_event(E.Move_To_Location_Event).location_name
@@ -294,17 +343,7 @@ def game_loop(game:Game):
          template["PLAYER_INPUT"] = player_input
          prompt = template.render()
 
-         event_count = 0
-         while True:
-            resp = make_completion(prompt)
-            print(resp)
-            event_count += game.process_response(resp)
-            if event_count > 0:
-               break
-            template = Template(prompt + need_more_function_calls)
-            template["AI_RESPONSE"] = resp
-            template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
-            prompt = template.render()
+         game = update_from_prompt(prompt, game)
 
       elif current_state == State.LOCATION_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
@@ -318,17 +357,7 @@ def game_loop(game:Game):
             template["CONVERSATION"] = "\n".join(e.render() for e in conv_history)
             prompt = template.render()
 
-            event_count = 0
-            while True:
-               resp = make_completion(prompt)
-               print(resp)
-               event_count += game.process_response(resp)
-               if event_count > 0:
-                  break
-               template = Template(prompt + need_more_function_calls)
-               template["AI_RESPONSE"] = resp
-               template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
-               prompt = template.render()
+            game = update_from_prompt(prompt, game)
          else:
             # prompt player for response
             resp = input("How to respond? ").strip()
@@ -340,7 +369,7 @@ def game_loop(game:Game):
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")\
    
-      with open("logs/events.json", "w") as f:
+      with open(f"{FOLDER_DIR}/events.json", "w") as f:
          json.dump(game.to_json(), f, indent="\t")
 
 
@@ -350,17 +379,18 @@ def main():
    game_loop(game)
 
 if __name__ == "__main__":
+   FOLDER_DIR = datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S")
+   if not os.path.exists(FOLDER_DIR):
+      os.makedirs(FOLDER_DIR)
+   json_log = f"{FOLDER_DIR}/prompts.json"
+
    logger.setLevel(logging.DEBUG)
    FORMAT = logging.Formatter("%(levelname)s: %(message)s")
    console = logging.StreamHandler()
    console.setLevel(logging.INFO)
    console.setFormatter(FORMAT)
    logger.addHandler(console)
-   if not os.path.exists("logs"):
-      os.mkdir("logs")
-   filename = datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S")
-   json_log = f"{filename}.json"
-   file = logging.FileHandler(f"{filename}.log")
+   file = logging.FileHandler(f"{FOLDER_DIR}/debug.log")
    file.setLevel(logging.DEBUG)
    file.setFormatter(FORMAT)
    logger.addHandler(file)

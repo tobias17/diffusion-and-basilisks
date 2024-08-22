@@ -68,6 +68,13 @@ $$begin_api$$
 $$end_api$$
 """.strip()
 
+characters_prompt = """
+The following is a list of existing characters the player can interact with:
+$$begin_characters$$
+%%CHARACTERS%%
+$$end_characters$$
+"""
+
 
 
 need_more_function_calls = """
@@ -78,13 +85,26 @@ $$end_calling$$
 $$begin_calling$$
 """.strip()
 
+error_in_function_calls = """
+%%AI_RESPONSE%%
+$$end_calling$$
+
+Error processing call block:
+$$begin_output$$
+%%OUTPUT%%
+$$end_output$$
+
+Please rewrite your last call block to remove these errors.
+$$begin_calling$$
+""".strip()
+
 
 
 state_prompts: Dict[State,str] = {}
 
 
 state_prompts[State.INITIALIZING] = f"""
-The player is currently in the INIALIZING state. Call the `create_location` function to generate a location and then call `move_to_location` to get there.
+The player is currently in the INIALIZING state. Call the `create_location` function to generate a location.
 $$begin_calling$$
 """.strip()
 
