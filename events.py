@@ -60,7 +60,8 @@ class Speak_Event(Event):
    is_player_speaking: bool
    text: str
    def render(self) -> str:
-      return ("Player" if self.is_player_speaking else self.with_character) + f": {self.text}"
+      cleaned_text = self.text.replace('"', "'")
+      return "speak_" + ("player_to_npc" if self.is_player_speaking else "npc_to_player") + f'("{cleaned_text}")'
 
 @dataclass
 class Begin_Traveling_Event(Event):

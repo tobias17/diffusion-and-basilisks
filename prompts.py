@@ -43,59 +43,59 @@ Your interactions with the game world will be through an API where you will call
 
 begin_example
 
-$$begin_api$$
+<example-api>
 def create_apple(color:str, physical_description:str) -> None: # Creates a new apple with the given color and physical description
-$$end_api$$
+</example-api>
 
-$$begin_calling$$
+<example-calling>
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
-$$end_calling$$
+</example-calling>
 
 end_example
 '''.strip()
 
 overview_prompt = """
 The following is an overview of the current game:
-$$begin_overview$$
+<overview>
 %%OVERVIEW%%
-$$end_overview$$
+</overview>
 """.strip()
 
 api_description = """
 The following is the real API that you will have access to.
-$$begin_api$$
+<api>
 %%API_DESCRIPTION%%
-$$end_api$$
+</api>
 """.strip()
 
 characters_prompt = """
 The following is a list of existing characters the player can interact with:
-$$begin_characters$$
+<characters>
 %%CHARACTERS%%
-$$end_characters$$
+</characters>
 """
 
 
 
 need_more_function_calls = """
 %%AI_RESPONSE%%
-$$end_calling$$
+</calling>
 
 %%SYSTEM_RESPONSE%%
-$$begin_calling$$
+<calling>
 """.strip()
 
 error_in_function_calls = """
 %%AI_RESPONSE%%
-$$end_calling$$
+</calling>
 
 Error processing call block:
-$$begin_output$$
+<output>
 %%OUTPUT%%
-$$end_output$$
+</output>
 
 Please rewrite your last call block to remove these errors.
-$$begin_calling$$
+<calling>
 """.strip()
 
 
@@ -105,21 +105,21 @@ state_prompts: Dict[State,str] = {}
 
 state_prompts[State.INITIALIZING] = f"""
 The player is currently in the INIALIZING state. Call the `create_location` function to generate a location.
-$$begin_calling$$
+<calling>
 """.strip()
 
 ask_for_function_calls = """
 Please call the necessary functions to progress the game state in a fun-but-in-the-guide-rails manner.
 Make sure to ONLY call the functions required, based on the player input or system instructions. Do NOT add extra functions.
-$$begin_calling$$
+<calling>
 """.strip()
 
 
 state_prompts[State.LOCATION_IDLE] = f"""
 The player is currently in the LOCATION_IDLE state. The player has been prompted what they would like to do next.
-$$begin_player_input$$
+<player-input>
 %%PLAYER_INPUT%%
-$$end_player_input$$
+</player-input>
 
 {ask_for_function_calls}
 """.strip()
@@ -130,11 +130,11 @@ The player is currently in the LOCATION_TALK state where they are interacting wi
 %%NPC_NAME%%
 %%NPC_DESCRIPTION%%
 
-$$begin_conversation$$
+<conversation>
 %%CONVERSATION%%
-$$end_conversation$$
+</conversation>
 
-While you have access to a library of functions, try and use just `respond_as_npc` unless others are absolutely necessary.
+While you have access to a library of functions, try and use just `speak_npc_to_player` unless others are absolutely necessary.
 
 {ask_for_function_calls}
 """.strip()

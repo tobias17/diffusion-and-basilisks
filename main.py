@@ -231,7 +231,7 @@ Function_Map.register(
 )
 Function_Map.register(
    Function(
-      Game.respond_as_npc, "respond_as_npc", "Responds to the player through the NPC they are currently talking with, do not add any prefixes just the raw text the player should say",
+      Game.respond_as_npc, "speak_npc_to_player", "Responds to the player through the NPC they are currently talking with, do not add any prefixes just the raw text the player should say",
       Parameter("response_text",str)
    ),
    State.LOCATION_TALK
