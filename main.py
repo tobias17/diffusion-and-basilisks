@@ -1,5 +1,5 @@
 from common import State, Event, logger
-from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt, error_in_function_calls
+from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt, error_in_function_calls, quests_prompt
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
@@ -75,6 +75,16 @@ class Game:
          if text is not None:
             overview.append(text+"\n")
       return "".join(overview)
+
+   def get_active_quests(self) -> List[E.Quest_Start]:
+      active_quests = []
+      completed_quests = set()
+      for event in reversed(self.events):
+         if isinstance(event, E.Quest_Complete):
+            completed_quests.add(event.quest_name)
+         elif isinstance(event, E.Quest_Start) and event.quest_name not in completed_quests:
+            active_quests.append(event)
+      return active_quests
 
    def process_line(self, line:str) -> Tuple[bool,str]:
       out, err = parse_function(line)
@@ -351,8 +361,9 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
       while not player_input:
          player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
       
-      template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
+      template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
       template["OVERVIEW"] = game.get_overview()
+      template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
       template["PLAYER_INPUT"] = player_input
       # prompt = template.render()
       return template.render(), False
@@ -364,8 +375,9 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
       conv_history = game.get_conversation_history(speak_target)
       if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
          # prompt AI for response
-         template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
+         template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
          template["OVERVIEW"] = game.get_overview()
+         template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
          template["NPC_NAME"] = speak_target
          template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
          template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)

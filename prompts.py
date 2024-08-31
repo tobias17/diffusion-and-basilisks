@@ -71,7 +71,7 @@ quests_prompt = """
 The following are the currently active quests:
 <quests>
 %%QUESTS%%</quests>
-"""
+""".strip()
 
 
 
