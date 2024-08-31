@@ -73,8 +73,8 @@ class Game:
       for event in self.events:
          text = event.system(current_location)
          if text is not None:
-            overview.append(text)
-      return "\n".join(overview)
+            overview.append(text+"\n")
+      return "".join(overview)
 
    def process_line(self, line:str) -> Tuple[bool,str]:
       out, err = parse_function(line)
@@ -368,7 +368,7 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
          template["OVERVIEW"] = game.get_overview()
          template["NPC_NAME"] = speak_target
          template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
-         template["CONVERSATION"] = "\n".join(e.render() for e in conv_history)
+         template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)
          # prompt = template.render()
          return template.render(), False
 

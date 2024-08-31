@@ -39,40 +39,38 @@ You are a large language model tasked with helping a human play a video game. Yo
 
 {default_world}
 
-Your interactions with the game world will be through an API where you will call python functions to generate content and make decisions. The following is an example of how you might follow this API.
-
-begin_example
-
+Your interactions with the game world will be through an API where you will call python functions to generate content and make decisions.
+The following is an example of how you might follow this API:
 <example-api>
-def create_apple(color:str, physical_description:str) -> None: # Creates a new apple with the given color and physical description
+def create_apple(color:str, physical_description:str): # Creates a new apple with the given color and physical description
 </example-api>
-
 <example-calling>
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
 </example-calling>
-
-end_example
 '''.strip()
 
 overview_prompt = """
 The following is an overview of the current game:
 <overview>
-%%OVERVIEW%%
-</overview>
+%%OVERVIEW%%</overview>
 """.strip()
 
 api_description = """
-The following is the real API that you will have access to.
+The following is the real API that you will have access to:
 <api>
-%%API_DESCRIPTION%%
-</api>
+%%API_DESCRIPTION%%</api>
 """.strip()
 
 characters_prompt = """
 The following is a list of existing characters the player can interact with:
 <characters>
-%%CHARACTERS%%
-</characters>
+%%CHARACTERS%%</characters>
+"""
+
+quests_prompt = """
+The following are the currently active quests:
+<quests>
+%%QUESTS%%</quests>
 """
 
 
@@ -130,9 +128,9 @@ The player is currently in the LOCATION_TALK state where they are interacting wi
 %%NPC_NAME%%
 %%NPC_DESCRIPTION%%
 
+The following is the interaction history between the player and %%NPC_NAME%%:
 <conversation>
-%%CONVERSATION%%
-</conversation>
+%%CONVERSATION%%</conversation>
 
 While you have access to a library of functions, try and use just `speak_npc_to_player` unless others are absolutely necessary.
 
