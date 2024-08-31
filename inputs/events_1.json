@@ -1,0 +1,29 @@
+[
+	{
+		"cls": "Create_Location_Event",
+		"name": "Whisperwind Village",
+		"description": "a small village nestled between two large hills with a quaint main street lined with shops and houses"
+	},
+	{
+		"cls": "Move_To_Location_Event",
+		"location_name": "Whisperwind Village"
+	},
+	{
+		"cls": "Create_Character_Event",
+		"character_name": "Gilda",
+		"location_name": "Whisperwind Village",
+		"background": "The manager of the local inn, known for her hospitality and ability to find rare items.",
+		"description": "a slender human woman with long flowing brown hair and bright blue eyes"
+	},
+	{
+		"cls": "Start_Conversation_Event",
+		"character_name": "Gilda",
+		"event_description": "You approach Gilda at the entrance of The Rusty Lantern Inn. She smiles warmly and greets you."
+	},
+	{
+		"cls": "Speak_Event",
+		"with_character": "Gilda",
+		"is_player_speaking": true,
+		"text": "HI THERE FRIEND :D"
+	}
+]

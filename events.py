@@ -3,22 +3,10 @@ from common import State, Event
 from dataclasses import dataclass
 from typing import Optional
 
-# @dataclass
-# class State_Transition_Event(Event):
-#    to_state: State
-#    def implication(self) -> Optional[State]:
-#       return self.to_state
-#    def render(self) -> str:
-#       return f"Transition to {self.to_state} state"
-
 @dataclass
 class Create_Location_Event(Event):
    name: str
    description: str
-   def __init__(self, location_name:str, location_description:str):
-      self.name = location_name
-      description = location_description.strip().strip(".,")
-      self.description = description[0].lower() + description[1:]
    def render(self) -> str:
       return f"You discover {self.name}: {self.description}"
    def system(self, current_location_name:str) -> Optional[str]:
@@ -88,3 +76,5 @@ class Quest_Start(Event):
 @dataclass
 class Quest_Complete(Event):
    quest_name: str
+
+event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }

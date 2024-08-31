@@ -32,6 +32,19 @@ class Game:
          data.append(entry)
       return data
 
+   @staticmethod
+   def from_json(data:List[Dict]) -> 'Game':
+      assert isinstance(data, list) and all(isinstance(e, dict) for e in data)
+      events: List[Event] = []
+      for event_data in data:
+         event_data = event_data.copy()
+         event_name = event_data.pop("cls", None)
+         assert event_name is not None, f"could not find cls in data: {event_data}"
+         event_cls = E.event_dictionary.get(event_name, None)
+         assert event_cls is not None, f"could not find event with name '{event_name}' in dictionary"
+         events.append(event_cls(**event_data))
+      return Game(events)
+
    def get_current_state(self) -> State:
       for event in reversed(self.events):
          state = event.implication()
@@ -320,6 +333,59 @@ def update_from_prompt(prompt:str, game:Game) -> Game:
          prompt = template.render()
 
 
+def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
+   current_state = game.get_current_state()
+
+   if current_state == State.INITIALIZING:
+      template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
+      # prompt = template.render()
+
+      return template.render(), False
+      # game = update_from_prompt(prompt, game)
+      # last_location = game.get_last_event(E.Create_Location_Event).name
+      # game.events.append(E.Move_To_Location_Event(last_location))
+
+   elif current_state == State.LOCATION_IDLE:
+      current_location = game.get_last_event(E.Move_To_Location_Event).location_name
+      player_input = ""
+      while not player_input:
+         player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
+      
+      template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
+      template["OVERVIEW"] = game.get_overview()
+      template["PLAYER_INPUT"] = player_input
+      # prompt = template.render()
+      return template.render(), False
+
+      # game = update_from_prompt(prompt, game)
+
+   elif current_state == State.LOCATION_TALK:
+      speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
+      conv_history = game.get_conversation_history(speak_target)
+      if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
+         # prompt AI for response
+         template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
+         template["OVERVIEW"] = game.get_overview()
+         template["NPC_NAME"] = speak_target
+         template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
+         template["CONVERSATION"] = "\n".join(e.render() for e in conv_history)
+         # prompt = template.render()
+         return template.render(), False
+
+         # game = update_from_prompt(prompt, game)
+      else:
+         # prompt player for response
+         return "How to respond? ", True
+         # resp = input("How to respond? ").strip()
+         # if resp.lower() == "leave":
+         #    game.events.append(E.End_Converstation_Event())
+         # else:
+         #    game.events.append(E.Speak_Event(speak_target, True, resp))
+
+   else:
+      raise ValueError(f"game_loop() does not support {current_state} state yet")
+
+
 def game_loop(game:Game):
    while True:
       current_state = game.get_current_state()
@@ -367,7 +433,7 @@ def game_loop(game:Game):
                game.events.append(E.Speak_Event(speak_target, True, resp))
 
       else:
-         raise ValueError(f"game_loop() does not support {current_state} state yet")\
+         raise ValueError(f"game_loop() does not support {current_state} state yet")
    
       with open(f"{FOLDER_DIR}/events.json", "w") as f:
          json.dump(game.to_json(), f, indent="\t")
