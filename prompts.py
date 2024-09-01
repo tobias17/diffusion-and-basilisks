@@ -41,12 +41,12 @@ You are a large language model tasked with helping a human play a video game. Yo
 
 Your interactions with the game world will be through an API where you will call python functions to generate content and make decisions.
 The following is an example of how you might follow this API:
-<example-api>
+<api>
 def create_apple(color:str, physical_description:str): # Creates a new apple with the given color and physical description
-</example-api>
-<example-calling>
+</api>
+<calling>
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
-</example-calling>
+</calling>
 '''.strip()
 
 overview_prompt = """
@@ -65,7 +65,7 @@ characters_prompt = """
 The following is a list of existing characters the player can interact with:
 <characters>
 %%CHARACTERS%%</characters>
-"""
+""".strip()
 
 quests_prompt = """
 The following are the currently active quests:
