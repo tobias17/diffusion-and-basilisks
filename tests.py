@@ -48,6 +48,9 @@ class Test_Parse_Function(unittest.TestCase):
    def test_single_quote_in_double_quote(self):
       self.__happy('create_location("A great sprawling city", "Eldrida\'s Pride")', 'create_location', ('"A great sprawling city"', '"Eldrida\'s Pride"'), {})
    
+   def test_example_1(self):
+      self.__happy("""speak_npc_to_player("I'm glad to meet you. I am Gilda, the manager of the Whisperwind Village Inn. What brings you here today?")""", "speak_npc_to_player", ('''"I'm glad to meet you. I am Gilda, the manager of the Whisperwind Village Inn. What brings you here today?"''',), {})
+   
    def test_mismatched_quotes(self):
       self.__sad('add_text("this is some text", "a mistmatched string)')
    def test_arg_after_kwarg(self):

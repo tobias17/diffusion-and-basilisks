@@ -281,7 +281,7 @@ def make_completion(prompt:str):
       ],
       temperature=0.8,
       max_tokens=256,
-      stop=["</calling>", "<|end_of_text|>"],
+      stop=["</calling>", "</call", "<|end_of_text|>"],
    )
 
    resp = completion.choices[0].message.content
@@ -301,7 +301,7 @@ def make_completion(prompt:str):
       with open(json_log, "w") as f:
          json.dump(data, f, indent="\t")
 
-   return resp.strip()
+   return resp.split("<")[0].strip()
 
 MAX_LOOPS = 3
 def update_from_prompt(prompt:str, game:Game) -> Game:
