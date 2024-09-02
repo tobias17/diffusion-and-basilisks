@@ -37,7 +37,7 @@ def update_from_prompt(prompt:str, game:Game, decision_log=None) -> Tuple[bool,L
             decision_log.append({"desc":"Error During Line Processing", "line":line, "error":err})
             template = Template(prompt + error_in_function_calls)
             template["AI_RESPONSE"] = resp
-            template["OUTPUT"] = "".join(f">>> {l}\n" for l in processed_lines) + err
+            template["OUTPUT"] = "".join(f">>> {l}\n" for l in processed_lines) + f"ERROR: {err}"
             prompt = template.render()
             break
       else:
@@ -47,7 +47,7 @@ def update_from_prompt(prompt:str, game:Game, decision_log=None) -> Tuple[bool,L
          decision_log.append({"desc":"Processed All Lines but Got 0 Events"})
          template = Template(prompt + need_more_function_calls)
          template["AI_RESPONSE"] = resp
-         template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
+         template["SYSTEM_RESPONSE"] = "ERROR: Make sure to call atleast 1 function before ending the call block"
          prompt = template.render()
 
 def inject():
@@ -63,9 +63,12 @@ def inject():
    assert not from_player
    print(prompt)
 
-   done, decision_log = update_from_prompt(prompt, game)
-   with open(f"{FOLDER_DIR}/decision_log.json", "w") as f:
-      json.dump(decision_log, f, indent="\t")
+   all_logs = []
+   for _ in range(5):
+      done, decision_log = update_from_prompt(prompt, game)
+      all_logs.append(decision_log)
+   with open(f"{FOLDER_DIR}/decision_logs.json", "w") as f:
+      json.dump(all_logs, f, indent="\t")
 
 if __name__ == "__main__":
    inject()

@@ -129,7 +129,7 @@ class Game:
    def create_location(self, location_description:str, location_name:str) -> Tuple[bool,Optional[str]]:
       for event in self.events:
          if isinstance(event, E.Create_Location_Event) and event.name == location_name:
-            return False, f"A location with the name '{location_name}' already exists, you do no need to create another"
+            return False, f"A location with the name '{location_name}' already exists, no need to create another"
       self.events.append(E.Create_Location_Event(location_name, location_description))
       return True, None
    def move_to_location(self, location_name:str) -> Tuple[bool,Optional[str]]:
@@ -281,7 +281,7 @@ def make_completion(prompt:str):
       ],
       temperature=0.8,
       max_tokens=256,
-      stop=["</calling>", "</call", "<|end_of_text|>"],
+      stop=["</call", "<|end_of_text|>", "<|im_end|>"],
    )
 
    resp = completion.choices[0].message.content

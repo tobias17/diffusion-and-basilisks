@@ -28,6 +28,11 @@ class Template:
       return text
 
 
+SYSTEM_START    = "<|im_start|>system"
+SYSTEM_END      = "<|im_end|>"
+ASSISTANT_START = "<|im_start|>assistant"
+ASSISTANT_END   = "<|im_end|>"
+
 
 
 default_world = """
@@ -45,6 +50,7 @@ The following is an example of how you might follow this API:
 def create_apple(color:str, physical_description:str): # Creates a new apple with the given color and physical description
 </api>
 <calling>
+# Create a red apple with a rich description
 create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
 </calling>
 '''.strip()
@@ -75,27 +81,30 @@ The following are the currently active quests:
 
 
 
-need_more_function_calls = """
+need_more_function_calls = f"""
 %%AI_RESPONSE%%
-</calling>
-
-%%SYSTEM_RESPONSE%%
+</calling>{ASSISTANT_END}
+{SYSTEM_START}
+%%SYSTEM_RESPONSE%%{SYSTEM_END}
+{ASSISTANT_START}
 <calling>
 #
 """.strip()+" "
 
-error_in_function_calls = """
+error_in_function_calls = f"""
 %%AI_RESPONSE%%
-</calling>
-
+</calling>{ASSISTANT_END}
+{SYSTEM_START}
 Error processing call block:
 <output>
 %%OUTPUT%%
 </output>
 
-Please rewrite your last call block to remove these errors.
+Please rewrite your last calling block to remove these errors.{SYSTEM_END}
+{ASSISTANT_START}
 <calling>
-""".strip()
+#
+""".strip()+" "
 
 
 
@@ -107,10 +116,12 @@ The player is currently in the INIALIZING state. Call the `create_location` func
 <calling>
 """.strip()
 
-ask_for_function_calls = """
+ask_for_function_calls = f"""
 Please call the necessary functions to progress the game state in a fun-but-in-the-guide-rails manner.
-Make sure to ONLY call the functions required, based on the player input or system instructions. Do NOT add extra functions.
+Make sure to ONLY call the functions required, based on the player input or system instructions. Do NOT add extra functions.{SYSTEM_END}
+{ASSISTANT_START}
 <calling>
+#
 """.strip()
 
 
@@ -158,6 +169,7 @@ mega_prompts: Dict[State,str] = {
 # LOCATION_TALK #
 #################
 State.LOCATION_TALK: f"""
+{SYSTEM_START}
 {intro}
 
 {overview_prompt}
@@ -177,7 +189,6 @@ The following is the interaction history between the player and %%NPC_NAME%%:
 While you have access to a library of functions, try and use just `speak_npc_to_player` unless others are absolutely necessary.
 
 {ask_for_function_calls}
-#
 """.strip()+" ",
 
 }
