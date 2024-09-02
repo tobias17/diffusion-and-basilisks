@@ -1,5 +1,5 @@
 from common import State, Event, logger
-from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt, error_in_function_calls, quests_prompt
+from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt, error_in_function_calls, quests_prompt, mega_prompts
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
@@ -375,8 +375,10 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
       conv_history = game.get_conversation_history(speak_target)
       if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
          # prompt AI for response
-         template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
+         # template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
+         template = Template(mega_prompts[current_state])
          template["OVERVIEW"] = game.get_overview()
+         template["FUNCTIONS"] = Function_Map.render(current_state)
          template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
          template["NPC_NAME"] = speak_target
          template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description

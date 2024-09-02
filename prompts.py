@@ -81,7 +81,8 @@ need_more_function_calls = """
 
 %%SYSTEM_RESPONSE%%
 <calling>
-""".strip()
+#
+""".strip()+" "
 
 error_in_function_calls = """
 %%AI_RESPONSE%%
@@ -148,4 +149,37 @@ If instead you want to spawn an event or an interesting area, use the `create_lo
 
 {ask_for_function_calls}
 """.strip()
+
+
+
+mega_prompts: Dict[State,str] = {
+
+#################
+# LOCATION_TALK #
+#################
+State.LOCATION_TALK: f"""
+{intro}
+
+{overview_prompt}
+
+{quests_prompt}
+
+%%FUNCTIONS%%
+
+The player is currently in the LOCATION_TALK state where they are interacting with:
+%%NPC_NAME%%
+%%NPC_DESCRIPTION%%
+
+The following is the interaction history between the player and %%NPC_NAME%%:
+<conversation>
+%%CONVERSATION%%</conversation>
+
+While you have access to a library of functions, try and use just `speak_npc_to_player` unless others are absolutely necessary.
+
+{ask_for_function_calls}
+#
+""".strip()+" ",
+
+}
+
 

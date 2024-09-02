@@ -14,18 +14,18 @@ def update_from_prompt(prompt:str, game:Game, decision_log=None) -> Tuple[bool,L
          return False, decision_log
       loops += 1
 
-      decision_log.append({"desc":f"Requestiong Completion {loops}", "prompt":prompt.split("\n")})
+      decision_log.append({"desc":f"Requesting Completion {loops}", "prompt":prompt.split("\n")})
       resp = make_completion(prompt)
       decision_log.append({"desc":"Got Back Completion", "resp":resp.split("\n")})
 
       event_count = 0
       processed_lines: List[str] = []
       delta_game = game.copy()
-      for line in resp.split("\n"):
+      for line in ("# " + resp).split("\n"):
          line = line.strip()
          processed_lines.append(line)
          if line.startswith("#"):
-            decision_log.append({""})
+            decision_log.append({"desc":"Skipping Comment Line", "line":line})
             continue
 
          ok, err = delta_game.process_line(line)
@@ -63,7 +63,7 @@ def inject():
    assert not from_player
    print(prompt)
 
-   done, decision_log = update_from_prompt(prompt+"\n", game)
+   done, decision_log = update_from_prompt(prompt, game)
    with open(f"{FOLDER_DIR}/decision_log.json", "w") as f:
       json.dump(decision_log, f, indent="\t")
 
