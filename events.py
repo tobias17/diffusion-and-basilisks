@@ -78,4 +78,13 @@ class Quest_Start(Event):
 class Quest_Complete(Event):
    quest_name: str
 
+@dataclass
+class Goal_Add(Event):
+   goal_name: str
+   goal_description: str
+
+@dataclass
+class Goal_Complete(Event):
+   goal_name: str
+
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }

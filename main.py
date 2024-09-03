@@ -187,6 +187,23 @@ class Game:
             return True, None
       return False, f"Failed to find a quest with the name '{quest_name}'"
 
+   def add_internal_goal(self, goal_description:str, goal_name:str) -> Tuple[bool,Optional[str]]:
+      for event in reversed(self.events):
+         if isinstance(event, E.Goal_Add) and event.goal_name == goal_name:
+            return False, f"An internal goal with the name '{goal_name}' already exists"
+      self.events.append(E.Goal_Add(goal_name, goal_description))
+      return True, None
+   def complete_internal_goal(self, goal_name:str) -> Tuple[bool,Optional[str]]:
+      for event in reversed(self.events):
+         if isinstance(event, E.Goal_Complete) and event.goal_name == goal_name:
+            return False, f"The quest named '{goal_name}' has already been completed"
+         if isinstance(event, E.Goal_Add) and event.goal_name == goal_name:
+            self.events.append(E.Goal_Complete(goal_name))
+            return True, None
+      return False, f"Failed to find an internal goal with the name '{goal_name}'"
+
+
+
 
 
 #########################
@@ -259,6 +276,22 @@ Function_Map.register(
    Function(
       Game.complete_quest, "complete_quest", "Marks the specified quest as completed",
       Parameter("quest_name",str)
+   ),
+   State.LOCATION_IDLE, State.LOCATION_TALK
+)
+
+# Internal Goals
+Function_Map.register(
+   Function(
+      Game.add_internal_goal, "add_internal_goal", "Adds a goal for you to keep track of, not shown to the player",
+      Parameter("goal_description",str), Parameter("goal_name",str)
+   ),
+   State.LOCATION_IDLE, State.LOCATION_TALK
+)
+Function_Map.register(
+   Function(
+      Game.complete_internal_goal, "complete_internal_goal", "Marks the specified goal as completed",
+      Parameter("goal_name",str)
    ),
    State.LOCATION_IDLE, State.LOCATION_TALK
 )
