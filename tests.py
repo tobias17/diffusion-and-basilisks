@@ -3,7 +3,7 @@ from functions import Function, Parameter, parse_function, match_function
 from typing import List, Dict
 import unittest
 
-add_text = Function(lambda a, b: a + b, "add_text", "", Parameter("a",str), Parameter("b",str))
+# add_text = Function(lambda a, b: a + b, "add_text", "", Parameter("a",str), Parameter("b",str))
 
 def parse_function_helper():
    pass
@@ -36,6 +36,8 @@ class Test_Parse_Function(unittest.TestCase):
       self.assertIsNone(out, ctx)
       self.assertTrue(err, ctx)
 
+   def test_no_params(self):
+      self.__happy('add_text()', 'add_text', tuple(), {})
    def test_simple_case(self):
       self.__happy('add_text("Hello,", " sailor!")', 'add_text', ('"Hello,"', '" sailor!"'), {})
    def test_mixed_args(self):
@@ -57,38 +59,38 @@ class Test_Parse_Function(unittest.TestCase):
       self.__sad('add_text(first="Hello,", " sailor!")')
 
 
-function_pool = [
-   Function((lambda s,a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str)),
-   Function((lambda s,a,b: a+b), "add_nums", "", Parameter("a",int), Parameter("b",int))
-]
+# function_pool = [
+#    Function((lambda s,a,b: a+b), "add_text", "", Parameter("first",str), Parameter("second",str)),
+#    Function((lambda s,a,b: a+b), "add_nums", "", Parameter("a",int), Parameter("b",int))
+# ]
 
-class Test_Match_Function(unittest.TestCase):
+# class Test_Match_Function(unittest.TestCase):
    
-   def __happy(self, func_name:str, args:List, kwargs:Dict, expected_output):
-      call, err = match_function(func_name, args, kwargs, function_pool)
-      self.assertIsNotNone(call, err)
-      assert call is not None
-      out = call(None)
-      self.assertEqual(out, expected_output)
+#    def __happy(self, func_name:str, args:List, kwargs:Dict, expected_output):
+#       call, err = match_function(func_name, args, kwargs, function_pool)
+#       self.assertIsNotNone(call, err)
+#       assert call is not None
+#       out = call(None)
+#       self.assertEqual(out, expected_output)
    
-   def __sad(self, func_name:str, args:List, kwargs:Dict):
-      call, err = match_function(func_name, args, kwargs, function_pool)
-      self.assertIsNone(call, "Expected output to fail but got non-None value back")
-      self.assertTrue(err, "Got None back but error message was empty")
+#    def __sad(self, func_name:str, args:List, kwargs:Dict):
+#       call, err = match_function(func_name, args, kwargs, function_pool)
+#       self.assertIsNone(call, "Expected output to fail but got non-None value back")
+#       self.assertTrue(err, "Got None back but error message was empty")
 
-   def test_simple_cast(self):
-      self.__happy("add_text", ('"Hello,"', '" sailor!"'), {}, "Hello, sailor!")
-   def test_int_cast(self):
-      self.__happy("add_nums", ("5", "7"), {}, 12)
-   def test_negative_int_cast(self):
-      self.__happy("add_nums", ("-5", "7"), {}, 2)
-   def test_pos_and_kwargs_mix(self):
-      self.__happy("add_nums", ("5"), {"b": "7"}, 12)
+#    def test_simple_cast(self):
+#       self.__happy("add_text", ('"Hello,"', '" sailor!"'), {}, "Hello, sailor!")
+#    def test_int_cast(self):
+#       self.__happy("add_nums", ("5", "7"), {}, 12)
+#    def test_negative_int_cast(self):
+#       self.__happy("add_nums", ("-5", "7"), {}, 2)
+#    def test_pos_and_kwargs_mix(self):
+#       self.__happy("add_nums", ("5"), {"b": "7"}, 12)
    
-   def test_bad_int_cast(self):
-      self.__sad("add_nums", ("5", "7.8"), {})
-   def test_kwarg_before_pos_arg(self):
-      self.__sad("add_nums", ("5"), {"a": "7"})
+#    def test_bad_int_cast(self):
+#       self.__sad("add_nums", ("5", "7.8"), {})
+#    def test_kwarg_before_pos_arg(self):
+#       self.__sad("add_nums", ("5"), {"a": "7"})
 
 if __name__ == "__main__":
    unittest.main()

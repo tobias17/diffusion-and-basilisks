@@ -78,8 +78,8 @@ The following is the API you will have access to. You are allowed to call 1 of t
 """.strip()
 
 ask_for_scratchpad = f"""
-Use the following scratchpad to create an action plan. Write atleast 1 line and use more if needed, describing what you intend on doing.
-If you want to call a chain of multiple API functions, write out your full plan here.{SYSTEM_END}
+To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).
+If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.{SYSTEM_END}
 {ASSISTANT_START}
 <scratchpad>
 """.strip()

@@ -37,7 +37,7 @@ class Function:
    def render_short(self) -> str:
       return f"def {self.name}(): # {self.comment}\n"
    def render_long(self) -> str:
-      return f'def {self.name}({", ".join(p.render() for p in self.params)}):\n\t"""\n\t{self.comment}\n\n\tParameters:\n\t----------\n\t' + "".join(p.render_long() for p in self.params) + '"""\n'
+      return f'def {self.name}({", ".join(p.render() for p in self.params)}):\n\t"""\n\t{self.comment}\n\n\tParameters:\n\t-----------\n\t' + "".join(p.render_long() for p in self.params) + '"""\n'
 
 class Function_Map:
    mapping: Dict[State,List[Function]] = {}
@@ -67,7 +67,7 @@ class Function_Map:
 ### Usage Functions ###
 #######################
 
-func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.+)\)$')
+func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.*)\)$')
 
 def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
    if "\t" in line: return None, "Function calling blocks cannont contain the \\t character"
@@ -82,6 +82,8 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
       return None, "Go bad input, could not parse a function from this"
    func_name   = match.group(1)
    orig_params = match.group(2)
+   if len(orig_params) == 0:
+      return (func_name, tuple(), {}), ""
 
    cleaned_params = ""
    quote_char = None

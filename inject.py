@@ -81,24 +81,24 @@ class Prompt_Evolver:
       self.state_functions = Function_Map.get(current_state)
    
    def get_extension(self) -> str:
-      if self.micro_state == Micro_State.FILL_FUNCTION:
-         api_def = "".join(f.render_long() for f in self.state_functions)
+      if self.micro_state != Micro_State.FILL_FUNCTION:
+         api_def = "".join(f.render_short() for f in self.state_functions)
       else:
-         api_def = self.selected_function.render_short()
+         api_def = self.selected_function.render_long()
       ext = define_api.replace("%%API%%", api_def) + "\n" + ask_for_scratchpad
 
       if self.micro_state == Micro_State.CREATE_SCRATCHPAD:
          return ext
 
-      ext += "\n" + self.scratchpad + end_scratchpad + "\n" + ask_for_function_call
+      ext += "\n" + self.scratchpad + "\n" + end_scratchpad + "\n" + ask_for_function_call
       if self.micro_state == Micro_State.CHOOSE_FUNCTION:
          return ext
       
       if self.micro_state == Micro_State.FILL_FUNCTION:
-         return "\n" + self.selected_function.name + "("
+         return ext + "\n" + self.selected_function.name + "("
       
       if self.micro_state == Micro_State.UPDATE_SCRATCHPAD:
-         return "\n" + self.full_function_call + end_function_calling + "\n" + update_scratchpad
+         return ext + "\n" + self.full_function_call + end_function_calling + "\n" + update_scratchpad
       
       assert self.micro_state != Micro_State.DONE, "Prompt_Evolver in done state, cannot get_extension"
 
@@ -106,7 +106,7 @@ class Prompt_Evolver:
    
    def process_output(self, output:str) -> Tuple[bool,str]:
       if self.micro_state == Micro_State.CREATE_SCRATCHPAD:
-         self.scratchpad = output
+         self.scratchpad = output.strip()
          self.micro_state = Micro_State.CHOOSE_FUNCTION
          return True, ""
    
@@ -172,17 +172,17 @@ def inject():
    event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
 
    for key, outputs in injects.items():
-      event_log.append({"break":"="*40, "event":"Starting New Session"})
+      event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
       evolver = Prompt_Evolver(current_state)
       try:
          for output in outputs:
             ext = evolver.get_extension()
-            event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state})
+            event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
             ok, msg = evolver.process_output(output)
             if not ok:
                event_log.append({"event":"Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
             else:
-               event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state})
+               event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
       except Exception as ex:
          _, _, exc_tb = sys.exc_info()
          event_log.append({"event":"ERROR: Unhandled Exception", "error":f"{ex} ({os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno})"})
