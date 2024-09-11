@@ -1,0 +1,8 @@
+{
+    "simple_case": [
+        "Respond to the player telling them hi back",
+        "speak_npc_to_player()",
+        "\"Hello there, how are you doing?\")",
+        ""
+    ]
+}

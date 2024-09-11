@@ -1,6 +1,6 @@
 from main import Game, get_prompt_from_game_state, make_completion, Template, Function_Map, Function, State
-import json, datetime, os
-from typing import List, Tuple, Callable
+import json, datetime, os, sys
+from typing import List, Tuple, Callable, Optional, Dict
 
 MAX_LOOPS = 3
 def update_from_prompt(prompt:str, game:Game, decision_log=None) -> Tuple[bool,List]:
@@ -58,13 +58,13 @@ def update_from_prompt(prompt:str, game:Game, decision_log=None) -> Tuple[bool,L
 #    prompt += "\n# ".join(comments) + f"\n{function_name}("
 #    return prompt
 
-from enum import Enum, auto
+from enum import Enum
 class Micro_State(Enum):
-   CREATE_SCRATCHPAD = auto()
-   CHOOSE_FUNCTION = auto()
-   FILL_FUNCTION = auto()
-   UPDATE_SCRATCHPAD = auto()
-   DONE = auto()
+   CREATE_SCRATCHPAD = "CREATE_SCRATCHPAD"
+   CHOOSE_FUNCTION   = "CHOOSE_FUNCTION"
+   FILL_FUNCTION     = "FILL_FUNCTION"
+   UPDATE_SCRATCHPAD = "UPDATE_SCRATCHPAD"
+   DONE              = "DONE"
 
 from prompts import define_api, ask_for_scratchpad, end_scratchpad, ask_for_function_call, end_function_calling, update_scratchpad
 from functions import parse_function, match_function
@@ -156,27 +156,39 @@ class Prompt_Evolver:
 def inject():
    with open("inputs/events_1.json", "r") as f:
       data = json.load(f)
+   with open("inputs/injects_1.json", "r") as f:
+      injects: Dict[str,List[str]] = json.load(f)
    game = Game.from_json(data)
 
-   FOLDER_DIR = datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S")
+   # FOLDER_DIR = datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S")
+   FOLDER_DIR = "logs/inject"
    if not os.path.exists(FOLDER_DIR):
       os.makedirs(FOLDER_DIR)
    
+   event_log = []
+
    prompt, from_player, current_state = get_prompt_from_game_state(game)
    assert not from_player
+   event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
 
-   if False:
-      prompt = populate_full_api(prompt, current_state)
-   else:
-      prompt = populate_single_api(prompt, current_state, "speak_npc_to_player", ["Tell the player hello back"])
-   print(prompt)
+   for key, outputs in injects.items():
+      event_log.append({"break":"="*40, "event":"Starting New Session"})
+      evolver = Prompt_Evolver(current_state)
+      try:
+         for output in outputs:
+            ext = evolver.get_extension()
+            event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state})
+            ok, msg = evolver.process_output(output)
+            if not ok:
+               event_log.append({"event":"Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
+            else:
+               event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state})
+      except Exception as ex:
+         _, _, exc_tb = sys.exc_info()
+         event_log.append({"event":"ERROR: Unhandled Exception", "error":f"{ex} ({os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno})"})
 
-   # all_logs = []
-   # for _ in range(5):
-   #    done, decision_log = update_from_prompt(prompt, game)
-   #    all_logs.append(decision_log)
-   # with open(f"{FOLDER_DIR}/decision_logs.json", "w") as f:
-   #    json.dump(all_logs, f, indent="\t")
+   with open(os.path.join(FOLDER_DIR, "event_log.json"), "w") as f:
+      json.dump(event_log, f, indent="\t")
 
 if __name__ == "__main__":
    inject()
