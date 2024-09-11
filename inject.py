@@ -104,6 +104,9 @@ class Prompt_Evolver:
 
       raise RuntimeError(f"[INVALID_STATE] Reached the end of get_extension, should have gotten a handled return by now")
    
+   def should_call(self) -> bool:
+      return self.micro_state == Micro_State.UPDATE_SCRATCHPAD
+
    def process_output(self, output:str) -> Tuple[bool,str]:
       if self.micro_state == Micro_State.CREATE_SCRATCHPAD:
          self.scratchpad = output.strip()
@@ -176,6 +179,7 @@ def inject():
    for key, outputs in injects.items():
       event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
       evolver = Prompt_Evolver(current_state)
+      delta_game = game.copy()
       try:
          for output in outputs:
             ext = evolver.get_extension()
@@ -185,6 +189,12 @@ def inject():
                event_log.append({"event":"Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
             else:
                event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
+            if evolver.should_call():
+               ok, msg = evolver.call(delta_game)
+               if not ok:
+                  event_log.append({"event":"Got Back Not-OK Calling Function", "message":msg})
+               else:
+                  event_log.append({"event":"Called Function OK"})
          if evolver.micro_state == Micro_State.DONE:
             event_log.append({"event":"Ended on DONE State", "scratchpad":evolver.scratchpad.split("\n")})
       except Exception as ex:
