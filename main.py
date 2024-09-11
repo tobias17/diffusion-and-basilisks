@@ -384,7 +384,7 @@ def update_from_prompt(prompt:str, game:Game) -> Game:
          prompt = template.render()
 
 
-def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
+def get_prompt_from_game_state(game:Game) -> Tuple[str,bool,State]:
    current_state = game.get_current_state()
 
    if current_state == State.INITIALIZING:
@@ -421,18 +421,18 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
          # template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
          template = Template(mega_prompts[current_state])
          template["OVERVIEW"] = game.get_overview()
-         template["API"] = Function_Map.render(current_state, lambda f: f.render_short())
+         # template["API"] = Function_Map.render(current_state, lambda f: f.render_short())
          template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
          template["NPC_NAME"] = speak_target
          template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
          template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)
          # prompt = template.render()
-         return template.render(), False
+         return template.render(), False, current_state
 
          # game = update_from_prompt(prompt, game)
       else:
          # prompt player for response
-         return "How to respond? ", True
+         return "How to respond? ", True, current_state
          # resp = input("How to respond? ").strip()
          # if resp.lower() == "leave":
          #    game.events.append(E.End_Converstation_Event())

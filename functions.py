@@ -35,9 +35,9 @@ class Function:
    def render(self) -> str:
       return f"def {self.name}({', '.join(p.render() for p in self.params)}): # {self.comment}"
    def render_short(self) -> str:
-      return f"def {self.name}(): # {self.comment}"
+      return f"def {self.name}(): # {self.comment}\n"
    def render_long(self) -> str:
-      return f'def {self.name}({", ".join(p.render() for p in self.params)}):\n\t"""\n\t{self.comment}\n\n\tParameters:\n\t----------\n\t' + "".join(p.render_long() for p in self.params) + '"""'
+      return f'def {self.name}({", ".join(p.render() for p in self.params)}):\n\t"""\n\t{self.comment}\n\n\tParameters:\n\t----------\n\t' + "".join(p.render_long() for p in self.params) + '"""\n'
 
 class Function_Map:
    mapping: Dict[State,List[Function]] = {}
@@ -50,12 +50,15 @@ class Function_Map:
          Function_Map.mapping[state].append(fxn)
 
    @staticmethod
-   def get(key:State) -> List[Function]:
-      return Function_Map.mapping.get(key, [])
+   def get(key:State, specific_function:Optional[str]=None) -> List[Function]:
+      funcs = Function_Map.mapping.get(key, [])
+      if specific_function is not None:
+         funcs = [f for f in funcs if f.name == specific_function]
+      return funcs
 
    @staticmethod
-   def render(key:State, render_fnx=(lambda f: f.render())) -> str:
-      return api_description.replace("%%API_DESCRIPTION%%", "".join(render_fnx(f)+"\n" for f in Function_Map.get(key)))
+   def render(key:State, render_fnx=(lambda f: f.render()), specific_function:Optional[str]=None) -> str:
+      return api_description.replace("%%API_DESCRIPTION%%", "".join(render_fnx(f)+"\n" for f in Function_Map.get(key, specific_function)))
 
 
 

@@ -71,12 +71,42 @@ The following are the currently active quests:
 
 
 
+define_api = f"""
+The following is the API you will have access to. You are allowed to call 1 of these at a time.
+<api>
+%%API%%</api>
+""".strip()
+
+ask_for_scratchpad = f"""
+Use the following scratchpad to create an action plan. Write atleast 1 line and use more if needed, describing what you intend on doing.
+If you want to call a chain of multiple API functions, write out your full plan here.{SYSTEM_END}
+{ASSISTANT_START}
+<scratchpad>
+""".strip()
+
+end_scratchpad = f"""
+</scratchpad>{ASSISTANT_END}
+{SYSTEM_START}
+""".strip()
+
+update_scratchpad = f"""
+Please rewrtie an updated scratchpad based on what you just accomplished.
+Remove any items completed but keep tasks that need completing.
+Leave the scratchpad empty iff you completed all of your tasks.{SYSTEM_END}
+{ASSISTANT_START}
+<scratchpad>
+""".strip()
+
 ask_for_function_call = f"""
 Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.
 Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.{SYSTEM_END}
 {ASSISTANT_START}
 <calling>
-#
+""".strip()
+
+end_function_calling = f"""
+</calling>{ASSISTANT_END}
+{SYSTEM_START}
 """.strip()
 
 
@@ -101,11 +131,7 @@ The player is currently in the LOCATION_TALK state where they are interacting wi
 The following is the interaction history between the player and %%NPC_NAME%%:
 <conversation>
 %%CONVERSATION%%</conversation>
-
-%%API%%
-
-{ask_for_function_call}
-""".strip()+" ",
+""".strip(),
 
 }
 
