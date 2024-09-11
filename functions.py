@@ -54,8 +54,9 @@ class Function_Map:
       return Function_Map.mapping.get(key, [])
 
    @staticmethod
-   def render(key:State) -> str:
-      return api_description.replace("%%API_DESCRIPTION%%", "".join(f.render()+"\n" for f in Function_Map.get(key)))
+   def render(key:State, render_fnx=(lambda f: f.render())) -> str:
+      return api_description.replace("%%API_DESCRIPTION%%", "".join(render_fnx(f)+"\n" for f in Function_Map.get(key)))
+
 
 
 

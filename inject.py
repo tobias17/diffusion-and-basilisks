@@ -1,4 +1,4 @@
-from main import Game, get_prompt_from_game_state, make_completion, Template, error_in_function_calls, need_more_function_calls
+from main import Game, get_prompt_from_game_state, make_completion, Template
 import json, datetime, os
 from typing import List, Tuple
 
@@ -63,12 +63,12 @@ def inject():
    assert not from_player
    print(prompt)
 
-   all_logs = []
-   for _ in range(5):
-      done, decision_log = update_from_prompt(prompt, game)
-      all_logs.append(decision_log)
-   with open(f"{FOLDER_DIR}/decision_logs.json", "w") as f:
-      json.dump(all_logs, f, indent="\t")
+   # all_logs = []
+   # for _ in range(5):
+   #    done, decision_log = update_from_prompt(prompt, game)
+   #    all_logs.append(decision_log)
+   # with open(f"{FOLDER_DIR}/decision_logs.json", "w") as f:
+   #    json.dump(all_logs, f, indent="\t")
 
 if __name__ == "__main__":
    inject()

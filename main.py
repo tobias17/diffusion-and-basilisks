@@ -388,28 +388,30 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
    current_state = game.get_current_state()
 
    if current_state == State.INITIALIZING:
-      template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
-      # prompt = template.render()
+      assert False
+      # template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
+      # # prompt = template.render()
 
-      return template.render(), False
-      # game = update_from_prompt(prompt, game)
-      # last_location = game.get_last_event(E.Create_Location_Event).name
-      # game.events.append(E.Move_To_Location_Event(last_location))
+      # return template.render(), False
+      # # game = update_from_prompt(prompt, game)
+      # # last_location = game.get_last_event(E.Create_Location_Event).name
+      # # game.events.append(E.Move_To_Location_Event(last_location))
 
    elif current_state == State.LOCATION_IDLE:
-      current_location = game.get_last_event(E.Move_To_Location_Event).location_name
-      player_input = ""
-      while not player_input:
-         player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
+      assert False
+      # current_location = game.get_last_event(E.Move_To_Location_Event).location_name
+      # player_input = ""
+      # while not player_input:
+      #    player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
       
-      template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
-      template["OVERVIEW"] = game.get_overview()
-      template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
-      template["PLAYER_INPUT"] = player_input
-      # prompt = template.render()
-      return template.render(), False
+      # template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
+      # template["OVERVIEW"] = game.get_overview()
+      # template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
+      # template["PLAYER_INPUT"] = player_input
+      # # prompt = template.render()
+      # return template.render(), False
 
-      # game = update_from_prompt(prompt, game)
+      # # game = update_from_prompt(prompt, game)
 
    elif current_state == State.LOCATION_TALK:
       speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
@@ -419,7 +421,7 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool]:
          # template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
          template = Template(mega_prompts[current_state])
          template["OVERVIEW"] = game.get_overview()
-         template["FUNCTIONS"] = Function_Map.render(current_state)
+         template["API"] = Function_Map.render(current_state, lambda f: f.render_short())
          template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
          template["NPC_NAME"] = speak_target
          template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
