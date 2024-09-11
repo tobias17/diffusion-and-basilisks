@@ -15,9 +15,12 @@ import re
 class Parameter:
    name: str
    dtype: Type
+   description: str
    default: Optional[str] = None
    def render(self) -> str:
       return f"{self.name}:{self.dtype.__name__}" + (f"={self.default}" if self.default is not None else "")
+   def render_long(self) -> str:
+      return f"{self.name} : {self.dtype.__name__}\n\t\t{self.description}\n\t"
 
 class Function:
    call: Callable
@@ -31,6 +34,10 @@ class Function:
       self.params = list(params)
    def render(self) -> str:
       return f"def {self.name}({', '.join(p.render() for p in self.params)}): # {self.comment}"
+   def render_short(self) -> str:
+      return f"def {self.name}(): # {self.comment}"
+   def render_long(self) -> str:
+      return f'def {self.name}({", ".join(p.render() for p in self.params)}):\n\t"""\n\t{self.comment}\n\n\tParameters:\n\t----------\n\t' + "".join(p.render_long() for p in self.params) + '"""'
 
 class Function_Map:
    mapping: Dict[State,List[Function]] = {}

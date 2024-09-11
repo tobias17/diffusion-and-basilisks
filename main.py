@@ -1,5 +1,5 @@
 from common import State, Event, logger
-from prompts import Template, intro, state_prompts, need_more_function_calls, overview_prompt, error_in_function_calls, quests_prompt, mega_prompts
+from prompts import Template, intro, overview_prompt, quests_prompt, mega_prompts
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
@@ -210,91 +210,99 @@ class Game:
 ### Func Registration ###
 #########################
 
-# Location
 Function_Map.register(
    Function(
-      Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
-      Parameter("location_description",str), Parameter("location_name",str)
+      Game.respond_as_npc, "speak_npc_to_player", "Initiates a response to the player",
+      Parameter("response", str, "the text response, will be show directly to the player pre-formatted, provide ONLY the response text content and nothing else"),
    ),
-   State.INITIALIZING, State.LOCATION_IDLE, State.LOCATION_TALK
-)
-Function_Map.register(
-   Function(
-      Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
-      Parameter("location_name",str)
-   ),
-   State.LOCATION_IDLE
+   State.LOCATION_TALK,
 )
 
-# System
-Function_Map.register(
-   Function(
-      Game.describe_environment, "describe_environment", "Allows you to describe any part of the environment to the player, generally called after the player requests an action like looking around",
-      Parameter("description",str)
-   ),
-   State.LOCATION_IDLE
-)
+# # Location
+# Function_Map.register(
+#    Function(
+#       Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
+#       Parameter("location_description",str), Parameter("location_name",str)
+#    ),
+#    State.INITIALIZING, State.LOCATION_IDLE, State.LOCATION_TALK
+# )
+# Function_Map.register(
+#    Function(
+#       Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
+#       Parameter("location_name",str)
+#    ),
+#    State.LOCATION_IDLE
+# )
 
-# NPC
-Function_Map.register(
-   Function(
-      Game.create_npc, "create_npc", "Creates a new NPC that the player could interact with",
-      Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
-   ),
-   State.LOCATION_IDLE, State.LOCATION_TALK
-)
-Function_Map.register(
-   Function(
-      Game.talk_to_npc, "talk_to_npc", "Begins a talking interation between the player and the specified NPC, the `event_description` is shown to the player to explain how the interaction starts",
-      Parameter("character_name",str), Parameter("event_description",str)
-   ),
-   State.LOCATION_IDLE
-)
-Function_Map.register(
-   Function(
-      Game.stop_converstation, "stop_converstation", "Ends the current conversation, allowing other actiosn to be performed in the world, should be the last function called in a block",
-   ),
-   State.LOCATION_TALK
-)
-Function_Map.register(
-   Function(
-      Game.respond_as_npc, "speak_npc_to_player", "Responds to the player through the NPC they are currently talking with, do not add any prefixes just the raw text the player should say",
-      Parameter("response_text",str)
-   ),
-   State.LOCATION_TALK
-)
+# # System
+# Function_Map.register(
+#    Function(
+#       Game.describe_environment, "describe_environment", "Allows you to describe any part of the environment to the player, generally called after the player requests an action like looking around",
+#       Parameter("description",str)
+#    ),
+#    State.LOCATION_IDLE
+# )
 
-# Quests
-Function_Map.register(
-   Function(
-      Game.add_quest, "add_quest", "Adds a new quest for the player to complete",
-      Parameter("quest_description",str), Parameter("quest_name",str)
-   ),
-   State.LOCATION_IDLE, State.LOCATION_TALK
-)
-Function_Map.register(
-   Function(
-      Game.complete_quest, "complete_quest", "Marks the specified quest as completed",
-      Parameter("quest_name",str)
-   ),
-   State.LOCATION_IDLE, State.LOCATION_TALK
-)
+# # NPC
+# Function_Map.register(
+#    Function(
+#       Game.create_npc, "create_npc", "Creates a new NPC that the player could interact with",
+#       Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
+#    ),
+#    State.LOCATION_IDLE, State.LOCATION_TALK
+# )
+# Function_Map.register(
+#    Function(
+#       Game.talk_to_npc, "talk_to_npc", "Begins a talking interation between the player and the specified NPC, the `event_description` is shown to the player to explain how the interaction starts",
+#       Parameter("character_name",str), Parameter("event_description",str)
+#    ),
+#    State.LOCATION_IDLE
+# )
+# Function_Map.register(
+#    Function(
+#       Game.stop_converstation, "stop_converstation", "Ends the current conversation, allowing other actiosn to be performed in the world, should be the last function called in a block",
+#    ),
+#    State.LOCATION_TALK
+# )
+# Function_Map.register(
+#    Function(
+#       Game.respond_as_npc, "speak_npc_to_player", "Responds to the player through the NPC they are currently talking with, do not add any prefixes just the raw text the player should say",
+#       Parameter("response_text",str)
+#    ),
+#    State.LOCATION_TALK
+# )
 
-# Internal Goals
-Function_Map.register(
-   Function(
-      Game.add_internal_goal, "add_internal_goal", "Adds a goal for you to keep track of, not shown to the player",
-      Parameter("goal_description",str), Parameter("goal_name",str)
-   ),
-   State.LOCATION_IDLE, State.LOCATION_TALK
-)
-Function_Map.register(
-   Function(
-      Game.complete_internal_goal, "complete_internal_goal", "Marks the specified goal as completed",
-      Parameter("goal_name",str)
-   ),
-   State.LOCATION_IDLE, State.LOCATION_TALK
-)
+# # Quests
+# Function_Map.register(
+#    Function(
+#       Game.add_quest, "add_quest", "Adds a new quest for the player to complete",
+#       Parameter("quest_description",str), Parameter("quest_name",str)
+#    ),
+#    State.LOCATION_IDLE, State.LOCATION_TALK
+# )
+# Function_Map.register(
+#    Function(
+#       Game.complete_quest, "complete_quest", "Marks the specified quest as completed",
+#       Parameter("quest_name",str)
+#    ),
+#    State.LOCATION_IDLE, State.LOCATION_TALK
+# )
+
+# # Internal Goals
+# Function_Map.register(
+#    Function(
+#       Game.add_internal_goal, "add_internal_goal", "Adds a goal for you to keep track of, not shown to the player",
+#       Parameter("goal_description",str), Parameter("goal_name",str)
+#    ),
+#    State.LOCATION_IDLE, State.LOCATION_TALK
+# )
+# Function_Map.register(
+#    Function(
+#       Game.complete_internal_goal, "complete_internal_goal", "Marks the specified goal as completed",
+#       Parameter("goal_name",str)
+#    ),
+#    State.LOCATION_IDLE, State.LOCATION_TALK
+# )
 
 
 

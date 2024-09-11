@@ -43,16 +43,6 @@ intro = f'''
 You are a large language model tasked with helping a human play a video game. You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.
 
 {default_world}
-
-Your interactions with the game world will be through an API where you will call python functions to generate content and make decisions.
-The following is an example of how you might follow this API:
-<api>
-def create_apple(color:str, physical_description:str): # Creates a new apple with the given color and physical description
-</api>
-<calling>
-# Create a red apple with a rich description
-create_apple("red", "a Red Delicious apple, deep maroon skin, stem poking out of top, a slight glare of lighting")
-</calling>
 '''.strip()
 
 overview_prompt = """
@@ -62,7 +52,7 @@ The following is an overview of the current game:
 """.strip()
 
 api_description = """
-The following is the real API that you will have access to:
+The following is the API that you have access to:
 <api>
 %%API_DESCRIPTION%%</api>
 """.strip()
@@ -81,84 +71,12 @@ The following are the currently active quests:
 
 
 
-need_more_function_calls = f"""
-%%AI_RESPONSE%%
-</calling>{ASSISTANT_END}
-{SYSTEM_START}
-%%SYSTEM_RESPONSE%%{SYSTEM_END}
+ask_for_function_call = f"""
+Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.
+Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.{SYSTEM_END}
 {ASSISTANT_START}
 <calling>
 #
-""".strip()+" "
-
-error_in_function_calls = f"""
-%%AI_RESPONSE%%
-</calling>{ASSISTANT_END}
-{SYSTEM_START}
-Error processing call block:
-<output>
-%%OUTPUT%%
-</output>
-
-Please rewrite your last calling block to remove these errors.{SYSTEM_END}
-{ASSISTANT_START}
-<calling>
-#
-""".strip()+" "
-
-
-
-state_prompts: Dict[State,str] = {}
-
-
-state_prompts[State.INITIALIZING] = f"""
-The player is currently in the INIALIZING state. Call the `create_location` function to generate a location.
-<calling>
-""".strip()
-
-ask_for_function_calls = f"""
-Please call the necessary functions to progress the game state in a fun-but-in-the-guide-rails manner.
-Make sure to ONLY call the functions required, based on the player input or system instructions. Do NOT add extra functions.{SYSTEM_END}
-{ASSISTANT_START}
-<calling>
-#
-""".strip()
-
-
-state_prompts[State.LOCATION_IDLE] = f"""
-The player is currently in the LOCATION_IDLE state. The player has been prompted what they would like to do next.
-<player-input>
-%%PLAYER_INPUT%%
-</player-input>
-
-{ask_for_function_calls}
-""".strip()
-
-
-state_prompts[State.LOCATION_TALK] = f"""
-The player is currently in the LOCATION_TALK state where they are interacting with:
-%%NPC_NAME%%
-%%NPC_DESCRIPTION%%
-
-The following is the interaction history between the player and %%NPC_NAME%%:
-<conversation>
-%%CONVERSATION%%</conversation>
-
-While you have access to a library of functions, try and use just `speak_npc_to_player` unless others are absolutely necessary.
-
-{ask_for_function_calls}
-""".strip()
-
-
-state_prompts[State.TRAVELING] = f"""
-The player is currently in the TRAVELING state.
-
-Use the `describe_travel` function to give the player a description of their environment as they are in this traveling state.
-
-If you want to have the player arrive at their destination, use the `move_to_location` function to put them at the right location.
-If instead you want to spawn an event or an interesting area, use the `create_location` function first and then `move_to_location` to kick it off.
-
-{ask_for_function_calls}
 """.strip()
 
 
@@ -176,8 +94,6 @@ State.LOCATION_TALK: f"""
 
 {quests_prompt}
 
-%%FUNCTIONS%%
-
 The player is currently in the LOCATION_TALK state where they are interacting with:
 %%NPC_NAME%%
 %%NPC_DESCRIPTION%%
@@ -186,9 +102,9 @@ The following is the interaction history between the player and %%NPC_NAME%%:
 <conversation>
 %%CONVERSATION%%</conversation>
 
-While you have access to a library of functions, try and use just `speak_npc_to_player` unless others are absolutely necessary.
+%%API%%
 
-{ask_for_function_calls}
+{ask_for_function_call}
 """.strip()+" ",
 
 }
