@@ -1,6 +1,6 @@
 from main import Game, get_prompt_from_game_state, make_completion, Template, Function_Map, Function, State
 import json, datetime, os
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 MAX_LOOPS = 3
 def update_from_prompt(prompt:str, game:Game, decision_log=None) -> Tuple[bool,List]:
@@ -64,14 +64,17 @@ class Micro_State(Enum):
    CHOOSE_FUNCTION = auto()
    FILL_FUNCTION = auto()
    UPDATE_SCRATCHPAD = auto()
+   DONE = auto()
 
 from prompts import define_api, ask_for_scratchpad, end_scratchpad, ask_for_function_call, end_function_calling, update_scratchpad
+from functions import parse_function, match_function
 
 class Prompt_Evolver:
    micro_state: Micro_State
    scratchpad: str
    selected_function: Function
    full_function_call: str
+   call: Callable
 
    def __init__(self, current_state:State):
       self.micro_state = Micro_State.CREATE_SCRATCHPAD
@@ -97,6 +100,57 @@ class Prompt_Evolver:
       if self.micro_state == Micro_State.UPDATE_SCRATCHPAD:
          return "\n" + self.full_function_call + end_function_calling + "\n" + update_scratchpad
       
+      assert self.micro_state != Micro_State.DONE, "Prompt_Evolver in done state, cannot get_extension"
+
+      raise RuntimeError(f"[INVALID_STATE] Reached the end of get_extension, should have gotten a handled return by now")
+   
+   def process_output(self, output:str) -> Tuple[bool,str]:
+      if self.micro_state == Micro_State.CREATE_SCRATCHPAD:
+         self.scratchpad = output
+         self.micro_state = Micro_State.CHOOSE_FUNCTION
+         return True, ""
+   
+      elif self.micro_state == Micro_State.CHOOSE_FUNCTION:
+         lines = output.strip().split("\n")
+         if len(lines) != 1:
+            return False, f"Got {len(lines)} lines when choosing a function, expected exactly 1"
+         ret, msg = parse_function(lines[0])
+         if ret is None:
+            return False, msg
+         func_name, args, kwargs = ret
+         if (param_count := (len(args) + len(kwargs))) > 0:
+            return False, f"Got {param_count} parameters to function call, expected exactly 0"
+         for func in self.state_functions:
+            if func.name == func_name:
+               self.selected_function = func
+               self.micro_state = Micro_State.FILL_FUNCTION
+               return True, ""
+         else:
+            return False, f"Could not find function named '{func_name}', options are {[f.name for f in self.state_functions]}"
+      
+      elif self.micro_state == Micro_State.FILL_FUNCTION:
+         lines = output.strip().split("\n")
+         if len(lines) != 1:
+            return False, f"Got {len(lines)} lines when choosing a function, expected exactly 1"
+         ret, msg = parse_function(lines[0])
+         if ret is None:
+            return False, msg
+         func_name, args, kwargs = ret
+         call, msg = match_function(func_name, args, kwargs, [self.selected_function])
+         if call is None:
+            return False, msg
+         self.call = call
+         self.micro_state = Micro_State.UPDATE_SCRATCHPAD
+         return True, ""
+      
+      elif self.micro_state == Micro_State.UPDATE_SCRATCHPAD:
+         self.scratchpad = output
+         self.micro_state = Micro_State.DONE
+         return True, ""
+      
+      assert self.micro_state != Micro_State.DONE, "Prompt_Evolver in done state, cannot process_output"
+      
+      raise RuntimeError(f"[INVALID_STATE] Reached the end of process_output, should have gotten a handled return by now")
 
 
 def inject():
