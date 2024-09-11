@@ -129,6 +129,7 @@ class Prompt_Evolver:
             return False, f"Could not find function named '{func_name}', options are {[f.name for f in self.state_functions]}"
       
       elif self.micro_state == Micro_State.FILL_FUNCTION:
+         output = f"{self.selected_function.name}({output}"
          lines = output.strip().split("\n")
          if len(lines) != 1:
             return False, f"Got {len(lines)} lines when choosing a function, expected exactly 1"
@@ -140,6 +141,7 @@ class Prompt_Evolver:
          if call is None:
             return False, msg
          self.call = call
+         self.full_function_call = lines[0]
          self.micro_state = Micro_State.UPDATE_SCRATCHPAD
          return True, ""
       
@@ -183,6 +185,8 @@ def inject():
                event_log.append({"event":"Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
             else:
                event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
+         if evolver.micro_state == Micro_State.DONE:
+            event_log.append({"event":"Ended on DONE State", "scratchpad":evolver.scratchpad.split("\n")})
       except Exception as ex:
          _, _, exc_tb = sys.exc_info()
          event_log.append({"event":"ERROR: Unhandled Exception", "error":f"{ex} ({os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno})"})
