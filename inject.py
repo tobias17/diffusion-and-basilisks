@@ -1,4 +1,5 @@
-from main import Game, get_prompt_from_game_state
+from main import get_prompt_from_game_state
+from game import Game
 from evolver import Prompt_Evolver, Micro_State
 
 import json, datetime, os, sys
