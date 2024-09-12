@@ -78,7 +78,8 @@ end_function_calling = f"""
 limiter = "ONLY call functions that accomplish what the player is asking for, NOT more."
 instructions: Dict[State,str] = {
    State.TOWN_IDLE: f"Use the following player input to call the appropriate functions to progress the game state. {limiter}",
-   State.TOWN_TALK: f"Use the following converstation history and player input to respond to them and/or call other functions. {limiter}"
+   State.TOWN_TALK: f"Use the following converstation history and player input to respond to them and/or call other functions. {limiter}",
+   State.ON_THE_MOVE: f"Use the provied APIs to construct a fun and unique encounter event for the player to interact with, or have them arrive at their target location.",
 }
 
 def make_intro_prompt(state:State) -> str:
@@ -105,4 +106,5 @@ The following are the currently active quests:
 %%QUESTS%%</quests>
 
 {extra_info}The character is currently in the {state.value} state.
+{instructions[state]}
 """.strip()

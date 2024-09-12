@@ -283,23 +283,6 @@ Function_Map.register(
    State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE,
 )
 
-# # NPC
-# Function_Map.register(
-#    Function(
-#       Game.create_npc, "create_npc", "Creates a new NPC that the player could interact with",
-#       Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
-#    ),
-#    State.LOCATION_IDLE, State.LOCATION_TALK
-# )
-# Function_Map.register(
-#    Function(
-#       Game.respond_as_npc, "speak_npc_to_player", "Responds to the player through the NPC they are currently talking with, do not add any prefixes just the raw text the player should say",
-#       Parameter("response_text",str)
-#    ),
-#    State.LOCATION_TALK
-# )
-
-
 
 
 
