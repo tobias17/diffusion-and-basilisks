@@ -10,6 +10,9 @@ class Micro_State(Enum):
    UPDATE_SCRATCHPAD = "UPDATE_SCRATCHPAD"
    DONE              = "DONE"
 
+   def __repr__(self) -> str: return self.value
+   __str__ = __repr__
+
 from prompts import define_api, ask_for_scratchpad, end_scratchpad, ask_for_function_call, end_function_calling, update_scratchpad
 from functions import parse_function, match_function
 
@@ -50,6 +53,11 @@ class Prompt_Evolver:
    
    def should_call(self) -> bool:
       return self.micro_state == Micro_State.UPDATE_SCRATCHPAD
+   
+   def loop(self) -> None:
+      assert self.micro_state == Micro_State.DONE, f"Tried looping evolver in {self.micro_state} state, expected {Micro_State.DONE} state"
+      assert len(self.scratchpad) > 0, "Tried looping evolver with an empty scratchpad"
+      self.micro_state = Micro_State.CHOOSE_FUNCTION
 
    def process_output(self, output:str) -> Tuple[bool,str]:
       if self.micro_state == Micro_State.CREATE_SCRATCHPAD:
@@ -115,17 +123,20 @@ def inject():
       os.makedirs(FOLDER_DIR)
    
    event_log = []
-
-   prompt, from_player, current_state = get_prompt_from_game_state(game)
-   assert not from_player
-   event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
-
    for key, outputs in injects.items():
-      event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
-      evolver = Prompt_Evolver(current_state)
-      delta_game = game.copy()
       try:
+         event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
+         delta_game = game.copy()
+         prompt, current_state = get_prompt_from_game_state(delta_game)
+         event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
+         evolver = Prompt_Evolver(current_state)
+
          for output in outputs:
+            if evolver.micro_state == Micro_State.DONE:
+               evolver.loop()
+               prompt, current_state = get_prompt_from_game_state(delta_game)
+               event_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
+
             ext = evolver.get_extension()
             event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
             ok, msg = evolver.process_output(output)

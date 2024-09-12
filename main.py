@@ -210,6 +210,13 @@ class Game:
 ### Func Registration ###
 #########################
 
+Function_Map.register(
+   Function(
+      lambda x: x, "do_nothing", "Performs no action, call this if you cannot complete your scratchpad with the available functions",
+   ),
+   State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE, State.EVENT_INIT,
+)
+
 # Town
 Function_Map.register(
    Function(
@@ -325,7 +332,7 @@ def make_completion(prompt:str):
    return resp.split("<")[0].strip()
 
 
-def get_prompt_from_game_state(game:Game) -> Tuple[str,bool,State]:
+def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    current_state = game.get_current_state()
 
    prompt = make_intro_prompt(current_state)
@@ -333,18 +340,14 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,bool,State]:
    if current_state == State.TOWN_TALK:
       speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
       conv_history = game.get_conversation_history(speak_target)
-      if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
-         # prompt AI for response
-         template = Template(prompt)
-         template["OVERVIEW"] = game.get_overview()
-         template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
-         template["NPC_NAME"] = speak_target
-         template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
-         template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)
-         return template.render(), False, current_state
-      else:
-         # prompt player for response
-         return "How to respond? ", True, current_state
+      # prompt AI for response
+      template = Template(prompt)
+      template["OVERVIEW"] = game.get_overview()
+      template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
+      template["NPC_NAME"] = speak_target
+      template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
+      template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)
+      return template.render(), current_state
 
    else:
       raise ValueError(f"game_loop() does not support {current_state} state yet")

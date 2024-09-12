@@ -1,8 +1,17 @@
 {
     "simple_case": [
-        "Respond to the player telling them hi back",
+        "Tell the player there is currently no work",
         "speak_npc_to_player()",
-        "\"Hello there, how are you doing?\")",
+        "\"Unfortunately we do not have any work around here, may I instead offer a drink?\")",
+        ""
+    ],
+    "multiple_functions": [
+        "Ask the player to kill some orcs and give them a quest for it",
+        "speak_npc_to_player()",
+        "\"There are some orcs around here that have been giving me some trouble, could you please take care of them for me?\")",
+        "Give the player a quest to kill the orcs",
+        "add_quest()",
+        "\"There is a camp of orcs giving Gilda problems, take them out for her\", \"Orc Extermination\")",
         ""
     ]
 }

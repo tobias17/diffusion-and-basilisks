@@ -23,7 +23,13 @@
 	{
 		"cls": "Speak_Event",
 		"with_character": "Gilda",
+		"is_player_speaking": false,
+		"text": "Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?"
+	},
+	{
+		"cls": "Speak_Event",
+		"with_character": "Gilda",
 		"is_player_speaking": true,
-		"text": "HI THERE FRIEND :D"
+		"text": "I am looking for some work to do, for coin, do you have any for me?"
 	}
 ]
