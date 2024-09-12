@@ -1,25 +1,13 @@
-from common import State, Event, logger
+from common import State, logger
 from prompts import Template, make_intro_prompt
-from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 from game import Game
 
-from typing import List, Optional, Type, TypeVar, Tuple, Callable, Dict, Any
+from typing import Tuple
 import logging, os, datetime, json
-from dataclasses import asdict
 from openai import OpenAI
 
-#########################
-### Func Registration ###
-#########################
 
-
-
-
-
-########################
-###  Main Game Loop  ###
-########################
 
 json_log = None
 client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
