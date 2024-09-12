@@ -16,7 +16,7 @@ class Create_Location_Event(Event):
 class Move_To_Location_Event(Event):
    location_name: str
    def implication(self) -> Optional[State]:
-      return State.LOCATION_IDLE
+      return State.TOWN_IDLE
    def system(self, current_location_name:str) -> Optional[str]:
       return f"You move locations to '{self.location_name}'"
 
@@ -47,12 +47,12 @@ class Start_Conversation_Event(Event):
    character_name: str
    event_description: str
    def implication(self) -> Optional[State]:
-      return State.LOCATION_TALK
+      return State.TOWN_TALK
 
 @dataclass
 class End_Converstation_Event(Event):
    def implication(self) -> Optional[State]:
-      return State.LOCATION_IDLE
+      return State.TOWN_IDLE
 
 @dataclass
 class Speak_Event(Event):
@@ -67,7 +67,7 @@ class Speak_Event(Event):
 class Begin_Traveling_Event(Event):
    description: str
    def implication(self) -> Optional[State]:
-      return State.TRAVELING
+      return State.ON_THE_MOVE
 
 @dataclass
 class Quest_Start(Event):

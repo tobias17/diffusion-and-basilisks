@@ -54,7 +54,7 @@ end_scratchpad = f"""
 """.strip()
 
 update_scratchpad = f"""
-Please rewrtie an updated scratchpad based on what you just accomplished.
+Please rewrite an updated scratchpad based on what you just accomplished.
 Remove any items completed but keep tasks that need completing.
 Leave the scratchpad empty iff you completed all of your tasks.{SYSTEM_END}
 {ASSISTANT_START}
@@ -84,14 +84,21 @@ instructions: Dict[State,str] = {
 
 def make_intro_prompt(state:State) -> str:
    extra_info = ""
-   if state == State.LOCATION_IDLE:
+   if state == State.TOWN_IDLE:
       extra_info += """
 The following is a list of existing NPC characters the player can interact with:
 <characters>
 %%CHARACTERS%%</characters>
 """.strip() + "\n\n"
+   if state == State.ON_THE_MOVE:
+      extra_info += f"""
+The following is your {state.value} Goals. It was crafted by you when you last left town for what you wanted to accomplish while {state.value}.
+<move-goals>
+%%MOVE_GOALS%%</move-goals>
+""".strip() + "\n\n"
 
    return f"""
+{SYSTEM_START}
 You are a large language model tasked with helping a human play a video game.
 You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.
 

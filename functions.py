@@ -1,5 +1,4 @@
 from common import State
-from prompts import api_description
 
 from typing import List, Dict, Optional, Type, Callable, Tuple, Any
 from dataclasses import dataclass
@@ -55,10 +54,6 @@ class Function_Map:
       if specific_function is not None:
          funcs = [f for f in funcs if f.name == specific_function]
       return funcs
-
-   @staticmethod
-   def render(key:State, render_fnx=(lambda f: f.render()), specific_function:Optional[str]=None) -> str:
-      return api_description.replace("%%API_DESCRIPTION%%", "".join(render_fnx(f)+"\n" for f in Function_Map.get(key, specific_function)))
 
 
 

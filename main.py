@@ -1,5 +1,5 @@
 from common import State, Event, logger
-from prompts import Template, intro, overview_prompt, quests_prompt, mega_prompts
+from prompts import Template, make_intro_prompt
 from functions import Function_Map, Function, Parameter, parse_function, match_function
 import events as E
 
@@ -50,7 +50,7 @@ class Game:
          state = event.implication()
          if state is not None:
             return state
-      return State.INITIALIZING
+      return State.ON_THE_MOVE
    
    def get_last_event(self, target_event:Type[T], limit_fnx:Callable[[T],bool]=(lambda e: True), default=None) -> T:
       for event in reversed(self.events):
@@ -324,100 +324,27 @@ def make_completion(prompt:str):
 
    return resp.split("<")[0].strip()
 
-MAX_LOOPS = 3
-def update_from_prompt(prompt:str, game:Game) -> Game:
-   original_prompt = prompt
-   loops = 0
-
-   while True:
-      if loops >= MAX_LOOPS:
-         logger.warning("Reached maximum loops, restarting")
-         prompt = original_prompt
-         loops = 0
-      loops += 1
-
-      resp = make_completion(prompt)
-      print(resp + "\n")
-
-      event_count = 0
-      processed_lines: List[str] = []
-      delta_game = game.copy()
-      for line in resp.split("\n"):
-         processed_lines.append(line)
-
-         ok, err = delta_game.process_line(line)
-
-         if ok:
-            event_count += 1
-         else:
-            template = Template(prompt + error_in_function_calls)
-            template["AI_RESPONSE"] = resp
-            template["OUTPUT"] = "".join(f">>> {l}\n" for l in processed_lines) + err
-            prompt = template.render()
-            break
-      else:
-         if event_count > 0:
-            return delta_game
-         template = Template(prompt + need_more_function_calls)
-         template["AI_RESPONSE"] = resp
-         template["SYSTEM_RESPONSE"] = "Make sure to call atleast 1 function before ending the call block"
-         prompt = template.render()
-
 
 def get_prompt_from_game_state(game:Game) -> Tuple[str,bool,State]:
    current_state = game.get_current_state()
 
-   if current_state == State.INITIALIZING:
-      assert False
-      # template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
-      # # prompt = template.render()
+   prompt = make_intro_prompt(current_state)
 
-      # return template.render(), False
-      # # game = update_from_prompt(prompt, game)
-      # # last_location = game.get_last_event(E.Create_Location_Event).name
-      # # game.events.append(E.Move_To_Location_Event(last_location))
-
-   elif current_state == State.LOCATION_IDLE:
-      assert False
-      # current_location = game.get_last_event(E.Move_To_Location_Event).location_name
-      # player_input = ""
-      # while not player_input:
-      #    player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
-      
-      # template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
-      # template["OVERVIEW"] = game.get_overview()
-      # template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
-      # template["PLAYER_INPUT"] = player_input
-      # # prompt = template.render()
-      # return template.render(), False
-
-      # # game = update_from_prompt(prompt, game)
-
-   elif current_state == State.LOCATION_TALK:
+   if current_state == State.TOWN_TALK:
       speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
       conv_history = game.get_conversation_history(speak_target)
       if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
          # prompt AI for response
-         # template = Template(intro, overview_prompt, quests_prompt, Function_Map.render(current_state), state_prompts[current_state])
-         template = Template(mega_prompts[current_state])
+         template = Template(prompt)
          template["OVERVIEW"] = game.get_overview()
-         # template["API"] = Function_Map.render(current_state, lambda f: f.render_short())
          template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
          template["NPC_NAME"] = speak_target
          template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
          template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)
-         # prompt = template.render()
          return template.render(), False, current_state
-
-         # game = update_from_prompt(prompt, game)
       else:
          # prompt player for response
          return "How to respond? ", True, current_state
-         # resp = input("How to respond? ").strip()
-         # if resp.lower() == "leave":
-         #    game.events.append(E.End_Converstation_Event())
-         # else:
-         #    game.events.append(E.Speak_Event(speak_target, True, resp))
 
    else:
       raise ValueError(f"game_loop() does not support {current_state} state yet")

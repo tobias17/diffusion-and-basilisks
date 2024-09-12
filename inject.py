@@ -1,6 +1,6 @@
-from main import Game, get_prompt_from_game_state, make_completion, Template, Function_Map, Function, State
+from main import Game, get_prompt_from_game_state, Function_Map, Function, State
 import json, datetime, os, sys
-from typing import List, Tuple, Callable, Optional, Dict
+from typing import List, Tuple, Callable, Dict
 
 from enum import Enum
 class Micro_State(Enum):
@@ -103,9 +103,9 @@ class Prompt_Evolver:
 
 
 def inject():
-   with open("inputs/events_1.json", "r") as f:
+   with open("inputs/events_town_talk.json", "r") as f:
       data = json.load(f)
-   with open("inputs/injects_1.json", "r") as f:
+   with open("inputs/injects_town_talk.json", "r") as f:
       injects: Dict[str,List[str]] = json.load(f)
    game = Game.from_json(data)
 
