@@ -6,6 +6,10 @@ import logging, datetime, os
 logger = logging.getLogger("Diff_and_Bas")
 
 class State(Enum):
+   TOWN_IDLE   = "TOWN_IDLE"
+   TOWN_TALK   = "TOWN_TALK"
+   ON_THE_MOVE = "ON_THE_MOVE"
+
    INITIALIZING  = "INITIALIZING"
    LOCATION_IDLE = "LOCATION_IDLE"
    LOCATION_TALK = "LOCATION_TALK"

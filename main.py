@@ -212,10 +212,45 @@ class Game:
 
 Function_Map.register(
    Function(
-      Game.respond_as_npc, "speak_npc_to_player", "Initiates a response to the player",
-      Parameter("response", str, "the text response, will be show directly to the player pre-formatted, provide ONLY the response text content and nothing else"),
+      Game.create_location, "create_new_town", "Creates a new town location that the player can travel to in the future, cannot be interacted with now",
+      Parameter("town_name", str, "the name of the town, a proper noun, make sure to pick something unique and catchy, should be 1 or 2 words long"),
+      Parameter("backstory", str, "a quick description of what kind of town this is, what kind of people inhabit it, the mood and atmosphere, the general vibe and purpose of this town"),
+      Parameter("description", str, "the physical description of what a person would see when first entering this town, make sure to include a list of elements such that this string can be passed directly to a txt2img AI model"),
    ),
-   State.LOCATION_TALK,
+   State.TOWN_IDLE,
+)
+
+Function_Map.register(
+   Function(
+      Game.describe_environment, "describe_surroundings", "Provides the player with a description of a specific part of the environment",
+      Parameter("description", str, "the text description, will be shown directly to the plater pre-formatted, provide ONLY the description text content and nothing else"),
+   ),
+   State.TOWN_IDLE,
+)
+
+Function_Map.register(
+   Function(
+      Game.respond_as_npc, "speak_npc_to_player", "Initiates a response to the player",
+      Parameter("response", str, "the text response, will be shown directly to the player pre-formatted, provide ONLY the response text content and nothing else"),
+   ),
+   State.TOWN_TALK,
+)
+
+# Quests
+Function_Map.register(
+   Function(
+      Game.add_quest, "add_quest", "Adds a new quest for the player to complete",
+      Parameter("description", str, "the text contents of what the quest objective is, should be atleast 1 sentence long, will be shown directly to the player"),
+      Parameter("name", str, "the name of this quest, should be a short descriptor that can be used to reference to this quest later, will be shown directly to the player"),
+   ),
+   State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE,
+)
+Function_Map.register(
+   Function(
+      Game.complete_quest, "complete_quest", "Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+      Parameter("name", str, "the name of the quest that has been completed"),
+   ),
+   State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE,
 )
 
 # # Location
@@ -272,37 +307,7 @@ Function_Map.register(
 #    State.LOCATION_TALK
 # )
 
-# # Quests
-# Function_Map.register(
-#    Function(
-#       Game.add_quest, "add_quest", "Adds a new quest for the player to complete",
-#       Parameter("quest_description",str), Parameter("quest_name",str)
-#    ),
-#    State.LOCATION_IDLE, State.LOCATION_TALK
-# )
-# Function_Map.register(
-#    Function(
-#       Game.complete_quest, "complete_quest", "Marks the specified quest as completed",
-#       Parameter("quest_name",str)
-#    ),
-#    State.LOCATION_IDLE, State.LOCATION_TALK
-# )
 
-# # Internal Goals
-# Function_Map.register(
-#    Function(
-#       Game.add_internal_goal, "add_internal_goal", "Adds a goal for you to keep track of, not shown to the player",
-#       Parameter("goal_description",str), Parameter("goal_name",str)
-#    ),
-#    State.LOCATION_IDLE, State.LOCATION_TALK
-# )
-# Function_Map.register(
-#    Function(
-#       Game.complete_internal_goal, "complete_internal_goal", "Marks the specified goal as completed",
-#       Parameter("goal_name",str)
-#    ),
-#    State.LOCATION_IDLE, State.LOCATION_TALK
-# )
 
 
 
