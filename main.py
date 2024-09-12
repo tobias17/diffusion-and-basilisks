@@ -210,12 +210,26 @@ class Game:
 ### Func Registration ###
 #########################
 
+# Town
 Function_Map.register(
    Function(
       Game.create_location, "create_new_town", "Creates a new town location that the player can travel to in the future, cannot be interacted with now",
       Parameter("town_name", str, "the name of the town, a proper noun, make sure to pick something unique and catchy, should be 1 or 2 words long"),
       Parameter("backstory", str, "a quick description of what kind of town this is, what kind of people inhabit it, the mood and atmosphere, the general vibe and purpose of this town"),
-      Parameter("description", str, "the physical description of what a person would see when first entering this town, make sure to include a list of elements such that this string can be passed directly to a txt2img AI model"),
+      Parameter("description", str, "the physical description of what a person would see when first entering this town, make sure to include a comma-seperated list of visual elements such that this string can be passed directly to a txt2img AI model"),
+   ),
+   State.TOWN_IDLE, State.ON_THE_MOVE,
+)
+Function_Map.register(
+   Function( # FIXME: func
+      lambda x: x, "arrive_at_town", f"Arrives at the specified town transitioning to the {State.TOWN_IDLE.value} state, the town must already exist before calling this",
+      Parameter("town_name", str, "name of the town to arrive at"),
+   ),
+   State.ON_THE_MOVE,
+)
+Function_Map.register(
+   Function( # FIXME: func
+      lambda x: x, "leave_town", f"Leaves the current town transitioning to the {State.ON_THE_MOVE.value} state, only call if the player wants to",
    ),
    State.TOWN_IDLE,
 )
@@ -228,12 +242,29 @@ Function_Map.register(
    State.TOWN_IDLE,
 )
 
+# NPC Characters
+Function_Map.register(
+   Function(
+      Game.create_npc, "create_new_npc", "Creates a new NPC, should only be called if the NPC doesn't already exist",
+      Parameter("name", str, "the name of the NPC, should be a proper noun"),
+      Parameter("background", str, "the background of the character, like their profession and/or personality"),
+      Parameter("physical_description", str, "what the character physically looks like, format as a comma-seperated list of physical attributes such that this parameter can be passed directly to a txt2img AI model")
+   ),
+   State.TOWN_IDLE,
+)
 Function_Map.register(
    Function(
       Game.respond_as_npc, "speak_npc_to_player", "Initiates a response to the player",
       Parameter("response", str, "the text response, will be shown directly to the player pre-formatted, provide ONLY the response text content and nothing else"),
    ),
    State.TOWN_TALK,
+)
+Function_Map.register(
+   Function(
+      Game.talk_to_npc, "start_conversation", f"Starts a conversation between the player and a specified NPC",
+      Parameter("npc_name", str, "the name of the NPC to start a conversation with"),
+   ),
+   State.TOWN_IDLE,
 )
 
 # Quests
@@ -253,31 +284,6 @@ Function_Map.register(
    State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE,
 )
 
-# # Location
-# Function_Map.register(
-#    Function(
-#       Game.create_location, "create_location", "Create a new Hub with the description and name, make sure the name is some thing catchy that can be put on a sign",
-#       Parameter("location_description",str), Parameter("location_name",str)
-#    ),
-#    State.INITIALIZING, State.LOCATION_IDLE, State.LOCATION_TALK
-# )
-# Function_Map.register(
-#    Function(
-#       Game.move_to_location, "move_to_location", "Puts the player in the specified location, must be called with the same name passed into `create_location`",
-#       Parameter("location_name",str)
-#    ),
-#    State.LOCATION_IDLE
-# )
-
-# # System
-# Function_Map.register(
-#    Function(
-#       Game.describe_environment, "describe_environment", "Allows you to describe any part of the environment to the player, generally called after the player requests an action like looking around",
-#       Parameter("description",str)
-#    ),
-#    State.LOCATION_IDLE
-# )
-
 # # NPC
 # Function_Map.register(
 #    Function(
@@ -285,19 +291,6 @@ Function_Map.register(
 #       Parameter("name",str), Parameter("character_background",str), Parameter("physical_description",str)
 #    ),
 #    State.LOCATION_IDLE, State.LOCATION_TALK
-# )
-# Function_Map.register(
-#    Function(
-#       Game.talk_to_npc, "talk_to_npc", "Begins a talking interation between the player and the specified NPC, the `event_description` is shown to the player to explain how the interaction starts",
-#       Parameter("character_name",str), Parameter("event_description",str)
-#    ),
-#    State.LOCATION_IDLE
-# )
-# Function_Map.register(
-#    Function(
-#       Game.stop_converstation, "stop_converstation", "Ends the current conversation, allowing other actiosn to be performed in the world, should be the last function called in a block",
-#    ),
-#    State.LOCATION_TALK
 # )
 # Function_Map.register(
 #    Function(
