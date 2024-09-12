@@ -35,42 +35,6 @@ ASSISTANT_END   = "<|im_end|>"
 
 
 
-default_world = """
-The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.
-""".strip()
-
-intro = f'''
-You are a large language model tasked with helping a human play a video game. You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.
-
-{default_world}
-'''.strip()
-
-overview_prompt = """
-The following is an overview of the current game:
-<overview>
-%%OVERVIEW%%</overview>
-""".strip()
-
-api_description = """
-The following is the API that you have access to:
-<api>
-%%API_DESCRIPTION%%</api>
-""".strip()
-
-characters_prompt = """
-The following is a list of existing characters the player can interact with:
-<characters>
-%%CHARACTERS%%</characters>
-""".strip()
-
-quests_prompt = """
-The following are the currently active quests:
-<quests>
-%%QUESTS%%</quests>
-""".strip()
-
-
-
 define_api = f"""
 The following is the API you will have access to. You are allowed to call 1 of these at a time.
 <api>
@@ -111,28 +75,34 @@ end_function_calling = f"""
 
 
 
-mega_prompts: Dict[State,str] = {
-
-#################
-# LOCATION_TALK #
-#################
-State.LOCATION_TALK: f"""
-{SYSTEM_START}
-{intro}
-
-{overview_prompt}
-
-{quests_prompt}
-
-The player is currently in the LOCATION_TALK state where they are interacting with:
-%%NPC_NAME%%
-%%NPC_DESCRIPTION%%
-
-The following is the interaction history between the player and %%NPC_NAME%%:
-<conversation>
-%%CONVERSATION%%</conversation>
-""".strip(),
-
+limiter = "ONLY call functions that accomplish what the player is asking for, NOT more."
+instructions: Dict[State,str] = {
+   State.TOWN_IDLE: f"Use the following player input to call the appropriate functions to progress the game state. {limiter}",
+   State.TOWN_TALK: f"Use the following converstation history and player input to respond to them and/or call other functions. {limiter}"
 }
 
+def make_intro_prompt(state:State) -> str:
+   extra_info = ""
+   if state == State.LOCATION_IDLE:
+      extra_info += """
+The following is a list of existing NPC characters the player can interact with:
+<characters>
+%%CHARACTERS%%</characters>
+""".strip() + "\n\n"
 
+   return f"""
+You are a large language model tasked with helping a human play a video game.
+You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.
+
+The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.
+
+The following is an overview of the current game:
+<overview>
+%%OVERVIEW%%</overview>
+
+The following are the currently active quests:
+<quests>
+%%QUESTS%%</quests>
+
+{extra_info}The character is currently in the {state.value} state.
+""".strip()

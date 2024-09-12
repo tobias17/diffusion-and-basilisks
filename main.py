@@ -233,7 +233,6 @@ Function_Map.register(
    ),
    State.TOWN_IDLE,
 )
-
 Function_Map.register(
    Function(
       Game.describe_environment, "describe_surroundings", "Provides the player with a description of a specific part of the environment",
