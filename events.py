@@ -17,18 +17,19 @@ Function_Map.register(
 
 # Create Town
 @dataclass
-class Create_Location_Event(Event):
+class Create_New_Town_Event(Event):
    name: str
+   backstory: str
    description: str
    def render(self) -> str:
-      return f"You discover {self.name}: {self.description}"
-   def system(self, current_location_name:str) -> Optional[str]:
-      return f"A new location is created, '{self.name}', {self.description}"
-def create_location(self:Game, location_description:str, location_name:str) -> Tuple[bool,Optional[str]]:
+      return f"You discover {self.name}: {self.backstory}"
+   def system(self, current_town_name:str) -> Optional[str]:
+      return f"A new location is created, '{self.name}', {self.backstory}"
+def create_location(self:Game, town_name:str, backstory:str, description:str) -> Tuple[bool,Optional[str]]:
    for event in self.events:
-      if isinstance(event, Create_Location_Event) and event.name == location_name:
-         return False, f"A location with the name '{location_name}' already exists, no need to create another"
-   self.events.append(Create_Location_Event(location_name, location_description))
+      if isinstance(event, Create_New_Town_Event) and event.name == town_name:
+         return False, f"A location with the name '{town_name}' already exists, no need to create another"
+   self.events.append(Create_New_Town_Event(town_name, backstory, description))
    return True, None
 Function_Map.register(
    Function(
@@ -43,26 +44,26 @@ Function_Map.register(
 
 # Move to Town
 @dataclass
-class Move_To_Location_Event(Event):
-   location_name: str
+class Arrive_At_Town_Event(Event):
+   town_name: str
    def implication(self) -> Optional[State]:
       return State.TOWN_IDLE
-   def system(self, current_location_name:str) -> Optional[str]:
-      return f"You move locations to '{self.location_name}'"
-def move_to_location(self:Game, location_name:str) -> Tuple[bool,Optional[str]]:
+   def system(self, current_town_name:str) -> Optional[str]:
+      return f"You move locations to '{self.town_name}'"
+def arrive_at_town(self:Game, town_name:str) -> Tuple[bool,Optional[str]]:
    existing_locations = []
    for event in reversed(self.events):
-      if isinstance(event, Move_To_Location_Event) and event.location_name == location_name:
-         return False, f"You are already in '{location_name}', moving there is not required"
-      if isinstance(event, Create_Location_Event):
-         if event.name == location_name:
-            self.events.append(Move_To_Location_Event(location_name))
+      if isinstance(event, Arrive_At_Town_Event) and event.town_name == town_name:
+         return False, f"You are already in '{town_name}', moving there is not required"
+      if isinstance(event, Create_New_Town_Event):
+         if event.name == town_name:
+            self.events.append(Arrive_At_Town_Event(town_name))
             return True, None
          existing_locations.append(event.name)
-   return False, f"Could not find location with name '{location_name}', existing locations are: {existing_locations}"
+   return False, f"Could not find location with name '{town_name}', existing locations are: {existing_locations}"
 Function_Map.register(
-   Function( # FIXME: func
-      move_to_location, "arrive_at_town", f"Arrives at the specified town transitioning to the {State.TOWN_IDLE.value} state, the town must already exist before calling this",
+   Function(
+      arrive_at_town, "arrive_at_town", f"Arrives at the specified town transitioning to the {State.TOWN_IDLE.value} state, the town must already exist before calling this",
       Parameter("town_name", str, "name of the town to arrive at"),
    ),
    State.ON_THE_MOVE,
@@ -72,12 +73,16 @@ Function_Map.register(
 # Leave Town
 @dataclass
 class Begin_Traveling_Event(Event):
-   description: str
+   travel_goal: str
    def implication(self) -> Optional[State]:
       return State.ON_THE_MOVE
+def begin_traveling(self:Game, travel_goal:str):
+   self.events.append(Begin_Traveling_Event(travel_goal))
+   return True, None
 Function_Map.register(
-   Function( # FIXME: func
-      lambda x: x, "leave_town", f"Leaves the current town transitioning to the {State.ON_THE_MOVE.value} state, only call if the player wants to",
+   Function(
+      begin_traveling, "leave_town", f"Leaves the current town transitioning to the {State.ON_THE_MOVE.value} state, only call if the player wants to",
+      Parameter("travel_goal", str, "What your intentions are for leaving town, generally this is something like traveling to another town or checking out an event (like exploring a cave)"),
    ),
    State.TOWN_IDLE,
 )
@@ -87,13 +92,13 @@ Function_Map.register(
 @dataclass
 class Describe_Environment_Event(Event):
    description: str
-   location_name: str
-   def system(self, current_location_name:str) -> Optional[str]:
-      if self.location_name == current_location_name:
-         return f"Environment Description in '{self.location_name}': {self.description}"
+   town_name: str
+   def system(self, current_town_name:str) -> Optional[str]:
+      if self.town_name == current_town_name:
+         return f"Described Surroundings in '{self.town_name}': {self.description}"
       return None
 def describe_environment(self:Game, description:str) -> Tuple[bool,Optional[str]]:
-   self.events.append(Describe_Environment_Event(description, self.get_last_event(Move_To_Location_Event).location_name))
+   self.events.append(Describe_Environment_Event(description, self.get_last_event(Arrive_At_Town_Event).town_name))
    return True, None
 Function_Map.register(
    Function(
@@ -113,16 +118,16 @@ class Create_Character_Event(Event):
    description: str
    def render(self) -> str:
       return ""
-   def system(self, current_location_name:str) -> Optional[str]:
-      if self.location_name == current_location_name:
+   def system(self, current_town_name:str) -> Optional[str]:
+      if self.location_name == current_town_name:
          return f"A new character is created, '{self.character_name}', {self.background}, {self.description}"
       return None
 def create_npc(self:Game, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
-   current_location = self.get_last_event(Move_To_Location_Event).location_name
+   current_location = self.get_last_event(Arrive_At_Town_Event).location_name
    for event in reversed(self.events):
       if isinstance(event, Create_Character_Event) and event.location_name == current_location and event.character_name == name:
          return False, f"Character '{name}' already exists, you can interact with them directly without calling `create_npc` again"
-   self.events.append(Create_Character_Event(name, self.get_last_event(Move_To_Location_Event).location_name, character_background, physical_description))
+   self.events.append(Create_Character_Event(name, self.get_last_event(Arrive_At_Town_Event).location_name, character_background, physical_description))
    return True, None
 Function_Map.register(
    Function(
@@ -160,12 +165,11 @@ Function_Map.register(
 @dataclass
 class Start_Conversation_Event(Event):
    character_name: str
-   event_description: str
    def implication(self) -> Optional[State]:
       return State.TOWN_TALK
-def talk_to_npc(self:Game, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
+def start_conversation(self:Game, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
    existing_characters = []
-   current_location = self.get_last_event(Move_To_Location_Event).location_name
+   current_location = self.get_last_event(Arrive_At_Town_Event).town_name
    for event in reversed(self.events):
       if isinstance(event, Create_Character_Event) and event.location_name == current_location:
          if character_name == event.character_name:
@@ -175,8 +179,8 @@ def talk_to_npc(self:Game, character_name:str, event_description:str) -> Tuple[b
    return False, f"Failed to find character named '{character_name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
 Function_Map.register(
    Function(
-      talk_to_npc, "start_conversation", f"Starts a conversation between the player and a specified NPC",
-      Parameter("npc_name", str, "the name of the NPC to start a conversation with"),
+      start_conversation, "start_conversation", f"Starts a conversation between the player and a specified NPC",
+      Parameter("npc_name", str, "the name of the NPC to start a conversation with")
    ),
    State.TOWN_IDLE,
 )

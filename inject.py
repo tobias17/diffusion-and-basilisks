@@ -1,8 +1,9 @@
+from common import logger
 from main import get_prompt_from_game_state
 from game import Game
 from evolver import Prompt_Evolver, Micro_State
 
-import json, datetime, os, sys
+import json, os, sys
 from typing import List, Dict
 
 def inject():
@@ -52,6 +53,7 @@ def inject():
                event_log.append({"event":"Ended on DONE State", "scratchpad":evolver.scratchpad.split("\n")})
          except Exception as ex:
             _, _, exc_tb = sys.exc_info()
+            logger.error(str(ex))
             event_log.append({"event":"ERROR: Unhandled Exception", "error":f"{ex} ({os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno})"})
 
       with open(os.path.join(FOLDER_DIR, f"{test_name}_log.json"), "w") as f:

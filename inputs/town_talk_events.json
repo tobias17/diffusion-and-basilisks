@@ -1,12 +1,13 @@
 [
 	{
-		"cls": "Create_Location_Event",
+		"cls": "Create_New_Town_Event",
 		"name": "Whisperwind Village",
-		"description": "a small village nestled between two large hills with a quaint main street lined with shops and houses"
+		"backstory": "a small village nestled between two large hills with a quaint main street lined with shops and houses",
+		"description": ""
 	},
 	{
-		"cls": "Move_To_Location_Event",
-		"location_name": "Whisperwind Village"
+		"cls": "Arrive_At_Town_Event",
+		"town_name": "Whisperwind Village"
 	},
 	{
 		"cls": "Create_Character_Event",
@@ -17,8 +18,7 @@
 	},
 	{
 		"cls": "Start_Conversation_Event",
-		"character_name": "Gilda",
-		"event_description": "You approach Gilda at the entrance of The Rusty Lantern Inn. She smiles warmly and greets you."
+		"character_name": "Gilda"
 	},
 	{
 		"cls": "Speak_Event",

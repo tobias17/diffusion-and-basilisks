@@ -60,7 +60,7 @@ class Game:
 
    def get_overview(self) -> str:
       overview = []
-      current_location = self.get_last_event(E.Move_To_Location_Event).location_name
+      current_location = self.get_last_event(E.Arrive_At_Town_Event).town_name
       for event in self.events:
          text = event.system(current_location)
          if text is not None:

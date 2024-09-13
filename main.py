@@ -1,4 +1,4 @@
-from common import State, logger
+from common import State, logger, LOG_FORMAT
 from prompts import Template, make_intro_prompt
 import events as E
 from game import Game
@@ -129,14 +129,8 @@ if __name__ == "__main__":
       os.makedirs(FOLDER_DIR)
    json_log = f"{FOLDER_DIR}/prompts.json"
 
-   logger.setLevel(logging.DEBUG)
-   FORMAT = logging.Formatter("%(levelname)s: %(message)s")
-   console = logging.StreamHandler()
-   console.setLevel(logging.INFO)
-   console.setFormatter(FORMAT)
-   logger.addHandler(console)
    file = logging.FileHandler(f"{FOLDER_DIR}/debug.log")
    file.setLevel(logging.DEBUG)
-   file.setFormatter(FORMAT)
+   file.setFormatter(LOG_FORMAT)
    logger.addHandler(file)
    main()
