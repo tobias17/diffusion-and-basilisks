@@ -49,7 +49,14 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
 
    prompt = make_intro_prompt(current_state)
 
-   if current_state == State.TOWN_TALK:
+   if current_state == State.TOWN_IDLE:
+      template = Template(prompt)
+      template["OVERVIEW"] = game.get_overview()
+      template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
+      template["PLAYER_INPUT"] = game.get_last_event(E.Player_Input_Event).text
+      return template.render(), current_state
+
+   elif current_state == State.TOWN_TALK:
       speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
       conv_history = game.get_conversation_history(speak_target)
       # prompt AI for response
@@ -62,7 +69,9 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
       return template.render(), current_state
 
    else:
-      raise ValueError(f"game_loop() does not support {current_state} state yet")
+      raise ValueError(f"game_loop() does not support {current_state.value} state yet")
+   
+   raise ValueError(f"[INVALID_STATE] game_loop() did not return when in {current_state.value} state")
 
 
 def game_loop(game:Game):

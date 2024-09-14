@@ -1,0 +1,12 @@
+[
+	{
+		"cls": "Create_New_Town_Event",
+		"name": "Whisperwind Village",
+		"backstory": "a small village nestled between two large hills with a quaint main street lined with shops and houses",
+		"description": ""
+	},
+	{
+		"cls": "Arrive_At_Town_Event",
+		"town_name": "Whisperwind Village"
+	}
+]

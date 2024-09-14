@@ -15,6 +15,12 @@ Function_Map.register(
 )
 
 
+# Player Input
+@dataclass
+class Player_Input_Event(Event):
+   text: str
+
+
 # Create Town
 @dataclass
 class Create_New_Town_Event(Event):
