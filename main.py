@@ -54,6 +54,7 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
       template["OVERVIEW"] = game.get_overview()
       template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
       template["PLAYER_INPUT"] = game.get_last_event(E.Player_Input_Event).text
+      template["CHARACTERS"] = "".join(f"'{e.character_name}': {e.background}\n" for e in game.get_characters())
       return template.render(), current_state
 
    elif current_state == State.TOWN_TALK:

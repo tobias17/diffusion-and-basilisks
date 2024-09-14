@@ -8,5 +8,9 @@
 	{
 		"cls": "Arrive_At_Town_Event",
 		"town_name": "Whisperwind Village"
+	},
+	{
+		"cls": "Player_Input_Event",
+		"text": "I would like to speak with the manager"
 	}
 ]

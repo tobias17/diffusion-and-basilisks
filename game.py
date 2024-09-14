@@ -76,3 +76,11 @@ class Game:
          elif isinstance(event, E.Quest_Start) and event.quest_name not in completed_quests:
             active_quests.append(event)
       return active_quests
+
+   def get_characters(self) -> List[E.Create_Character_Event]:
+      characters = []
+      current_location = self.get_last_event(E.Arrive_At_Town_Event).town_name
+      for event in reversed(self.events):
+         if isinstance(event, E.Create_Character_Event) and event.location_name == current_location:
+            characters.append(event)
+      return characters
