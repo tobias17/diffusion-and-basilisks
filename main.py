@@ -110,66 +110,50 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
 
 
 
-def game_loop(game:Game):
+def game_loop(game:Game, log_dirpath:str):
+   event_log = []
    while True:
       current_state = game.get_current_state()
 
-      if current_state == State.INITIALIZING:
-         template = Template(intro, Function_Map.render(current_state), state_prompts[current_state])
-         prompt = template.render()
+      if current_state == State.TOWN_IDLE:
+         if isinstance(game.events[-1], E.Player_Input_Event):
+            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
+            game = process_game_state(game, make_completion, event_log)
+         else:
+            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player input"})
+            text = ""
+            while not text:
+               text = input("Response? ").strip()
+            event_log.append({"event":"Got player input", "text":text})
+            game.events.append(E.Player_Input_Event(text))
 
-         game = update_from_prompt(prompt, game)
-         last_location = game.get_last_event(E.Create_Location_Event).name
-         game.events.append(E.Move_To_Location_Event(last_location))
-
-      elif current_state == State.LOCATION_IDLE:
-         current_location = game.get_last_event(E.Move_To_Location_Event).location_name
-         player_input = ""
-         while not player_input:
-            player_input = input(f"You are currently in {current_location}, what would you like to do?\n").strip()
-         
-         template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
-         template["OVERVIEW"] = game.get_overview()
-         template["PLAYER_INPUT"] = player_input
-         prompt = template.render()
-
-         game = update_from_prompt(prompt, game)
-
-      elif current_state == State.LOCATION_TALK:
+      elif current_state == State.TOWN_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
          conv_history = game.get_conversation_history(speak_target)
-         if len(conv_history) > 0 and conv_history[-1].is_player_speaking:
-            # prompt AI for response
-            template = Template(intro, overview_prompt, Function_Map.render(current_state), state_prompts[current_state])
-            template["OVERVIEW"] = game.get_overview()
-            template["NPC_NAME"] = speak_target
-            template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
-            template["CONVERSATION"] = "\n".join(e.render() for e in conv_history)
-            prompt = template.render()
-
-            game = update_from_prompt(prompt, game)
+         if len(conv_history) == 0 or conv_history[-1].is_player_speaking:
+            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
+            game = process_game_state(game, make_completion, event_log)
          else:
-            # prompt player for response
-            resp = input("How to respond? ").strip()
-            if resp.lower() == "leave":
+            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player response"})
+            print("="*40 + "".join("\n" + c.player() for c in conv_history))
+            text = ""
+            while not text:
+               text = input("How do you respond or [leave]? ").strip()
+            if text.lower() == "leave":
+               event_log.append({"event":"User chose to end conversation"})
                game.events.append(E.End_Converstation_Event())
             else:
-               game.events.append(E.Speak_Event(speak_target, True, resp))
+               event_log.append({"event":"Got player response", "text":text})
+               event_log.append(E.Speak_Event(speak_target, True, text))
 
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")
    
-      with open(f"{FOLDER_DIR}/events.json", "w") as f:
-         json.dump(game.to_json(), f, indent="\t")
-
-
-
-def main():
-   game = Game()
-   game_loop(game)
+      with open(f"{log_dirpath}/event_log.json", "w") as f: json.dump(event_log,      f, indent="\t")
+      with open(f"{log_dirpath}/game.json",      "w") as f: json.dump(game.to_json(), f, indent="\t")
 
 if __name__ == "__main__":
-   FOLDER_DIR = datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S")
+   FOLDER_DIR = datetime.datetime.now().strftime("logs/game/%m-%d-%Y_%H-%M-%S")
    if not os.path.exists(FOLDER_DIR):
       os.makedirs(FOLDER_DIR)
    json_log = f"{FOLDER_DIR}/prompts.json"
@@ -178,4 +162,6 @@ if __name__ == "__main__":
    file.setLevel(logging.DEBUG)
    file.setFormatter(LOG_FORMAT)
    logger.addHandler(file)
-   main()
+
+   game = Game()
+   game_loop(game, FOLDER_DIR)

@@ -85,13 +85,13 @@ class Begin_Traveling_Event(Event):
 def begin_traveling(self:Game, travel_goal:str):
    self.events.append(Begin_Traveling_Event(travel_goal))
    return True, None
-Function_Map.register(
-   Function(
-      begin_traveling, "leave_town", f"Leaves the current town transitioning to the {State.ON_THE_MOVE.value} state, only call if the player wants to",
-      Parameter("travel_goal", str, "What your intentions are for leaving town, generally this is something like traveling to another town or checking out an event (like exploring a cave)"),
-   ),
-   State.TOWN_IDLE,
-)
+# Function_Map.register(
+#    Function(
+#       begin_traveling, "leave_town", f"Leaves the current town transitioning to the {State.ON_THE_MOVE.value} state, only call if the player wants to",
+#       Parameter("travel_goal", str, "What your intentions are for leaving town, generally this is something like traveling to another town or checking out an event (like exploring a cave)"),
+#    ),
+#    State.TOWN_IDLE,
+# )
 
 
 # Describe Surroundings
@@ -146,12 +146,14 @@ Function_Map.register(
 )
 
 
-# Speak to Player
+# Speak Events
 @dataclass
 class Speak_Event(Event):
    with_character: str
    is_player_speaking: bool
    text: str
+   def player(self) -> str:
+      return ("You" if self.is_player_speaking else self.with_character) + f": {self.text}"
    def render(self) -> str:
       cleaned_text = self.text.replace('"', "'")
       return "speak_" + ("player_to_npc" if self.is_player_speaking else "npc_to_player") + f'("{cleaned_text}")'
