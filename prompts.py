@@ -77,7 +77,7 @@ end_function_calling = f"""
 
 limiter = "ONLY call functions that accomplish what the player is asking for, NOT more."
 instructions: Dict[State,str] = {
-   State.TOWN_IDLE: f"Use the following player input to call the appropriate functions to progress the game state. {limiter}",
+   State.TOWN_IDLE: f"Use the following player input to call the appropriate functions to progress the game state. {limiter}\n<player-input>\n%%PLAYER_INPUT%%</player-input>",
    State.TOWN_TALK: f"Use the following converstation history and player input to respond to them and/or call other functions. {limiter}\n<conversation>\n%%CONVERSATION%%</conversation>",
    State.ON_THE_MOVE: f"Use the provied APIs to construct a fun and unique encounter event for the player to interact with, or have them arrive at their target location.",
 }

@@ -39,7 +39,7 @@ def create_location(self:Game, town_name:str, backstory:str, description:str) ->
    return True, None
 Function_Map.register(
    Function(
-      create_location, "create_new_town", "Creates a new town location that the player can travel to in the future, cannot be interacted with now",
+      create_location, "create_new_town", "Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
       Parameter("town_name", str, "the name of the town, a proper noun, make sure to pick something unique and catchy, should be 1 or 2 words long"),
       Parameter("backstory", str, "a quick description of what kind of town this is, what kind of people inhabit it, the mood and atmosphere, the general vibe and purpose of this town"),
       Parameter("description", str, "the physical description of what a person would see when first entering this town, make sure to include a comma-seperated list of visual elements such that this string can be passed directly to a txt2img AI model"),
@@ -109,7 +109,7 @@ def describe_environment(self:Game, description:str) -> Tuple[bool,Optional[str]
 Function_Map.register(
    Function(
       describe_environment, "describe_surroundings", "Provides the player with a description of a specific part of the environment",
-      Parameter("description", str, "the text description, will be shown directly to the plater pre-formatted, provide ONLY the description text content and nothing else"),
+      Parameter("description", str, "the text description, will be shown directly to the player pre-formatted, provide ONLY the description text content and nothing else"),
    ),
    State.TOWN_IDLE,
 )

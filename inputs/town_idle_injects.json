@@ -1,8 +1,8 @@
 {
     "simple_case": [
-        "Tell the player there is currently no work",
-        "speak_npc_to_player()",
-        "\"Unfortunately we do not have any work around here, may I instead offer a drink?\")",
+        "Desbribe the environment to the player",
+        "describe_surroundings()",
+        "\"There are many flowers blooming bright and colorful, but no manager to be seen.\")",
         ""
     ]
 }

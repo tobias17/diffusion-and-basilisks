@@ -40,13 +40,15 @@ def inject():
                event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
                ok, msg = evolver.process_output(output)
                if not ok:
-                  event_log.append({"event":"Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
+                  logger.error(msg)
+                  event_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
                else:
                   event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
                if evolver.should_call():
                   ok, msg = evolver.call(delta_game)
                   if not ok:
-                     event_log.append({"event":"Got Back Not-OK Calling Function", "message":msg})
+                     logger.error(msg)
+                     event_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
                   else:
                      event_log.append({"event":"Called Function OK"})
             if evolver.micro_state == Micro_State.DONE:

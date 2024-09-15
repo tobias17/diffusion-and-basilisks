@@ -53,20 +53,18 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
       template = Template(prompt)
       template["OVERVIEW"] = game.get_overview()
       template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
-      template["PLAYER_INPUT"] = game.get_last_event(E.Player_Input_Event).text
+      template["PLAYER_INPUT"] = game.get_last_event(E.Player_Input_Event).text + "\n"
       template["CHARACTERS"] = "".join(f"'{e.character_name}': {e.background}\n" for e in game.get_characters())
       return template.render(), current_state
 
    elif current_state == State.TOWN_TALK:
       speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
-      conv_history = game.get_conversation_history(speak_target)
-      # prompt AI for response
       template = Template(prompt)
       template["OVERVIEW"] = game.get_overview()
       template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
       template["NPC_NAME"] = speak_target
       template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
-      template["CONVERSATION"] = "".join(e.render()+"\n" for e in conv_history)
+      template["CONVERSATION"] = "".join(e.render()+"\n" for e in game.get_conversation_history(speak_target))
       return template.render(), current_state
 
    else:
