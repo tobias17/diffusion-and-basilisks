@@ -1,9 +1,10 @@
 from common import State, logger, LOG_FORMAT
 from prompts import Template, make_intro_prompt
+from evolver import Prompt_Evolver, Micro_State
 import events as E
 from game import Game
 
-from typing import Tuple
+from typing import Tuple, Callable, Optional, List, Dict
 import logging, os, datetime, json
 from openai import OpenAI
 
@@ -71,6 +72,42 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
       raise ValueError(f"game_loop() does not support {current_state.value} state yet")
    
    raise ValueError(f"[INVALID_STATE] game_loop() did not return when in {current_state.value} state")
+
+def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], event_log:List[Dict]) -> Game:
+   delta_game = game.copy()
+   prompt, current_state = get_prompt_from_game_state(delta_game)
+   event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
+   evolver = Prompt_Evolver(current_state)
+
+   while True:
+      if evolver.micro_state == Micro_State.DONE:
+         if not evolver.can_loop()[0]:
+            break
+         evolver.loop()
+         prompt, current_state = get_prompt_from_game_state(delta_game)
+         event_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
+
+      output = output_from_prompt(prompt)
+      assert output is not None, f"Ran out of outputs before completing evolver"
+
+      ext = evolver.get_extension()
+      event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
+      ok, msg = evolver.process_output(output)
+      if not ok:
+         logger.error(msg)
+         event_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
+      else:
+         event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
+      if evolver.should_call():
+         ok, msg = evolver.call(delta_game)
+         if not ok:
+            logger.error(msg)
+            event_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
+         else:
+            event_log.append({"event":"Called Function OK"})
+
+   return delta_game
+
 
 
 def game_loop(game:Game):

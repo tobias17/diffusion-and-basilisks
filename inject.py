@@ -1,7 +1,6 @@
 from common import logger
-from main import get_prompt_from_game_state
+from main import process_game_state
 from game import Game
-from evolver import Prompt_Evolver, Micro_State
 
 import json, os, sys
 from typing import List, Dict
@@ -24,35 +23,16 @@ def inject():
       event_log = []
       for key, outputs in injects.items():
          try:
+            def output_from_prompt(_):
+               if len(outputs) == 0:
+                  return None
+               return outputs.pop(0)
             event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
-            delta_game = game.copy()
-            prompt, current_state = get_prompt_from_game_state(delta_game)
-            event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
-            evolver = Prompt_Evolver(current_state)
-
-            for output in outputs:
-               if evolver.micro_state == Micro_State.DONE:
-                  evolver.loop()
-                  prompt, current_state = get_prompt_from_game_state(delta_game)
-                  event_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
-
-               ext = evolver.get_extension()
-               event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
-               ok, msg = evolver.process_output(output)
-               if not ok:
-                  logger.error(msg)
-                  event_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
-               else:
-                  event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
-               if evolver.should_call():
-                  ok, msg = evolver.call(delta_game)
-                  if not ok:
-                     logger.error(msg)
-                     event_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
-                  else:
-                     event_log.append({"event":"Called Function OK"})
-            if evolver.micro_state == Micro_State.DONE:
-               event_log.append({"event":"Ended on DONE State", "scratchpad":evolver.scratchpad.split("\n")})
+            process_game_state(game, output_from_prompt, event_log)
+            output = output_from_prompt("")
+            if output is not None:
+               logger.error("Still had output after processing game state")
+               event_log.append({"event":"ERROR: Unhandled Output Remaining", "output":output})
          except Exception as ex:
             _, _, exc_tb = sys.exc_info()
             logger.error(str(ex))

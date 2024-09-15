@@ -53,9 +53,14 @@ class Prompt_Evolver:
    def should_call(self) -> bool:
       return self.micro_state == Micro_State.UPDATE_SCRATCHPAD
    
+   def can_loop(self) -> Tuple[bool,str]:
+      if self.micro_state != Micro_State.DONE: return False, f"Cannot loop evolver in {self.micro_state} state, expected {Micro_State.DONE} state"
+      if len(self.scratchpad) == 0: return False, "Cannot loop evolver with an empty scratchpad"
+      return True, ""
+
    def loop(self) -> None:
-      assert self.micro_state == Micro_State.DONE, f"Tried looping evolver in {self.micro_state} state, expected {Micro_State.DONE} state"
-      assert len(self.scratchpad) > 0, "Tried looping evolver with an empty scratchpad"
+      can, reason = self.can_loop()
+      assert can, reason
       self.micro_state = Micro_State.CHOOSE_FUNCTION
 
    def process_output(self, output:str) -> Tuple[bool,str]:
