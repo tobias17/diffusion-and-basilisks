@@ -2,11 +2,9 @@ from common import logger
 from main import process_game_state, make_completion
 from game import Game
 
-import json, os, sys, datetime
+import json, os, sys, datetime, argparse
 
-ITERATIONS = 5
-
-def prompt():
+def prompt(iterations:int):
    names_to_test = ["town_talk", "town_idle"]
 
    for test_name in names_to_test:
@@ -19,7 +17,7 @@ def prompt():
          os.makedirs(FOLDER_DIR)
 
       event_log = []
-      for i in range(ITERATIONS):
+      for i in range(iterations):
          key = f"Iteration_{i+1}"
          try:
             event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
@@ -33,4 +31,8 @@ def prompt():
          json.dump(event_log, f, indent="\t")
 
 if __name__ == "__main__":
-   prompt()
+   parser = argparse.ArgumentParser()
+   parser.add_argument('-i', '--iterations', type=int, default=5)
+   args = parser.parse_args()
+
+   prompt(args.iterations)

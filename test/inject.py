@@ -15,7 +15,6 @@ def inject():
          injects: Dict[str,List[str]] = json.load(f)
       game = Game.from_json(data)
 
-      # FOLDER_DIR = datetime.datetime.now().strftime("logs/%m-%d-%Y_%H-%M-%S")
       FOLDER_DIR = "logs/inject"
       if not os.path.exists(FOLDER_DIR):
          os.makedirs(FOLDER_DIR)
