@@ -9,9 +9,9 @@ def inject():
    names_to_test = ["town_talk", "town_idle"]
 
    for test_name in names_to_test:
-      with open(f"inputs/{test_name}_events.json", "r") as f:
+      with open(f"test/inputs/{test_name}_events.json", "r") as f:
          data = json.load(f)
-      with open(f"inputs/{test_name}_injects.json", "r") as f:
+      with open(f"test/inputs/{test_name}_injects.json", "r") as f:
          injects: Dict[str,List[str]] = json.load(f)
       game = Game.from_json(data)
 
