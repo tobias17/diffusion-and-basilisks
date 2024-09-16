@@ -39,7 +39,7 @@ class Create_New_Town_Event(Event):
       self.description = self._strip_text(self.description)
 def create_location(self:Game, town_name:str, backstory:str, description:str) -> Tuple[bool,Optional[str]]:
    for event in self.events:
-      if isinstance(event, Create_New_Town_Event) and event.name == town_name:
+      if isinstance(event, Create_New_Town_Event) and event.name.lower() == town_name.lower():
          return False, f"A location with the name '{town_name}' already exists, no need to create another"
    self.add_event(Create_New_Town_Event(town_name, backstory, description))
    return True, None

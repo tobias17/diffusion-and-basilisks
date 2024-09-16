@@ -160,4 +160,6 @@ if __name__ == "__main__":
    logger.addHandler(file)
 
    game = Game()
+   game.add_event(E.Create_New_Town_Event("Whisperwind Village", "a small village nestled between two large hills with a quaint main street lined with shops and houses", ""))
+   game.add_event(E.Arrive_At_Town_Event("Whisperwind Village"))
    game_loop(game, FOLDER_DIR)
