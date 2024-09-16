@@ -69,6 +69,8 @@ class Arrive_At_Town_Event(Event):
 def arrive_at_town(self:Game, town_name:str) -> Tuple[bool,Optional[str]]:
    existing_locations = []
    for event in reversed(self.events):
+      if isinstance(event, Begin_Traveling_Event) and len(existing_locations) == 0:
+         return True, None
       if isinstance(event, Arrive_At_Town_Event) and event.town_name == town_name:
          return False, f"You are already in '{town_name}', moving there is not required"
       if isinstance(event, Create_New_Town_Event):

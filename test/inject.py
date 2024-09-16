@@ -6,7 +6,7 @@ import json, os, sys
 from typing import List, Dict
 
 def inject():
-   names_to_test = ["town_talk", "town_idle"]
+   names_to_test = ["town_talk", "town_idle", "on_the_move"]
 
    for test_name in names_to_test:
       with open(f"test/inputs/{test_name}_events.json", "r") as f:

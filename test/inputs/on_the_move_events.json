@@ -1,0 +1,20 @@
+[
+	{
+		"cls": "Create_New_Town_Event",
+		"name": "Whisperwind Village",
+		"backstory": "a small village nestled between two large hills with a quaint main street lined with shops and houses",
+		"description": ""
+	},
+	{
+		"cls": "Arrive_At_Town_Event",
+		"town_name": "Whisperwind Village"
+	},
+	{
+		"cls": "Player_Input_Event",
+		"text": "I want to leave and come back"
+	},
+	{
+		"cls": "Begin_Traveling_Event",
+		"travel_goal": "Return back to Whisperwind Village"
+	}
+]

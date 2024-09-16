@@ -10,31 +10,27 @@ from openai import OpenAI
 
 def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    current_state = game.get_current_state()
-
-   prompt = make_intro_prompt(current_state)
+   template = Template(make_intro_prompt(current_state))
+   template["OVERVIEW"] = game.get_overview()
+   template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
 
    if current_state == State.TOWN_IDLE:
-      template = Template(prompt)
-      template["OVERVIEW"] = game.get_overview()
-      template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
       template["PLAYER_INPUT"] = game.get_last_event(E.Player_Input_Event).text + "\n"
       template["CHARACTERS"] = "".join(f"'{e.character_name}': {e.background}\n" for e in game.get_characters())
-      return template.render(), current_state
 
    elif current_state == State.TOWN_TALK:
       speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
-      template = Template(prompt)
-      template["OVERVIEW"] = game.get_overview()
-      template["QUESTS"] = "".join(f'"{e.quest_name}": {e.quest_description}\n' for e in game.get_active_quests())
       template["NPC_NAME"] = speak_target
       template["NPC_DESCRIPTION"] = game.get_last_event(E.Create_Character_Event, limit_fnx=(lambda e: e.character_name == speak_target)).description
       template["CONVERSATION"] = "".join(e.render()+"\n" for e in game.get_conversation_history(speak_target))
-      return template.render(), current_state
+
+   elif current_state == State.ON_THE_MOVE:
+      template["TRAVEL_GOAL"] = game.get_last_event(E.Begin_Traveling_Event).travel_goal
 
    else:
       raise ValueError(f"game_loop() does not support {current_state.value} state yet")
    
-   raise ValueError(f"[INVALID_STATE] game_loop() did not return when in {current_state.value} state")
+   return template.render(), current_state
 
 def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], event_log:List[Dict]) -> Game:
    delta_game = game.copy()
