@@ -79,7 +79,7 @@ def make_completion(prompt:str):
       ],
       temperature=0.8,
       max_tokens=256,
-      stop=["</call", "<|end_of_text|>", "<|im_end|>"],
+      stop=["</", "<|"],
    )
 
    resp = completion.choices[0].message.content
