@@ -8,43 +8,6 @@ from typing import Tuple, Callable, Optional, List, Dict
 import logging, os, datetime, json
 from openai import OpenAI
 
-
-
-json_log = None
-client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-def make_completion(prompt:str):
-   global client, json_log
-
-   completion = client.chat.completions.create(
-      model="lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF",
-      messages=[
-         { "role":"system", "content":prompt },
-      ],
-      temperature=0.8,
-      max_tokens=256,
-      stop=["</call", "<|end_of_text|>", "<|im_end|>"],
-   )
-
-   resp = completion.choices[0].message.content
-   assert resp is not None
-   resp = resp.strip()
-
-   if json_log is not None:
-      if os.path.exists(json_log):
-         with open(json_log) as f:
-            data = json.load(f)
-      else:
-         data = { "queries": [] }
-      data["queries"].append({
-         "prompt":   prompt.strip().split("\n"),
-         "response": resp  .strip().split("\n"),
-      })
-      with open(json_log, "w") as f:
-         json.dump(data, f, indent="\t")
-
-   return resp.split("<")[0].strip()
-
-
 def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    current_state = game.get_current_state()
 
@@ -108,19 +71,52 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
 
    return delta_game
 
+json_log = None
+client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
+def make_completion(prompt:str):
+   global client, json_log
 
+   completion = client.chat.completions.create(
+      model="lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF",
+      messages=[
+         { "role":"system", "content":prompt },
+      ],
+      temperature=0.8,
+      max_tokens=256,
+      stop=["</call", "<|end_of_text|>", "<|im_end|>"],
+   )
+
+   resp = completion.choices[0].message.content
+   assert resp is not None
+   resp = resp.strip()
+
+   if json_log is not None:
+      if os.path.exists(json_log):
+         with open(json_log) as f:
+            data = json.load(f)
+      else:
+         data = { "queries": [] }
+      data["queries"].append({
+         "prompt":   prompt.strip().split("\n"),
+         "response": resp  .strip().split("\n"),
+      })
+      with open(json_log, "w") as f:
+         json.dump(data, f, indent="\t")
+
+   return resp.split("<")[0].strip()
 
 def game_loop(game:Game, log_dirpath:str):
    event_log = []
    while True:
       current_state = game.get_current_state()
 
-      if current_state == State.TOWN_IDLE:
+      if current_state in { State.TOWN_IDLE, State.ON_THE_MOVE }:
          if isinstance(game.events[-1], E.Player_Input_Event):
             event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
             game = process_game_state(game, make_completion, event_log)
          else:
             event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player input"})
+            print("="*40 + "".join("\n" + e.player() for e in game.events))
             text = ""
             while not text:
                text = input("Response? ").strip()
