@@ -15,7 +15,7 @@ def inject():
          injects: Dict[str,List[str]] = json.load(f)
       game = Game.from_json(data)
 
-      FOLDER_DIR = "logs/inject"
+      FOLDER_DIR = "test/outputs"
       if not os.path.exists(FOLDER_DIR):
          os.makedirs(FOLDER_DIR)
       

@@ -1,0 +1,169 @@
+[
+	{
+		"break": "========================================================================================================================",
+		"event": "Starting New Session",
+		"name": "simple_case"
+	},
+	{
+		"event": "Got Initial Prompt",
+		"prompt": [
+			"<|im_start|>system",
+			"You are a large language model tasked with helping a human play a video game.",
+			"You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.",
+			"",
+			"The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.",
+			"",
+			"The following is an overview of the current game:",
+			"<overview>",
+			"A new location is created, 'Whisperwind Village', a small village nestled between two large hills with a quaint main street lined with shops and houses",
+			"You move locations to 'Whisperwind Village'",
+			"</overview>",
+			"",
+			"The following are the currently active quests:",
+			"<quests>",
+			"</quests>",
+			"",
+			"The character is currently in the ON_THE_MOVE state.",
+			"Use the provied APIs to construct a fun and unique encounter event for the player to interact with, or have them arrive at their target location. Make your decisions based on the following travel goal you wrote yourself before leaving town.",
+			"<travel-goal>",
+			"Return back to Whisperwind Village",
+			"</travel-goal>"
+		]
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
+			"def arrive_at_town(): # Arrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "CREATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"Return back to town"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
+			"def arrive_at_town(): # Arrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Return back to town",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"arrive_at_town()"
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def arrive_at_town(town_name:str):",
+			"\t\"\"\"",
+			"\tArrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
+			"",
+			"\tParameters:",
+			"\t-----------",
+			"\ttown_name : str",
+			"\t\tname of the town to arrive at",
+			"\t\"\"\"",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Return back to town",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"arrive_at_town("
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"\"Whisperwind Village\")"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Called Function OK"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
+			"def arrive_at_town(): # Arrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Return back to town",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"arrive_at_town(\"Whisperwind Village\")</calling><|im_end|>",
+			"<|im_start|>system",
+			"Please rewrite an updated scratchpad based on what you just accomplished.",
+			"Remove any items completed but keep tasks that need completing.",
+			"Leave the scratchpad empty iff you completed all of your tasks.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			""
+		],
+		"micro_state": "DONE"
+	}
+]

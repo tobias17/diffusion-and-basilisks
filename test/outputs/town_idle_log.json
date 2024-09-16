@@ -1,0 +1,179 @@
+[
+	{
+		"break": "========================================================================================================================",
+		"event": "Starting New Session",
+		"name": "simple_case"
+	},
+	{
+		"event": "Got Initial Prompt",
+		"prompt": [
+			"<|im_start|>system",
+			"You are a large language model tasked with helping a human play a video game.",
+			"You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.",
+			"",
+			"The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.",
+			"",
+			"The following is an overview of the current game:",
+			"<overview>",
+			"A new location is created, 'Whisperwind Village', a small village nestled between two large hills with a quaint main street lined with shops and houses",
+			"You move locations to 'Whisperwind Village'",
+			"</overview>",
+			"",
+			"The following are the currently active quests:",
+			"<quests>",
+			"</quests>",
+			"",
+			"The following is a list of existing NPC characters the player can interact with:",
+			"<characters>",
+			"</characters>",
+			"",
+			"The character is currently in the TOWN_IDLE state.",
+			"Use the following player input to call the appropriate functions to progress the game state. ONLY call functions that accomplish what the player is asking for, NOT more.",
+			"<player-input>",
+			"I would like to speak with the manager",
+			"</player-input>"
+		]
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
+			"def describe_surroundings(): # Provides the player with a description of a specific part of the environment",
+			"def create_new_npc(): # Creates a new NPC, should only be called if the NPC doesn't already exist",
+			"def start_conversation(): # Starts a conversation between the player and a specified NPC",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "CREATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"Desbribe the environment to the player"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
+			"def describe_surroundings(): # Provides the player with a description of a specific part of the environment",
+			"def create_new_npc(): # Creates a new NPC, should only be called if the NPC doesn't already exist",
+			"def start_conversation(): # Starts a conversation between the player and a specified NPC",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Desbribe the environment to the player",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"describe_surroundings()"
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def describe_surroundings(description:str):",
+			"\t\"\"\"",
+			"\tProvides the player with a description of a specific part of the environment",
+			"",
+			"\tParameters:",
+			"\t-----------",
+			"\tdescription : str",
+			"\t\tthe text description, will be shown directly to the player pre-formatted, provide ONLY the description text content and nothing else",
+			"\t\"\"\"",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Desbribe the environment to the player",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"describe_surroundings("
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"\"There are many flowers blooming bright and colorful, but no manager to be seen.\")"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Called Function OK"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
+			"def describe_surroundings(): # Provides the player with a description of a specific part of the environment",
+			"def create_new_npc(): # Creates a new NPC, should only be called if the NPC doesn't already exist",
+			"def start_conversation(): # Starts a conversation between the player and a specified NPC",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Desbribe the environment to the player",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"describe_surroundings(\"There are many flowers blooming bright and colorful, but no manager to be seen.\")</calling><|im_end|>",
+			"<|im_start|>system",
+			"Please rewrite an updated scratchpad based on what you just accomplished.",
+			"Remove any items completed but keep tasks that need completing.",
+			"Leave the scratchpad empty iff you completed all of your tasks.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			""
+		],
+		"micro_state": "DONE"
+	}
+]

@@ -1,0 +1,474 @@
+[
+	{
+		"break": "========================================================================================================================",
+		"event": "Starting New Session",
+		"name": "simple_case"
+	},
+	{
+		"event": "Got Initial Prompt",
+		"prompt": [
+			"<|im_start|>system",
+			"You are a large language model tasked with helping a human play a video game.",
+			"You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.",
+			"",
+			"The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.",
+			"",
+			"The following is an overview of the current game:",
+			"<overview>",
+			"A new location is created, 'Whisperwind Village', a small village nestled between two large hills with a quaint main street lined with shops and houses",
+			"You move locations to 'Whisperwind Village'",
+			"A new character is created, 'Gilda', The manager of the local inn, known for her hospitality and ability to find rare items., a slender human woman with long flowing brown hair and bright blue eyes",
+			"</overview>",
+			"",
+			"The following are the currently active quests:",
+			"<quests>",
+			"</quests>",
+			"",
+			"The character is currently in the TOWN_TALK state.",
+			"Use the following converstation history and player input to respond to them and/or call other functions. ONLY call functions that accomplish what the player is asking for, NOT more.",
+			"<conversation>",
+			"speak_npc_to_player(\"Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?\")",
+			"speak_player_to_npc(\"I am looking for some work to do, for coin, do you have any for me?\")",
+			"</conversation>"
+		]
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "CREATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"Tell the player there is currently no work"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Tell the player there is currently no work",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"speak_npc_to_player()"
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def speak_npc_to_player(response:str):",
+			"\t\"\"\"",
+			"\tInitiates a response to the player",
+			"",
+			"\tParameters:",
+			"\t-----------",
+			"\tresponse : str",
+			"\t\tthe text response, will be shown directly to the player pre-formatted, provide ONLY the response text content and nothing else",
+			"\t\"\"\"",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Tell the player there is currently no work",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"speak_npc_to_player("
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"\"Unfortunately we do not have any work around here, may I instead offer a drink?\")"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Called Function OK"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Tell the player there is currently no work",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"speak_npc_to_player(\"Unfortunately we do not have any work around here, may I instead offer a drink?\")</calling><|im_end|>",
+			"<|im_start|>system",
+			"Please rewrite an updated scratchpad based on what you just accomplished.",
+			"Remove any items completed but keep tasks that need completing.",
+			"Leave the scratchpad empty iff you completed all of your tasks.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			""
+		],
+		"micro_state": "DONE"
+	},
+	{
+		"break": "========================================================================================================================",
+		"event": "Starting New Session",
+		"name": "multiple_functions"
+	},
+	{
+		"event": "Got Initial Prompt",
+		"prompt": [
+			"<|im_start|>system",
+			"You are a large language model tasked with helping a human play a video game.",
+			"You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.",
+			"",
+			"The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.",
+			"",
+			"The following is an overview of the current game:",
+			"<overview>",
+			"A new location is created, 'Whisperwind Village', a small village nestled between two large hills with a quaint main street lined with shops and houses",
+			"You move locations to 'Whisperwind Village'",
+			"A new character is created, 'Gilda', The manager of the local inn, known for her hospitality and ability to find rare items., a slender human woman with long flowing brown hair and bright blue eyes",
+			"</overview>",
+			"",
+			"The following are the currently active quests:",
+			"<quests>",
+			"</quests>",
+			"",
+			"The character is currently in the TOWN_TALK state.",
+			"Use the following converstation history and player input to respond to them and/or call other functions. ONLY call functions that accomplish what the player is asking for, NOT more.",
+			"<conversation>",
+			"speak_npc_to_player(\"Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?\")",
+			"speak_player_to_npc(\"I am looking for some work to do, for coin, do you have any for me?\")",
+			"</conversation>"
+		]
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "CREATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"Ask the player to kill some orcs and give them a quest for it"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Ask the player to kill some orcs and give them a quest for it",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"speak_npc_to_player()"
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def speak_npc_to_player(response:str):",
+			"\t\"\"\"",
+			"\tInitiates a response to the player",
+			"",
+			"\tParameters:",
+			"\t-----------",
+			"\tresponse : str",
+			"\t\tthe text response, will be shown directly to the player pre-formatted, provide ONLY the response text content and nothing else",
+			"\t\"\"\"",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Ask the player to kill some orcs and give them a quest for it",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"speak_npc_to_player("
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"\"There are some orcs around here that have been giving me some trouble, could you please take care of them for me?\")"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Called Function OK"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Ask the player to kill some orcs and give them a quest for it",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"speak_npc_to_player(\"There are some orcs around here that have been giving me some trouble, could you please take care of them for me?\")</calling><|im_end|>",
+			"<|im_start|>system",
+			"Please rewrite an updated scratchpad based on what you just accomplished.",
+			"Remove any items completed but keep tasks that need completing.",
+			"Leave the scratchpad empty iff you completed all of your tasks.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"Give the player a quest to kill the orcs"
+		],
+		"micro_state": "DONE"
+	},
+	{
+		"event": "Looping Evolver",
+		"prompt": [
+			"<|im_start|>system",
+			"You are a large language model tasked with helping a human play a video game.",
+			"You will be playing the role of game master where you will be prompted to make meta-level decisions as well as generate individual bits of content.",
+			"",
+			"The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.",
+			"",
+			"The following is an overview of the current game:",
+			"<overview>",
+			"A new location is created, 'Whisperwind Village', a small village nestled between two large hills with a quaint main street lined with shops and houses",
+			"You move locations to 'Whisperwind Village'",
+			"A new character is created, 'Gilda', The manager of the local inn, known for her hospitality and ability to find rare items., a slender human woman with long flowing brown hair and bright blue eyes",
+			"</overview>",
+			"",
+			"The following are the currently active quests:",
+			"<quests>",
+			"</quests>",
+			"",
+			"The character is currently in the TOWN_TALK state.",
+			"Use the following converstation history and player input to respond to them and/or call other functions. ONLY call functions that accomplish what the player is asking for, NOT more.",
+			"<conversation>",
+			"speak_npc_to_player(\"Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?\")",
+			"speak_player_to_npc(\"I am looking for some work to do, for coin, do you have any for me?\")",
+			"speak_npc_to_player(\"There are some orcs around here that have been giving me some trouble, could you please take care of them for me?\")",
+			"</conversation>"
+		]
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Give the player a quest to kill the orcs",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>"
+		],
+		"micro_state": "CHOOSE_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"add_quest()"
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def add_quest(description:str, name:str):",
+			"\t\"\"\"",
+			"\tAdds a new quest for the player to complete",
+			"",
+			"\tParameters:",
+			"\t-----------",
+			"\tdescription : str",
+			"\t\tthe text contents of what the quest objective is, should be atleast 1 sentence long, will be shown directly to the player",
+			"\tname : str",
+			"\t\tthe name of this quest, should be a short descriptor that can be used to reference to this quest later, will be shown directly to the player",
+			"\t\"\"\"",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Give the player a quest to kill the orcs",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"add_quest("
+		],
+		"micro_state": "FILL_FUNCTION"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			"\"There is a camp of orcs giving Gilda problems, take them out for her\", \"Orc Extermination\")"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Called Function OK"
+	},
+	{
+		"event": "Got Extension",
+		"extension": [
+			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
+			"<api>",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def speak_npc_to_player(): # Initiates a response to the player",
+			"def add_quest(): # Adds a new quest for the player to complete",
+			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
+			"</api>",
+			"To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).",
+			"If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>",
+			"Give the player a quest to kill the orcs",
+			"</scratchpad><|im_end|>",
+			"<|im_start|>system",
+			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"<|im_start|>assistant",
+			"<calling>",
+			"add_quest(\"There is a camp of orcs giving Gilda problems, take them out for her\", \"Orc Extermination\")</calling><|im_end|>",
+			"<|im_start|>system",
+			"Please rewrite an updated scratchpad based on what you just accomplished.",
+			"Remove any items completed but keep tasks that need completing.",
+			"Leave the scratchpad empty iff you completed all of your tasks.<|im_end|>",
+			"<|im_start|>assistant",
+			"<scratchpad>"
+		],
+		"micro_state": "UPDATE_SCRATCHPAD"
+	},
+	{
+		"event": "Processed Output OK",
+		"output": [
+			""
+		],
+		"micro_state": "DONE"
+	}
+]
