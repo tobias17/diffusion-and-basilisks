@@ -32,10 +32,10 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    
    return template.render(), current_state
 
-def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], event_log:List[Dict]) -> Game:
+def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict]) -> Game:
    delta_game = game.copy()
    prompt, current_state = get_prompt_from_game_state(delta_game)
-   event_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
+   decision_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
    evolver = Prompt_Evolver(current_state)
 
    while True:
@@ -44,26 +44,26 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
             break
          evolver.loop()
          prompt, current_state = get_prompt_from_game_state(delta_game)
-         event_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
+         decision_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
 
       output = output_from_prompt(prompt)
       assert output is not None, f"Ran out of outputs before completing evolver"
 
       ext = evolver.get_extension()
-      event_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
+      decision_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
       ok, msg = evolver.process_output(output)
       if not ok:
          logger.error(msg)
-         event_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
+         decision_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
       else:
-         event_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
+         decision_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
       if evolver.should_call():
          ok, msg = evolver.call(delta_game)
          if not ok:
             logger.error(msg)
-            event_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
+            decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
          else:
-            event_log.append({"event":"Called Function OK"})
+            decision_log.append({"event":"Called Function OK"})
 
    return delta_game
 
@@ -102,47 +102,47 @@ def make_completion(prompt:str):
    return resp.split("<")[0].strip()
 
 def game_loop(game:Game, log_dirpath:str):
-   event_log = []
+   decision_log = []
    while True:
       current_state = game.get_current_state()
 
       if current_state in { State.TOWN_IDLE, State.ON_THE_MOVE }:
          if isinstance(game.events[-1], E.Player_Input_Event):
-            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
-            game = process_game_state(game, make_completion, event_log)
+            decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
+            game = process_game_state(game, make_completion, decision_log)
          else:
-            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player input"})
+            decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player input"})
             print("="*40 + "".join("\n" + e.player() for e in game.events))
             text = ""
             while not text:
                text = input("Response? ").strip()
-            event_log.append({"event":"Got player input", "text":text})
+            decision_log.append({"event":"Got player input", "text":text})
             game.add_event(E.Player_Input_Event(text))
 
       elif current_state == State.TOWN_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
          conv_history = game.get_conversation_history(speak_target)
          if len(conv_history) == 0 or conv_history[-1].is_player_speaking:
-            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
-            game = process_game_state(game, make_completion, event_log)
+            decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
+            game = process_game_state(game, make_completion, decision_log)
          else:
-            event_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player response"})
+            decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player response"})
             print("="*40 + "".join("\n" + c.player() for c in conv_history))
             text = ""
             while not text:
                text = input("How do you respond or [leave]? ").strip()
             if text.lower() == "leave":
-               event_log.append({"event":"User chose to end conversation"})
+               decision_log.append({"event":"User chose to end conversation"})
                game.add_event(E.End_Converstation_Event())
             else:
-               event_log.append({"event":"Got player response", "text":text})
-               event_log.append(E.Speak_Event(speak_target, True, text))
+               decision_log.append({"event":"Got player response", "text":text})
+               decision_log.append(E.Speak_Event(speak_target, True, text))
 
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")
 
-      with open(f"{log_dirpath}/event_log.json", "w") as f: json.dump(event_log,      f, indent="\t")
-      with open(f"{log_dirpath}/game.json",      "w") as f: json.dump(game.to_json(), f, indent="\t")
+      with open(f"{log_dirpath}/decision_log.json", "w") as f: json.dump(decision_log,   f, indent="\t")
+      with open(f"{log_dirpath}/game.json",         "w") as f: json.dump(game.to_json(), f, indent="\t")
 
 if __name__ == "__main__":
    FOLDER_DIR = datetime.datetime.now().strftime("logs/game/%m-%d-%Y_%H-%M-%S")
