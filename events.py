@@ -19,6 +19,8 @@ Function_Map.register(
 @dataclass
 class Player_Input_Event(Event):
    text: str
+   def player(self) -> str:
+      return f"Your Input: {self.text}"
 
 
 # Create Town
@@ -27,15 +29,19 @@ class Create_New_Town_Event(Event):
    name: str
    backstory: str
    description: str
-   def render(self) -> str:
+   def player(self) -> str:
       return f"You discover {self.name}: {self.backstory}"
    def system(self, current_town_name:str) -> Optional[str]:
       return f"A new location is created, '{self.name}', {self.backstory}"
+   def clean(self) -> None:
+      self.name        = self._fix_name(self.name)
+      self.backstory   = self._strip_text(self.backstory)
+      self.description = self._strip_text(self.description)
 def create_location(self:Game, town_name:str, backstory:str, description:str) -> Tuple[bool,Optional[str]]:
    for event in self.events:
       if isinstance(event, Create_New_Town_Event) and event.name == town_name:
          return False, f"A location with the name '{town_name}' already exists, no need to create another"
-   self.events.append(Create_New_Town_Event(town_name, backstory, description))
+   self.add_event(Create_New_Town_Event(town_name, backstory, description))
    return True, None
 Function_Map.register(
    Function(
@@ -54,8 +60,12 @@ class Arrive_At_Town_Event(Event):
    town_name: str
    def implication(self) -> Optional[State]:
       return State.TOWN_IDLE
+   def player(self) -> str:
+      return f"You arrive at {self.town_name}"
    def system(self, current_town_name:str) -> Optional[str]:
       return f"You move locations to '{self.town_name}'"
+   def clean(self) -> None:
+      self.town_name = self._fix_name(self.town_name)
 def arrive_at_town(self:Game, town_name:str) -> Tuple[bool,Optional[str]]:
    existing_locations = []
    for event in reversed(self.events):
@@ -63,7 +73,7 @@ def arrive_at_town(self:Game, town_name:str) -> Tuple[bool,Optional[str]]:
          return False, f"You are already in '{town_name}', moving there is not required"
       if isinstance(event, Create_New_Town_Event):
          if event.name == town_name:
-            self.events.append(Arrive_At_Town_Event(town_name))
+            self.add_event(Arrive_At_Town_Event(town_name))
             return True, None
          existing_locations.append(event.name)
    return False, f"Could not find location with name '{town_name}', existing locations are: {existing_locations}"
@@ -82,8 +92,10 @@ class Begin_Traveling_Event(Event):
    travel_goal: str
    def implication(self) -> Optional[State]:
       return State.ON_THE_MOVE
+   def player(self) -> str:
+      return f"You leave town and start traveling"
 def begin_traveling(self:Game, travel_goal:str):
-   self.events.append(Begin_Traveling_Event(travel_goal))
+   self.add_event(Begin_Traveling_Event(travel_goal))
    return True, None
 # Function_Map.register(
 #    Function(
@@ -99,12 +111,16 @@ def begin_traveling(self:Game, travel_goal:str):
 class Describe_Environment_Event(Event):
    description: str
    town_name: str
+   def player(self) -> str:
+      return self.description
    def system(self, current_town_name:str) -> Optional[str]:
       if self.town_name == current_town_name:
          return f"Described Surroundings in '{self.town_name}': {self.description}"
       return None
+   def clean(self) -> None:
+      self.description = self._strip_text(self.description)
 def describe_environment(self:Game, description:str) -> Tuple[bool,Optional[str]]:
-   self.events.append(Describe_Environment_Event(description, self.get_last_event(Arrive_At_Town_Event).town_name))
+   self.add_event(Describe_Environment_Event(description, self.get_last_event(Arrive_At_Town_Event).town_name))
    return True, None
 Function_Map.register(
    Function(
@@ -124,16 +140,22 @@ class Create_Character_Event(Event):
    description: str
    def render(self) -> str:
       return ""
+   def player(self) -> str:
+      return f"A new character is created, {self.character_name}, {self.background}"
    def system(self, current_town_name:str) -> Optional[str]:
       if self.location_name == current_town_name:
          return f"A new character is created, '{self.character_name}', {self.background}, {self.description}"
       return None
+   def clean(self) -> None:
+      self.character_name = self._fix_name(self.character_name)
+      self.background = self._strip_text(self.background)
+      self.description = self._strip_text(self.description)
 def create_npc(self:Game, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
    current_location = self.get_last_event(Arrive_At_Town_Event).location_name
    for event in reversed(self.events):
       if isinstance(event, Create_Character_Event) and event.location_name == current_location and event.character_name == name:
          return False, f"Character '{name}' already exists, you can interact with them directly without calling `create_npc` again"
-   self.events.append(Create_Character_Event(name, self.get_last_event(Arrive_At_Town_Event).location_name, character_background, physical_description))
+   self.add_event(Create_Character_Event(name, self.get_last_event(Arrive_At_Town_Event).location_name, character_background, physical_description))
    return True, None
 Function_Map.register(
    Function(
@@ -158,7 +180,7 @@ class Speak_Event(Event):
       cleaned_text = self.text.replace('"', "'")
       return "speak_" + ("player_to_npc" if self.is_player_speaking else "npc_to_player") + f'("{cleaned_text}")'
 def respond_as_npc(self:Game, response_text:str) -> Tuple[bool,Optional[str]]:
-   self.events.append(Speak_Event(self.get_last_event(Start_Conversation_Event).character_name, False, response_text))
+   self.add_event(Speak_Event(self.get_last_event(Start_Conversation_Event).character_name, False, response_text))
    return True, None
 Function_Map.register(
    Function(
@@ -175,13 +197,15 @@ class Start_Conversation_Event(Event):
    character_name: str
    def implication(self) -> Optional[State]:
       return State.TOWN_TALK
+   def player(self) -> str:
+      return f"You start talking with {self.character_name}"
 def start_conversation(self:Game, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
    existing_characters = []
    current_location = self.get_last_event(Arrive_At_Town_Event).town_name
    for event in reversed(self.events):
       if isinstance(event, Create_Character_Event) and event.location_name == current_location:
          if character_name == event.character_name:
-            self.events.append(Start_Conversation_Event(character_name, event_description))
+            self.add_event(Start_Conversation_Event(character_name, event_description))
             return True, None
          existing_characters.append(event.character_name)
    return False, f"Failed to find character named '{character_name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
@@ -199,8 +223,10 @@ Function_Map.register(
 class End_Converstation_Event(Event):
    def implication(self) -> Optional[State]:
       return State.TOWN_IDLE
+   def player(self) -> str:
+      return f"You end the conversation"
 def stop_converstation(self:Game) -> Tuple[bool,Optional[str]]:
-   self.events.append(End_Converstation_Event())
+   self.add_event(End_Converstation_Event())
    return True, None
 
 
@@ -209,11 +235,16 @@ def stop_converstation(self:Game) -> Tuple[bool,Optional[str]]:
 class Quest_Start(Event):
    quest_name: str
    quest_description: str
+   def player(self) -> str:
+      return f"You gain a new quest, {self.quest_name}, {self.quest_description}"
+   def clean(self) -> None:
+      self.quest_name = self._fix_name(self.quest_name)
+      self.quest_description = self._strip_text(self.quest_description)
 def add_quest(self:Game, quest_description:str, quest_name:str) -> Tuple[bool,Optional[str]]:
    for event in reversed(self.events):
       if isinstance(event, Quest_Start) and event.quest_name == quest_name:
          return False, f"A quest with the name '{quest_name}' already exists"
-   self.events.append(Quest_Start(quest_name, quest_description))
+   self.add_event(Quest_Start(quest_name, quest_description))
    return True, None
 Function_Map.register(
    Function(
@@ -229,12 +260,14 @@ Function_Map.register(
 @dataclass
 class Quest_Complete(Event):
    quest_name: str
+   def player(self) -> str:
+      return f"You complete a quest, {self.quest_name}"
 def complete_quest(self:Game, quest_name:str) -> Tuple[bool,Optional[str]]:
    for event in reversed(self.events):
       if isinstance(event, Quest_Complete) and event.quest_name == quest_name:
          return False, f"The quest named '{quest_name}' has already been completed"
       if isinstance(event, Quest_Start) and event.quest_name == quest_name:
-         self.events.append(Quest_Complete(quest_name))
+         self.add_event(Quest_Complete(quest_name))
          return True, None
    return False, f"Failed to find a quest with the name '{quest_name}'"
 Function_Map.register(

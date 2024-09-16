@@ -27,3 +27,11 @@ class Event:
       return str(self)
    def system(self, current_location_name:str) -> Optional[str]:
       return None
+   def clean(self) -> None:
+      pass
+
+   def _strip_text(self, text:str) -> str:
+      return text.strip().strip(",.")
+   def _fix_name(self, text:str) -> str:
+      chunks = self._strip_text(text).split(" ")
+      return " ".join(c[0].upper() + (c[1:].lower() if len(c) >= 2 else "") for c in chunks if len(c) >= 1)

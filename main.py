@@ -121,7 +121,7 @@ def game_loop(game:Game, log_dirpath:str):
             while not text:
                text = input("Response? ").strip()
             event_log.append({"event":"Got player input", "text":text})
-            game.events.append(E.Player_Input_Event(text))
+            game.add_event(E.Player_Input_Event(text))
 
       elif current_state == State.TOWN_TALK:
          speak_target = game.get_last_event(E.Start_Conversation_Event).character_name
@@ -137,14 +137,14 @@ def game_loop(game:Game, log_dirpath:str):
                text = input("How do you respond or [leave]? ").strip()
             if text.lower() == "leave":
                event_log.append({"event":"User chose to end conversation"})
-               game.events.append(E.End_Converstation_Event())
+               game.add_event(E.End_Converstation_Event())
             else:
                event_log.append({"event":"Got player response", "text":text})
                event_log.append(E.Speak_Event(speak_target, True, text))
 
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")
-   
+
       with open(f"{log_dirpath}/event_log.json", "w") as f: json.dump(event_log,      f, indent="\t")
       with open(f"{log_dirpath}/game.json",      "w") as f: json.dump(game.to_json(), f, indent="\t")
 

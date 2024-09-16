@@ -36,6 +36,10 @@ class Game:
          events.append(event_cls(**event_data))
       return Game(events)
 
+   def add_event(self, event:Event) -> None:
+      event.clean()
+      self.events.append(event)
+
    def get_current_state(self) -> State:
       for event in reversed(self.events):
          state = event.implication()
