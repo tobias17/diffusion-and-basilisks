@@ -12,10 +12,14 @@ console.setFormatter(LOG_FORMAT)
 logger.addHandler(console)
 
 class State(Enum):
-   TOWN_IDLE   = "TOWN_IDLE"
-   TOWN_TALK   = "TOWN_TALK"
+   TOWN_IDLE = "TOWN_IDLE"
+   TOWN_TALK = "TOWN_TALK"
+
    ON_THE_MOVE = "ON_THE_MOVE"
-   EVENT_INIT  = "EVENT_INIT"
+
+   SHOP_ENCOUNTER   = "SHOP_ENCOUNTER"
+   TRAP_ENCOUNTER   = "TRAP_ENCOUNTER"
+   COMBAT_ENCOUNTER = "COMBAT_ENCOUNTER"
 
 @dataclass
 class Event:

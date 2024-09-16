@@ -9,9 +9,9 @@ from typing import Optional, Tuple
 # NOOP
 Function_Map.register(
    Function(
-      lambda x: x, "do_nothing", "Performs no action, call this if you cannot complete your scratchpad with the available functions",
+      (lambda _: (True, "")), "do_nothing", "Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
    ),
-   State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE, State.EVENT_INIT,
+   *[s for s in State]
 )
 
 
@@ -279,6 +279,30 @@ Function_Map.register(
    ),
    State.TOWN_IDLE, State.TOWN_TALK, State.ON_THE_MOVE,
 )
+
+
+# Shop Encounter
+@dataclass
+class Shop_Encounter_Event(Event):
+   merchant_name: str
+   def implication(self) -> Optional[State]:
+      return State.SHOP_ENCOUNTER
+
+
+# Trap Encounter
+@dataclass
+class Trap_Encounter_Event(Event):
+   trap_description: str
+   def implication(self) -> Optional[State]:
+      return State.TRAP_ENCOUNTER
+
+
+# Combat Encounter
+@dataclass
+class Combat_Encounter_Event(Event):
+   enemy_count: int
+   def implication(self) -> Optional[State]:
+      return State.TRAP_ENCOUNTER
 
 
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }
