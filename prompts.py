@@ -99,6 +99,37 @@ Try your best to be creative. Err on the side of crazy, trying to stay away from
 
 The game takes place in Iosla, a high fantasy realm full of mystery, dangers, and loot. A wide variety of creatures populate Iosla, both fantastic and degenerate.
 
+You will interact with the world through a python inspired API. While this looks and will be called like python code, you only have access to the specified API and trying to do anything else like if-statemnts and for-loops WILL raise exceptions.
+The following is an example of what the API might look like and how you would call it, utilizing the scratchpad to call 1 function at a time.
+<example-api>
+def eat_apple(): # eats an apple from the inventory (if available)
+def create_apple(color:str, description:str):
+	\"\"\"
+	Creates an apple of the specified color and physical description.
+	
+	Parameters:
+	-----------
+	color : str
+		the color of the apple
+	description : str
+		the physical description of the apple, make sure to include a comma-seperated list of visual elements such that this string can be passed directly to a txt2img AI model
+	\"\"\"
+</example-api>
+<example-scratchpad>
+I should make a new apple and then eat it.
+</example-scratchpad>
+<example-calling>
+create_apple("red", "a juicy apple with a deep red skin, a stem sprouting from the top with 2 small leaves")
+</example-calling>
+<example-scratchpad>
+I should eat the apple I just made.
+</example-scratchpad>
+<example-calling>
+eat_apple()
+</example-calling>
+<example-scratchpad>
+</example-scratchpad>
+
 The following is an overview of the current game:
 <overview>
 %%OVERVIEW%%</overview>
