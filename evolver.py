@@ -50,6 +50,10 @@ class Prompt_Evolver:
 
       raise RuntimeError(f"[INVALID_STATE] Reached the end of get_extension, should have gotten a handled return by now")
    
+   def revert(self) -> None:
+      assert self.micro_state == Micro_State.UPDATE_SCRATCHPAD
+      self.micro_state = Micro_State.FILL_FUNCTION
+
    def should_call(self) -> bool:
       return self.micro_state == Micro_State.UPDATE_SCRATCHPAD
    

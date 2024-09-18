@@ -61,16 +61,17 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
          logger.error(msg)
          decision_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
          curr_loops += 1
-      else:
-         decision_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
+         continue
+      decision_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
       if evolver.should_call():
          ok, msg = evolver.call(delta_game)
          if not ok:
+            evolver.revert()
             logger.error(msg)
             decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
             curr_loops += 1
-         else:
-            decision_log.append({"event":"Called Function OK"})
+            continue
+         decision_log.append({"event":"Called Function OK"})
 
    return delta_game
 
