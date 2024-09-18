@@ -6,7 +6,8 @@ import json, os, datetime, argparse
 
 def prompt(iterations:int, folder_dirpath:str):
 
-   names_to_test = ["town_talk", "town_idle", "on_the_move"]
+   # names_to_test = ["town_talk", "town_idle", "on_the_move"]
+   names_to_test = ["town_talk"]
 
    for test_name in names_to_test:
       with open(f"test/inputs/{test_name}_events.json", "r") as f:
