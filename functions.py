@@ -62,9 +62,10 @@ class Function_Map:
 ### Usage Functions ###
 #######################
 
+empty_pattern = re.compile(r'^([a-zA-Z0-9_]+)$')
 func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.*)\)$')
 
-def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
+def parse_function(line:str, allow_empty:bool=False) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
    if "\t" in line: return None, "Function calling blocks cannont contain the \\t character"
    if "\r" in line: return None, "Function calling blocks cannont contain the \\r character"
    special_map = {
@@ -72,9 +73,13 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
       "=": "\r",
    }
 
+   if allow_empty:
+      match = empty_pattern.match(line)
+      if match:
+         return (match.group(1), [], {}), ""
    match = func_pattern.match(line)
    if not match:
-      return None, "Go bad input, could not parse a function from this"
+      return None, "Got bad input, could not parse a function from this"
    func_name   = match.group(1)
    orig_params = match.group(2)
    if len(orig_params) == 0:

@@ -73,7 +73,7 @@ class Prompt_Evolver:
          lines = output.strip().split("\n")
          if len(lines) != 1:
             return False, f"Got {len(lines)} lines when choosing a function, expected exactly 1"
-         ret, msg = parse_function(lines[0])
+         ret, msg = parse_function(lines[0], allow_empty=True)
          if ret is None:
             return False, msg
          func_name, args, kwargs = ret

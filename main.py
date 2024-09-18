@@ -41,6 +41,7 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
 
    while True:
       if curr_loops >= max_loops:
+         decision_log.append({"event":f"Reached Max Loops ({max_loops}), Exiting"})
          return None
 
       if evolver.micro_state == Micro_State.DONE:
