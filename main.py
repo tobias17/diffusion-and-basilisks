@@ -32,13 +32,17 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    
    return template.render(), current_state
 
-def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict]) -> Game:
+def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict], max_loops:int=5) -> Optional[Game]:
    delta_game = game.copy()
    prompt, current_state = get_prompt_from_game_state(delta_game)
    decision_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
    evolver = Prompt_Evolver(current_state)
+   curr_loops = 0
 
    while True:
+      if curr_loops >= max_loops:
+         return None
+
       if evolver.micro_state == Micro_State.DONE:
          if not evolver.can_loop()[0]:
             break
@@ -46,15 +50,16 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
          prompt, current_state = get_prompt_from_game_state(delta_game)
          decision_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
 
-      output = output_from_prompt(prompt)
-      assert output is not None, f"Ran out of outputs before completing evolver"
-
       ext = evolver.get_extension()
       decision_log.append({"event":"Got Extension", "extension":ext.split("\n"), "micro_state":evolver.micro_state.value})
+
+      output = output_from_prompt(f"{prompt}\n\n{ext}")
+      assert output is not None, f"Ran out of outputs before completing evolver"
       ok, msg = evolver.process_output(output)
       if not ok:
          logger.error(msg)
          decision_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
+         curr_loops += 1
       else:
          decision_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
       if evolver.should_call():
@@ -62,6 +67,7 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
          if not ok:
             logger.error(msg)
             decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
+            curr_loops += 1
          else:
             decision_log.append({"event":"Called Function OK"})
 
@@ -109,7 +115,9 @@ def game_loop(game:Game, log_dirpath:str):
       if current_state in { State.TOWN_IDLE, State.ON_THE_MOVE }:
          if isinstance(game.events[-1], E.Player_Input_Event):
             decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
-            game = process_game_state(game, make_completion, decision_log)
+            new_game = process_game_state(game, make_completion, decision_log)
+            if new_game is not None:
+               game = new_game
          else:
             decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player input"})
             print("="*40 + "".join("\n" + e.player() for e in game.events))
@@ -124,7 +132,9 @@ def game_loop(game:Game, log_dirpath:str):
          conv_history = game.get_conversation_history(speak_target)
          if len(conv_history) == 0 or conv_history[-1].is_player_speaking:
             decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting LLM completion"})
-            game = process_game_state(game, make_completion, decision_log)
+            new_game = process_game_state(game, make_completion, decision_log)
+            if new_game is not None:
+               game = new_game
          else:
             decision_log.append({"event":f"Processing {current_state.value} State", "message":"Requesting player response"})
             print("="*40 + "".join("\n" + c.player() for c in conv_history))

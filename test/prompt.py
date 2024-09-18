@@ -1,8 +1,8 @@
-from common import logger
+from common import logger, exc_loc_str
 from main import process_game_state, make_completion
 from game import Game
 
-import json, os, sys, datetime, argparse
+import json, os, datetime, argparse
 
 def prompt(iterations:int):
    names_to_test = ["town_talk", "town_idle"]
@@ -23,9 +23,8 @@ def prompt(iterations:int):
             event_log.append({"break":"="*120, "event":"Starting New Session", "name":key})
             process_game_state(game, make_completion, event_log)
          except Exception as ex:
-            _, _, exc_tb = sys.exc_info()
             logger.error(str(ex))
-            event_log.append({"event":"ERROR: Unhandled Exception", "error":f"{ex} ({os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno})"})
+            event_log.append({"event":"ERROR: Unhandled Exception", "error":f"{ex} ({exc_loc_str()})"})
 
       with open(os.path.join(FOLDER_DIR, f"{test_name}_log.json"), "w") as f:
          json.dump(event_log, f, indent="\t")

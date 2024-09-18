@@ -1,6 +1,7 @@
 from typing import Optional
 from enum import Enum
 from dataclasses import dataclass
+import os, sys
 
 import logging
 logger = logging.getLogger("Diff_and_Bas")
@@ -39,3 +40,8 @@ class Event:
    def _fix_name(self, text:str) -> str:
       chunks = self._strip_text(text).split(" ")
       return " ".join(c[0].upper() + (c[1:].lower() if len(c) >= 2 else "") for c in chunks if len(c) >= 1)
+
+def exc_loc_str() -> str:
+   _, _, exc_tb = sys.exc_info()
+   if exc_tb is None: return "?:?"
+   return f"{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}"
