@@ -136,7 +136,7 @@ def game_loop(game:Game, log_dirpath:str):
                game.add_event(E.End_Converstation_Event())
             else:
                decision_log.append({"event":"Got player response", "text":text})
-               decision_log.append(E.Speak_Event(speak_target, True, text))
+               game.add_event(E.Speak_Event(speak_target, True, text))
 
       else:
          raise ValueError(f"game_loop() does not support {current_state} state yet")

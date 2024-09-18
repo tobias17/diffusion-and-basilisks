@@ -78,7 +78,7 @@ def parse_function(line:str) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
    func_name   = match.group(1)
    orig_params = match.group(2)
    if len(orig_params) == 0:
-      return (func_name, tuple(), {}), ""
+      return (func_name, [], {}), ""
 
    cleaned_params = ""
    quote_char = None

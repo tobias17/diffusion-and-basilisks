@@ -40,7 +40,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
 			"def describe_surroundings(): # Provides the player with a description of a specific part of the environment",
 			"def create_new_npc(): # Creates a new NPC, should only be called if the NPC doesn't already exist",
@@ -67,7 +67,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
 			"def describe_surroundings(): # Provides the player with a description of a specific part of the environment",
 			"def create_new_npc(): # Creates a new NPC, should only be called if the NPC doesn't already exist",
@@ -141,7 +141,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
 			"def describe_surroundings(): # Provides the player with a description of a specific part of the environment",
 			"def create_new_npc(): # Creates a new NPC, should only be called if the NPC doesn't already exist",

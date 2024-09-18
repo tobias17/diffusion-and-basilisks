@@ -38,7 +38,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -62,7 +62,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -133,7 +133,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -205,7 +205,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -229,7 +229,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -300,7 +300,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -368,7 +368,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",
@@ -441,7 +441,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def speak_npc_to_player(): # Initiates a response to the player",
 			"def add_quest(): # Adds a new quest for the player to complete",
 			"def complete_quest(): # Marks the specified quest as completed, make sure to only call once the player has actually completed the quest",

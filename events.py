@@ -3,7 +3,7 @@ from functions import Function_Map, Function, Parameter
 from game import Game
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 
 # NOOP
@@ -67,7 +67,7 @@ class Arrive_At_Town_Event(Event):
    def clean(self) -> None:
       self.town_name = self._fix_name(self.town_name)
 def arrive_at_town(self:Game, town_name:str) -> Tuple[bool,Optional[str]]:
-   existing_locations = []
+   existing_locations: List[str] = []
    for event in reversed(self.events):
       if isinstance(event, Begin_Traveling_Event) and len(existing_locations) == 0:
          return True, None
@@ -137,7 +137,7 @@ Function_Map.register(
 @dataclass
 class Create_Character_Event(Event):
    character_name: str
-   location_name: str
+   town_name: str
    background: str
    description: str
    def render(self) -> str:
@@ -145,7 +145,7 @@ class Create_Character_Event(Event):
    def player(self) -> str:
       return f"A new character is created, {self.character_name}, {self.background}"
    def system(self, current_town_name:str) -> Optional[str]:
-      if self.location_name == current_town_name:
+      if self.town_name == current_town_name:
          return f"A new character is created, '{self.character_name}', {self.background}, {self.description}"
       return None
    def clean(self) -> None:
@@ -153,11 +153,11 @@ class Create_Character_Event(Event):
       self.background = self._strip_text(self.background)
       self.description = self._strip_text(self.description)
 def create_npc(self:Game, name:str, character_background:str, physical_description:str) -> Tuple[bool,Optional[str]]:
-   current_location = self.get_last_event(Arrive_At_Town_Event).location_name
+   current_location = self.get_last_event(Arrive_At_Town_Event).town_name
    for event in reversed(self.events):
-      if isinstance(event, Create_Character_Event) and event.location_name == current_location and event.character_name == name:
+      if isinstance(event, Create_Character_Event) and event.town_name == current_location and event.character_name == name:
          return False, f"Character '{name}' already exists, you can interact with them directly without calling `create_npc` again"
-   self.add_event(Create_Character_Event(name, self.get_last_event(Arrive_At_Town_Event).location_name, character_background, physical_description))
+   self.add_event(Create_Character_Event(name, self.get_last_event(Arrive_At_Town_Event).town_name, character_background, physical_description))
    return True, None
 Function_Map.register(
    Function(
@@ -165,6 +165,33 @@ Function_Map.register(
       Parameter("name", str, "the name of the NPC, should be a proper noun"),
       Parameter("background", str, "the background of the character, like their profession and/or personality"),
       Parameter("physical_description", str, "what the character physically looks like, format as a comma-seperated list of physical attributes such that this parameter can be passed directly to a txt2img AI model")
+   ),
+   State.TOWN_IDLE,
+)
+
+
+# Start Conversation
+@dataclass
+class Start_Conversation_Event(Event):
+   character_name: str
+   def implication(self) -> Optional[State]:
+      return State.TOWN_TALK
+   def player(self) -> str:
+      return f"You start talking with {self.character_name}"
+def start_conversation(self:Game, npc_name:str) -> Tuple[bool,Optional[str]]:
+   existing_characters = []
+   current_location = self.get_last_event(Arrive_At_Town_Event).town_name
+   for event in reversed(self.events):
+      if isinstance(event, Create_Character_Event) and event.town_name == current_location:
+         if npc_name == event.character_name:
+            self.add_event(Start_Conversation_Event(npc_name))
+            return True, None
+         existing_characters.append(event.character_name)
+   return False, f"Failed to find character named '{npc_name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
+Function_Map.register(
+   Function(
+      start_conversation, "start_conversation", f"Starts a conversation between the player and a specified NPC",
+      Parameter("npc_name", str, "the name of the NPC to start a conversation with")
    ),
    State.TOWN_IDLE,
 )
@@ -190,33 +217,6 @@ Function_Map.register(
       Parameter("response", str, "the text response, will be shown directly to the player pre-formatted, provide ONLY the response text content and nothing else"),
    ),
    State.TOWN_TALK,
-)
-
-
-# Start Conversation
-@dataclass
-class Start_Conversation_Event(Event):
-   character_name: str
-   def implication(self) -> Optional[State]:
-      return State.TOWN_TALK
-   def player(self) -> str:
-      return f"You start talking with {self.character_name}"
-def start_conversation(self:Game, character_name:str, event_description:str) -> Tuple[bool,Optional[str]]:
-   existing_characters = []
-   current_location = self.get_last_event(Arrive_At_Town_Event).town_name
-   for event in reversed(self.events):
-      if isinstance(event, Create_Character_Event) and event.location_name == current_location:
-         if character_name == event.character_name:
-            self.add_event(Start_Conversation_Event(character_name, event_description))
-            return True, None
-         existing_characters.append(event.character_name)
-   return False, f"Failed to find character named '{character_name}', the current location ({current_location}) has characters with the following names: {existing_characters}"
-Function_Map.register(
-   Function(
-      start_conversation, "start_conversation", f"Starts a conversation between the player and a specified NPC",
-      Parameter("npc_name", str, "the name of the NPC to start a conversation with")
-   ),
-   State.TOWN_IDLE,
 )
 
 

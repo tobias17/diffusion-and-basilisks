@@ -12,7 +12,7 @@
 	{
 		"cls": "Create_Character_Event",
 		"character_name": "Gilda",
-		"location_name": "Whisperwind Village",
+		"town_name": "Whisperwind Village",
 		"background": "The manager of the local inn, known for her hospitality and ability to find rare items.",
 		"description": "a slender human woman with long flowing brown hair and bright blue eyes"
 	},

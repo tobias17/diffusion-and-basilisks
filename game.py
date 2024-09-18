@@ -85,6 +85,6 @@ class Game:
       characters = []
       current_location = self.get_last_event(E.Arrive_At_Town_Event).town_name
       for event in reversed(self.events):
-         if isinstance(event, E.Create_Character_Event) and event.location_name == current_location:
+         if isinstance(event, E.Create_Character_Event) and event.town_name == current_location:
             characters.append(event)
       return characters

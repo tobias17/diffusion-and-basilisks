@@ -36,7 +36,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
 			"def arrive_at_town(): # Arrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
 			"def add_quest(): # Adds a new quest for the player to complete",
@@ -61,7 +61,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
 			"def arrive_at_town(): # Arrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
 			"def add_quest(): # Adds a new quest for the player to complete",
@@ -133,7 +133,7 @@
 		"extension": [
 			"The following is the API you will have access to. You are allowed to call 1 of these at a time.",
 			"<api>",
-			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions",
+			"def do_nothing(): # Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
 			"def create_new_town(): # Creates a new town location that the player can travel to in the future, will not be interactable immediately after creation",
 			"def arrive_at_town(): # Arrives at the specified town transitioning to the TOWN_IDLE state, the town must already exist before calling this",
 			"def add_quest(): # Adds a new quest for the player to complete",
