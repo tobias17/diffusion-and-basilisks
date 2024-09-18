@@ -82,6 +82,12 @@ class Prompt_Evolver:
             return False, msg
          func_name, args, kwargs = ret
          if (param_count := (len(args) + len(kwargs))) > 0:
+            call, msg = match_function(func_name, args, kwargs, self.state_functions)
+            if call is not None:
+               self.call = call
+               self.full_function_call = lines[0]
+               self.micro_state = Micro_State.UPDATE_SCRATCHPAD
+               return True, ""
             return False, f"Got {param_count} parameters to function call, expected exactly 0"
          for func in self.state_functions:
             if func.name == func_name:

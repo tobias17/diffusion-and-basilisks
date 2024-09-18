@@ -32,7 +32,7 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    
    return template.render(), current_state
 
-def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict], max_loops:int=5) -> Optional[Game]:
+def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict], max_loops:int=3) -> Optional[Game]:
    delta_game = game.copy()
    prompt, current_state = get_prompt_from_game_state(delta_game)
    decision_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
