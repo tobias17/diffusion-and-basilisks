@@ -43,7 +43,9 @@ The following is the API you will have access to. You are allowed to call 1 of t
 
 ask_for_scratchpad = f"""
 To start off, you will first use the following scratchpad to create an action plan. This should be 1 or more lines, written in plain English, description your intended action(s).
-If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.{SYSTEM_END}
+If you plan on calling multiple API functions before getting a player response write out ALL steps to your plan here.
+Make sure to ONLY include items for you. Do NOT include items for the player to perform. Do NOT include items that rely on player input. Do ONLY what you can this very instant with the information written above.
+This scratchpad should be SHORT and SIMPLE!{SYSTEM_END}
 {ASSISTANT_START}
 <scratchpad>
 """.strip()
