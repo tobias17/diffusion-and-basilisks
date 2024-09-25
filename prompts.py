@@ -58,7 +58,8 @@ end_scratchpad = f"""
 update_scratchpad = f"""
 Please rewrite an updated scratchpad based on what you just accomplished.
 Remove any items completed but keep tasks that need completing.
-Leave the scratchpad empty iff you completed all of your tasks.{SYSTEM_END}
+If you are done with your tasking LEAVE THIS EMPTY. If you are waiting for player input LEAVE THIS EMPTY.
+Only write something if there are immediate actions you want to perform that require 0 player input. Otherwise immediately close this tag.{SYSTEM_END}
 {ASSISTANT_START}
 <scratchpad>
 """.strip()
