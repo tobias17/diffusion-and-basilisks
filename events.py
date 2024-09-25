@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, List
 
 
-# NOOP
+# Request Player Input
 Function_Map.register(
    Function(
-      (lambda _: (True, "")), "do_nothing", "Performs no action, call this if you cannot complete your scratchpad with the available functions and want to void the scratchpad",
+      (lambda _: (True, "")), "get_player_input", "Requests input from the player to progress the story",
    ),
    *[s for s in State]
 )

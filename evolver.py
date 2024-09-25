@@ -89,6 +89,10 @@ class Prompt_Evolver:
                self.micro_state = Micro_State.UPDATE_SCRATCHPAD
                return True, ""
             return False, f"Got {param_count} parameters to function call, expected exactly 0"
+         if func_name == "get_player_input":
+            self.scratchpad = ""
+            self.micro_state = Micro_State.DONE
+            return True, ""
          for func in self.state_functions:
             if func.name == func_name:
                self.selected_function = func
@@ -96,7 +100,7 @@ class Prompt_Evolver:
                return True, ""
          else:
             return False, f"Could not find function named '{func_name}', options are {[f.name for f in self.state_functions]}"
-      
+
       elif self.micro_state == Micro_State.FILL_FUNCTION:
          output = f"{self.selected_function.name}({output}"
          lines = output.strip().split("\n")
@@ -113,12 +117,12 @@ class Prompt_Evolver:
          self.full_function_call = lines[0]
          self.micro_state = Micro_State.UPDATE_SCRATCHPAD
          return True, ""
-      
+
       elif self.micro_state == Micro_State.UPDATE_SCRATCHPAD:
          self.scratchpad = output
          self.micro_state = Micro_State.DONE
          return True, ""
-      
+
       assert self.micro_state != Micro_State.DONE, "Prompt_Evolver in done state, cannot process_output"
-      
+
       raise RuntimeError(f"[INVALID_STATE] Reached the end of process_output, should have gotten a handled return by now")
