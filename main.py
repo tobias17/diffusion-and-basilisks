@@ -32,21 +32,26 @@ def get_prompt_from_game_state(game:Game) -> Tuple[str,State]:
    
    return template.render(), current_state
 
-def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict], max_loops:int=3) -> Optional[Game]:
+def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str]], decision_log:List[Dict], max_errors:int=3, max_loops:int=3) -> Optional[Game]:
    delta_game = game.copy()
    prompt, current_state = get_prompt_from_game_state(delta_game)
    decision_log.append({"event":"Got Initial Prompt", "prompt":prompt.split("\n")})
    evolver = Prompt_Evolver(current_state)
+   curr_errors = 0
    curr_loops = 0
 
    while True:
-      if curr_loops >= max_loops:
-         decision_log.append({"event":f"Reached Max Loops ({max_loops}), Exiting"})
+      if curr_errors >= max_errors:
+         decision_log.append({"event":f"Reached Max Errors ({max_errors}), Exiting"})
          return None
 
       if evolver.micro_state == Micro_State.DONE:
          if not evolver.can_loop()[0]:
             break
+         if curr_loops >= max_loops:
+            decision_log.append({"event":f"Reached Max Loops ({max_loops}), Exiting"})
+            return None
+         curr_loops += 1
          evolver.loop()
          prompt, current_state = get_prompt_from_game_state(delta_game)
          decision_log.append({"event":"Looping Evolver", "prompt":prompt.split("\n")})
@@ -60,7 +65,7 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
       if not ok:
          logger.error(msg)
          decision_log.append({"event":"ERROR: Got Back Not-OK Processing Output", "output":output.split("\n"), "message":msg})
-         curr_loops += 1
+         curr_errors += 1
          continue
       decision_log.append({"event":"Processed Output OK", "output":output.split("\n"), "micro_state":evolver.micro_state.value})
       if evolver.should_call():
@@ -69,7 +74,7 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
             evolver.revert()
             logger.error(msg)
             decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "message":msg})
-            curr_loops += 1
+            curr_errors += 1
             continue
          decision_log.append({"event":"Called Function OK"})
 
