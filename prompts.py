@@ -66,7 +66,8 @@ Only write something if there are immediate actions you want to perform that req
 
 ask_for_function_call = f"""
 Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.
-Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.{SYSTEM_END}
+Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.
+If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.{SYSTEM_END}
 {ASSISTANT_START}
 <calling>
 """.strip()
@@ -81,7 +82,7 @@ end_function_calling = f"""
 limiter = "ONLY call functions that accomplish what the player is asking for, NOT more."
 instructions: Dict[State,str] = {
    State.TOWN_IDLE: f"Use the following player input to call the appropriate functions to progress the game state. {limiter}\n<player-input>\n%%PLAYER_INPUT%%</player-input>",
-   State.TOWN_TALK: f"You will be taking on the role of %%NPC_NAME%%, an NPC in the game. You will call functions to speak with the player on %%NPC_NAME%%'s behalf, or progress any other game state. {limiter}\n<conversation>\n%%CONVERSATION%%</conversation>",
+   State.TOWN_TALK: f"You will be taking on the role of %%NPC_NAME%%, an NPC in the game. You will call functions to speak with the player on %%NPC_NAME%%'s behalf, or progress any other game state. {limiter}\n<conversation>\n%%CONVERSATION%%</conversation>\nThe above is the converstation that has already taken place. Make sure to only respond to the player ONCE. Do NOT repeat yourself.",
    State.ON_THE_MOVE: f"Use the provied APIs to either construct a fun and unique encounter for the player to interact with, or have them arrive at their target location. Make your decisions based on the following travel goal you wrote yourself before leaving town.\n<travel-goal>\n%%TRAVEL_GOAL%%\n</travel-goal>",
 }
 

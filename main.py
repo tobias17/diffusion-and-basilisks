@@ -42,6 +42,7 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
 
    while True:
       if curr_errors >= max_errors:
+         logger.error("Reached Max Errors")
          decision_log.append({"event":f"Reached Max Errors ({max_errors}), Exiting"})
          return None
 
@@ -49,6 +50,7 @@ def process_game_state(game:Game, output_from_prompt:Callable[[str],Optional[str
          if not evolver.can_loop()[0]:
             break
          if curr_loops >= max_loops:
+            logger.error("Reached Max Loops")
             decision_log.append({"event":f"Reached Max Loops ({max_loops}), Exiting"})
             return None
          curr_loops += 1

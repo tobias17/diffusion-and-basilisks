@@ -61,7 +61,8 @@
 			"<conversation>",
 			"speak_npc_to_player(\"Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?\")",
 			"speak_player_to_npc(\"I am looking for some work to do, for coin, do you have any for me?\")",
-			"</conversation>"
+			"</conversation>",
+			"The above is the converstation that has already taken place. Make sure to only respond to the player ONCE. Do NOT repeat yourself."
 		]
 	},
 	{
@@ -110,7 +111,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>"
 		],
@@ -148,7 +150,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>",
 			"speak_npc_to_player("
@@ -185,7 +188,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>",
 			"speak_npc_to_player(\"Unfortunately we do not have any work around here, may I instead offer a drink?\")</calling><|im_end|>",
@@ -268,7 +272,8 @@
 			"<conversation>",
 			"speak_npc_to_player(\"Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?\")",
 			"speak_player_to_npc(\"I am looking for some work to do, for coin, do you have any for me?\")",
-			"</conversation>"
+			"</conversation>",
+			"The above is the converstation that has already taken place. Make sure to only respond to the player ONCE. Do NOT repeat yourself."
 		]
 	},
 	{
@@ -317,7 +322,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>"
 		],
@@ -355,7 +361,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>",
 			"speak_npc_to_player("
@@ -392,7 +399,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>",
 			"speak_npc_to_player(\"There are some orcs around here that have been giving me some trouble, could you please take care of them for me?\")</calling><|im_end|>",
@@ -471,7 +479,8 @@
 			"speak_npc_to_player(\"Hello there, traveller, welcome to The Rusty Lantern Inn. How may I be of service?\")",
 			"speak_player_to_npc(\"I am looking for some work to do, for coin, do you have any for me?\")",
 			"speak_npc_to_player(\"There are some orcs around here that have been giving me some trouble, could you please take care of them for me?\")",
-			"</conversation>"
+			"</conversation>",
+			"The above is the converstation that has already taken place. Make sure to only respond to the player ONCE. Do NOT repeat yourself."
 		]
 	},
 	{
@@ -494,7 +503,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>"
 		],
@@ -534,7 +544,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>",
 			"add_quest("
@@ -571,7 +582,8 @@
 			"</scratchpad><|im_end|>",
 			"<|im_start|>system",
 			"Please call the necessary function to progress the game state in a fun-but-in-the-guide-rails manner.",
-			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.<|im_end|>",
+			"Make sure to ONLY call only a SIGNLE function. Do NOT call multiple functions.",
+			"If you are waiting for player input to proceed, call the `get_player_input()` function and do NOT call other functions.<|im_end|>",
 			"<|im_start|>assistant",
 			"<calling>",
 			"add_quest(\"There is a camp of orcs giving Gilda problems, take them out for her\", \"Orc Extermination\")</calling><|im_end|>",
