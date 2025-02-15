@@ -1,5 +1,4 @@
-from common import State
-
+from common import Event
 from typing import List, Dict, Optional, Type, Callable, Tuple, Any
 from dataclasses import dataclass
 import re
@@ -28,6 +27,14 @@ class Function:
       self.params = list(params)
    def render(self) -> str:
       return f"{self.name}({', '.join(p.render() for p in self.params)})"
+   def system(self, event:Event) -> Optional[str]:
+      items = []
+      for p in self.params:
+         value = getattr(event, p.name)
+         if value is None:
+            raise RuntimeError(f"Could not extract attribute '{p.name}' out of {event}")
+         items.append(f"{p.name}=" + (f'"{value}"' if p.dtype is str else str(value)))
+      return f"{self.name}({', '.join(items)})"
 
 class Function_Map:
    funcs: List[Function] = []

@@ -3,7 +3,12 @@ from functions import Function_Map, Function, Parameter
 from game import Game
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Optional
+
+
+@dataclass
+class Player_Input_Event(Event):
+   text: str
 
 
 @dataclass
@@ -18,13 +23,14 @@ def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str
    self.add_event(Create_Location_Event(loc_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   Function(
+   fnx := Function(
       create_location, "GAME.create_location",
-      Parameter("town_name", str),
-      Parameter("backstory", str),
-      Parameter("description", str),
+      Parameter("loc_id", str),
+      Parameter("name", str),
+      Parameter("desc", str),
    )
 )
+Create_Location_Event.system = (lambda e: fnx.system(e)) # type: ignore
 
 
 @dataclass
@@ -34,11 +40,12 @@ def move_to(self:Game, loc_id:str) -> Tuple[bool,str]:
    self.add_event(Move_To_Event(loc_id))
    return True, ""
 Function_Map.funcs.append(
-   Function(
+   fnx := Function(
       move_to, "PLAYER.move_to",
       Parameter("loc_id", str),
    )
 )
+Move_To_Event.system = (lambda e: fnx.system(e)) # type: ignore
 
 
 @dataclass
@@ -53,13 +60,14 @@ def create_npc(self:Game, npc_id:str, name:str, desc:str) -> Tuple[bool,str]:
    self.add_event(Create_Npc_Event(npc_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   Function(
+   fnx := Function(
       create_npc, "GAME.create_npc",
       Parameter("npc_id", str),
       Parameter("name", str),
       Parameter("desc", str),
    )
 )
+Create_Npc_Event.system = (lambda e: fnx.system(e)) # type: ignore
 
 
 @dataclass
@@ -67,6 +75,9 @@ class Speak_Event(Event):
    npc_id: str
    text: str
    is_player_speaking: bool
+   def system(self) -> Optional[str]:
+      prefix = f"PLAYER.speak_to_npc" if self.is_player_speaking else "NPC.speak_to_player"
+      return f'{prefix}(npc_id="{self.npc_id}", text="{self.text}")'
 def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    self.add_event(Speak_Event(npc_id, text, True))
    return True, ""
@@ -96,11 +107,12 @@ def narrate(self:Game, text:str) -> Tuple[bool,str]:
    self.add_event(Narrate_Event(text))
    return True, ""
 Function_Map.funcs.append(
-   Function(
+   fnx := Function(
       narrate, "NARRATOR.speak",
       Parameter("text", str),
    )
 )
+Narrate_Event.system = (lambda e: fnx.system(e)) # type: ignore
 
 
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }
