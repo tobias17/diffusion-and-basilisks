@@ -39,13 +39,6 @@ class Game:
    def add_event(self, event:Event) -> None:
       event.clean()
       self.events.append(event)
-
-   def get_current_state(self) -> State:
-      for event in reversed(self.events):
-         state = event.implication()
-         if state is not None:
-            return state
-      return State.ON_THE_MOVE
    
    def get_last_event(self, target_event:Type[T], limit_fnx:Callable[[T],bool]=(lambda e: True), default=None) -> T:
       for event in reversed(self.events):

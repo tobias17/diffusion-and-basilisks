@@ -14,47 +14,38 @@ import re
 class Parameter:
    name: str
    dtype: Type
-   description: str
    default: Optional[str] = None
    def render(self) -> str:
       return f"{self.name}:{self.dtype.__name__}" + (f"={self.default}" if self.default is not None else "")
-   def render_long(self) -> str:
-      return f"{self.name} : {self.dtype.__name__}\n\t\t{self.description}\n\t"
 
 class Function:
    call: Callable
    name: str
-   comment: str
    params: List[Parameter]
-   def __init__(self, call:Callable, name:str, comment:str, *params:Parameter):
+   def __init__(self, call:Callable, name:str, *params:Parameter):
       self.call = call
       self.name = name
-      self.comment = comment
       self.params = list(params)
    def render(self) -> str:
-      return f"def {self.name}({', '.join(p.render() for p in self.params)}): # {self.comment}"
-   def render_short(self) -> str:
-      return f"def {self.name}(): # {self.comment}\n"
-   def render_long(self) -> str:
-      return f'def {self.name}({", ".join(p.render() for p in self.params)}):\n\t"""\n\t{self.comment}\n\n\tParameters:\n\t-----------\n\t' + "".join(p.render_long() for p in self.params) + '"""\n'
+      return f"{self.name}({', '.join(p.render() for p in self.params)})"
 
 class Function_Map:
-   mapping: Dict[State,List[Function]] = {}
+   funcs: List[Function] = []
 
    @staticmethod
-   def register(fxn:Function, *states:State) -> None:
-      for state in states:
-         if state not in Function_Map.mapping:
-            Function_Map.mapping[state] = []
-         Function_Map.mapping[state].append(fxn)
+   def get(function_name:str) -> Tuple[Optional[Function],str]:
+      funcs = [f for f in Function_Map.funcs if f.name == function_name]
+      if len(funcs) == 0:
+         return None, f"Failed to find a function with name '{function_name}'"
+      if len(funcs) > 1:
+         return None, f"PANIC: found {len(funcs)} functions with name '{function_name}'"
+      return funcs[0], ""
 
-   @staticmethod
-   def get(key:State, specific_function:Optional[str]=None) -> List[Function]:
-      funcs = Function_Map.mapping.get(key, [])
-      if specific_function is not None:
-         funcs = [f for f in funcs if f.name == specific_function]
-      return funcs
-
+@dataclass
+class Function_Call_Data:
+   name: str
+   args: List[str]
+   kwargs: Dict[str,str]
 
 
 
@@ -63,13 +54,7 @@ class Function_Map:
 #######################
 
 empty_pattern = re.compile(r'^([a-zA-Z0-9_\.]+)$')
-func_pattern = re.compile(r'^([a-zA-Z0-9_\.]+)\((.*)\)$')
-
-@dataclass
-class Function_Call_Data:
-   name: str
-   args: List[str]
-   kwargs: Dict[str,str]
+func_pattern  = re.compile(r'^([a-zA-Z0-9_\.]+)\((.*)\)$')
 
 def parse_function(line:str, allow_empty:bool=False) -> Tuple[Optional[Function_Call_Data],str]:
    if "\t" in line: return None, "Function calling blocks cannont contain the \\t character"
