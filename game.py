@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import Event, State
+from common import Event
 import events as E
 
 from typing import List, Optional, Dict, Any, List, Callable, Type, TypeVar, Tuple
@@ -39,45 +39,3 @@ class Game:
    def add_event(self, event:Event) -> None:
       event.clean()
       self.events.append(event)
-   
-   def get_last_event(self, target_event:Type[T], limit_fnx:Callable[[T],bool]=(lambda e: True), default=None) -> T:
-      for event in reversed(self.events):
-         if isinstance(event, target_event) and limit_fnx(event):
-            return event
-      if default is not None:
-         return default
-      raise RuntimeError(f"get_last_event() failed to find a {target_event.__name__} in the event list")
-
-   def get_conversation_history(self, character_name:str) -> List[E.Speak_Event]:
-      history = []
-      for event in self.events:
-         if isinstance(event, E.Speak_Event) and event.with_character == character_name:
-            history.append(event)
-      return history
-
-   def get_overview(self) -> str:
-      overview = []
-      current_location = self.get_last_event(E.Arrive_At_Town_Event).town_name
-      for event in self.events:
-         text = event.system(current_location)
-         if text is not None:
-            overview.append(text+"\n")
-      return "".join(overview)
-
-   def get_active_quests(self) -> List[E.Quest_Start]:
-      active_quests = []
-      completed_quests = set()
-      for event in reversed(self.events):
-         if isinstance(event, E.Quest_Complete):
-            completed_quests.add(event.quest_name)
-         elif isinstance(event, E.Quest_Start) and event.quest_name not in completed_quests:
-            active_quests.append(event)
-      return active_quests
-
-   def get_characters(self) -> List[E.Create_Character_Event]:
-      characters = []
-      current_location = self.get_last_event(E.Arrive_At_Town_Event).town_name
-      for event in reversed(self.events):
-         if isinstance(event, E.Create_Character_Event) and event.town_name == current_location:
-            characters.append(event)
-      return characters

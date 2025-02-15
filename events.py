@@ -9,6 +9,9 @@ from typing import Tuple, Optional
 @dataclass
 class Player_Input_Event(Event):
    text: str
+def player_input(self:Game, text:str) -> Tuple[bool,str]:
+   self.add_event(Player_Input_Event(text))
+   return True, ""
 
 
 @dataclass
@@ -23,14 +26,14 @@ def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str
    self.add_event(Create_Location_Event(loc_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   fnx := Function(
+   create_location_func := Function(
       create_location, "GAME.create_location",
       Parameter("loc_id", str),
       Parameter("name", str),
       Parameter("desc", str),
    )
 )
-Create_Location_Event.system = (lambda e: fnx.system(e)) # type: ignore
+Create_Location_Event.system = (lambda e: create_location_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -40,12 +43,12 @@ def move_to(self:Game, loc_id:str) -> Tuple[bool,str]:
    self.add_event(Move_To_Event(loc_id))
    return True, ""
 Function_Map.funcs.append(
-   fnx := Function(
+   move_to_func := Function(
       move_to, "PLAYER.move_to",
       Parameter("loc_id", str),
    )
 )
-Move_To_Event.system = (lambda e: fnx.system(e)) # type: ignore
+Move_To_Event.system = (lambda e: move_to_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -60,14 +63,14 @@ def create_npc(self:Game, npc_id:str, name:str, desc:str) -> Tuple[bool,str]:
    self.add_event(Create_Npc_Event(npc_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   fnx := Function(
+   create_npc_func := Function(
       create_npc, "GAME.create_npc",
       Parameter("npc_id", str),
       Parameter("name", str),
       Parameter("desc", str),
    )
 )
-Create_Npc_Event.system = (lambda e: fnx.system(e)) # type: ignore
+Create_Npc_Event.system = (lambda e: create_npc_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -107,12 +110,12 @@ def narrate(self:Game, text:str) -> Tuple[bool,str]:
    self.add_event(Narrate_Event(text))
    return True, ""
 Function_Map.funcs.append(
-   fnx := Function(
+   narrate_func := Function(
       narrate, "NARRATOR.speak",
       Parameter("text", str),
    )
 )
-Narrate_Event.system = (lambda e: fnx.system(e)) # type: ignore
+Narrate_Event.system = (lambda e: narrate_func.system(e)) # type: ignore
 
 
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }

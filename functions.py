@@ -48,6 +48,10 @@ class Function_Map:
          return None, f"PANIC: found {len(funcs)} functions with name '{function_name}'"
       return funcs[0], ""
 
+   @staticmethod
+   def api_definition() -> str:
+      return "\n".join(f.render() for f in Function_Map.funcs)
+
 @dataclass
 class Function_Call_Data:
    name: str

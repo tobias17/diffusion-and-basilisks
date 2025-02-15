@@ -1,4 +1,4 @@
-from common import logger, LOG_FORMAT
+from common import logger, LOG_FORMAT, Event
 from prompts import SYSTEM_MESSAGE
 from functions import Function_Map, parse_function, match_function
 import events as E
@@ -8,35 +8,34 @@ from typing import Callable, Optional, List, Dict
 import logging, os, datetime, json, requests # type: ignore
 
 
-def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], decision_log:List[Dict], max_attempts:int=3) -> Optional[Game]:
+def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
    curr_attempts = 0
 
    messages = [
-      {"role":"system", "content":SYSTEM_MESSAGE}
+      {"role":"system", "content":SYSTEM_MESSAGE.replace("%%API_DEFINITION%%", Function_Map.api_definition())}
    ]
    lines = []
    for event in game.events:
       if isinstance(event, E.Player_Input_Event):
          if len(lines) > 0:
-            messages.append({"role":"system", "content":"\n".join(lines)})
+            messages.append({"role":"assistant", "content":"\n".join(lines)})
             lines = []
          messages.append({"role":"user", "content":event.text})
       else:
          line = event.system()
          if line: lines.append(line)
    if len(lines) > 0:
-      messages.append({"role":"system", "content":"\n".join(lines)})
-      lines = []
-   
+      messages.append({"role":"assistant", "content":"\n".join(lines)})
+
    while True:
       decision_log.append({"event":"Computed API Messages", "messages":messages})
       output = output_from_messages(messages)
       assert output is not None, f"Ran out of outputs before completing processing"
-      
-      lines = output.split("\n")
-      lines = [l.strip() for l in lines]
 
-      if len(lines) > 0:
+      lines = output.split("\n")
+      lines = [l.strip() for l in lines if l]
+
+      if len(lines) == 0:
          decision_log.append({"event":"ERROR: Got back 0 lines from the model", "output":output.split("\n")})
       else:
          delta_game = game.copy()
@@ -85,7 +84,7 @@ def make_completion(messages:List[Dict[str,str]]) -> Optional[str]:
       except Exception as ex:
          logger.error(f"Failed to load json data:\n{body}")
          raise ex from ex
-      return data["choices"][0]["message"]["content"], None
+      return data["choices"][0]["message"]["content"] # type: ignore
    else:
       logger.info(f"Got back: {resp.text}")
       raise RuntimeError(f"Endpoint returned non-200 status code {resp.status_code}")
@@ -102,6 +101,18 @@ def game_loop(game:Game, log_dirpath:str):
          new_game = process_game_state(game, make_completion, decision_log)
          if new_game is not None:
             game = new_game
+            new_events: List[Event] = []
+            for event in game.events[::-1]:
+               if isinstance(event, E.Player_Input_Event):
+                  break
+               new_events.insert(0, event)
+            for event in new_events:
+               msg = event.system()
+               if msg:
+                  print(msg)
+         else:
+            raise RuntimeError("Could not resolve from LLM")
+
       else:
          # User's turn to produce next block
          decision_log.append({"event":f"Performing Game Loop Tick", "message":"Requesting user input"})
@@ -132,9 +143,9 @@ if __name__ == "__main__":
    starting_events = [
       (lambda: E.create_location(game, loc_id="iosla_town_square", name="Iosla", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")),
       (lambda: E.move_to(game, loc_id="iosla_town_square")),
-      (lambda: game.add_event(E.Player_Input_Event("What kind of buildings surround me?"))),
+      (lambda: E.player_input(game, "What kind of buildings surround me?")),
       (lambda: E.narrate(game, "You look around and see many small houses, with a tavern a little ways down the road.")),
-      (lambda: game.add_event(E.Player_Input_Event("I would like to go into the tavern."))),
+      (lambda: E.player_input(game, "I would like to go into the tavern.")),
    ]
    for call in starting_events:
       ok, msg = call()
