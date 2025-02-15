@@ -7,15 +7,12 @@ You are a helpful assistant who will play the role of Dungeon Master in a high f
 
 While this looks and functions like python, you only have access to the functions themselves and no higher-level programming functions. The following is the API you will have access to:
 ```
-GAME.create_town(name:str) -> Town: pass
-GAME.make_new_background(id:str, desc:str) -> Background: pass
-GAME.get_background(id:str) -> Background: pass
-PLAYER.move_to(town:Town, background:Background) -> None: pass
-GAME.make_new_npc(name:str, desc:str) -> Character: pass
-GAME.get_npc(name:str) -> Character: pass
-Character.speak_to_player(text) -> None: pass
-PLAYER.speak_to_npc(npc:Character, text:str) -> None: pass
-NARRATOR.speak(text:str) -> None: pass
+GAME.create_location(loc_id:str, name:str, desc:str)
+PLAYER.move_to(loc_id:Location)
+GAME.create_npc(npc_id:str, name:str, desc:str)
+NPC.speak_to_player(npc_id:str, text:str)
+PLAYER.speak_to_npc(npc_id:str, text:str)
+NARRATOR.speak(text:str)
 ```
 
 Start off by create a new town and moving the player to it. You will then wait for the user to input what they would like to do.
@@ -24,9 +21,8 @@ Make sure to only advance the game by what is necessary to satisfy the user's re
 """.strip()
    }, {
 "role": "assistant", "content": """
-iosla = GAME.create_town(name="Iosla")
-bg = GAME.make_new_background(id="iosla.town_center", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")
-PLAYER.move_to(town=iosla, background=bg)
+GAME.create_location(id="iosla_town_square", name="Iosla", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")
+PLAYER.move_to(loc_id="iosla_town_square")
 """.strip()
    }, {
 "role": "user", "content": """
