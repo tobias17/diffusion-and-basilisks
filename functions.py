@@ -62,10 +62,16 @@ class Function_Map:
 ### Usage Functions ###
 #######################
 
-empty_pattern = re.compile(r'^([a-zA-Z0-9_]+)$')
-func_pattern = re.compile(r'^([a-zA-Z0-9_]+)\((.*)\)$')
+empty_pattern = re.compile(r'^([a-zA-Z0-9_\.]+)$')
+func_pattern = re.compile(r'^([a-zA-Z0-9_\.]+)\((.*)\)$')
 
-def parse_function(line:str, allow_empty:bool=False) -> Tuple[Optional[Tuple[str,List,Dict]],str]:
+@dataclass
+class Function_Call_Data:
+   name: str
+   args: List[str]
+   kwargs: Dict[str,str]
+
+def parse_function(line:str, allow_empty:bool=False) -> Tuple[Optional[Function_Call_Data],str]:
    if "\t" in line: return None, "Function calling blocks cannont contain the \\t character"
    if "\r" in line: return None, "Function calling blocks cannont contain the \\r character"
    special_map = {
@@ -76,14 +82,14 @@ def parse_function(line:str, allow_empty:bool=False) -> Tuple[Optional[Tuple[str
    if allow_empty:
       match = empty_pattern.match(line)
       if match:
-         return (match.group(1), [], {}), ""
+         return Function_Call_Data(match.group(1), [], {}), ""
    match = func_pattern.match(line)
    if not match:
       return None, "Got bad input, could not parse a function from this"
    func_name   = match.group(1)
    orig_params = match.group(2)
    if len(orig_params) == 0:
-      return (func_name, [], {}), ""
+      return Function_Call_Data(func_name, [], {}), ""
 
    cleaned_params = ""
    quote_char = None
@@ -115,7 +121,7 @@ def parse_function(line:str, allow_empty:bool=False) -> Tuple[Optional[Tuple[str
       else:
          return None, "Found too many '=' characters in a single parameter"
 
-   return (func_name, args, kwargs), ""
+   return Function_Call_Data(func_name, args, kwargs), ""
 
 
 def cast_value(value:str, param:Parameter) -> Tuple[Any,str]:
