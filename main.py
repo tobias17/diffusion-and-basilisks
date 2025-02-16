@@ -138,7 +138,7 @@ def game_loop(game:Game, log_dirpath:str):
 
    # Main game loop
    try:
-      while True:
+      while not screen_handler.kill_event.is_set():
          time.sleep(0.01)
    except KeyboardInterrupt:
       logger.info("Got keyboard interupt, setting kill event")
