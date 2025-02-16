@@ -3,7 +3,7 @@ from prompts import SYSTEM_MESSAGE
 from functions import Function_Map, parse_function, match_function
 import events as E
 from game import Game
-from screen_handler import Screen_Handler
+from screen_handler import Screen_Handler, Peek_Terminal_Input
 
 from typing import Callable, Optional, List, Dict
 import logging, os, datetime, json, requests, time # type: ignore
@@ -92,7 +92,7 @@ def make_completion(messages:List[Dict[str,str]]) -> Optional[str]:
       raise RuntimeError(f"Endpoint returned non-200 status code {resp.status_code}")
 
 
-def game_loop(game:Game, log_dirpath:str):
+def old_game_loop(game:Game, log_dirpath:str):
    decision_log = []
    while True:
       last_event = game.events[-1]
@@ -130,6 +130,21 @@ def game_loop(game:Game, log_dirpath:str):
       with open(f"{log_dirpath}/game.json",         "w") as f: json.dump(game.to_json(), f, indent="\t")
 
 
+def game_loop(game:Game, log_dirpath:str):
+   # Create a screen handler object and start it up
+   screen_handler = Screen_Handler(game)
+   thread = Thread(target=screen_handler.run)
+   thread.start()
+
+   # Main game loop
+   try:
+      while True:
+         time.sleep(0.01)
+   except KeyboardInterrupt:
+      logger.info("Got keyboard interupt, setting kill event")
+      screen_handler.kill_event.set()
+      thread.join()
+
 if __name__ == "__main__":
    FOLDER_DIR = datetime.datetime.now().strftime("logs/game/%m-%d-%Y_%H-%M-%S")
    if not os.path.exists(FOLDER_DIR):
@@ -153,15 +168,7 @@ if __name__ == "__main__":
       if not ok:
          raise RuntimeError(f"Error pre-populating game: {msg}")
 
-   screen_handler = Screen_Handler(game)
-   thread = Thread(target=screen_handler.run)
-   thread.start()
+   with Peek_Terminal_Input():
+      game_loop(game, FOLDER_DIR)
 
-   try:
-      while True:
-         time.sleep(0.01)
-   except KeyboardInterrupt:
-      screen_handler.kill_event.set()
-      thread.join()
-
-   # game_loop(game, FOLDER_DIR)
+   logger.info("Game exited cleanly")
