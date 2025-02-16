@@ -34,10 +34,10 @@ class Rect:
    def y2(self) -> int: return self.y1 + self.h
 
 INPUT_HEIGHT = 4
+INPUT_PREFIX = "> "
 
 EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
-INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4, INPUT_HEIGHT)
-INPUT_PREFIX = "> "
+INPUT_SPACE = Rect(2 + len(INPUT_PREFIX), EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - len(INPUT_PREFIX), INPUT_HEIGHT)
 
 
 # Context Manager to configure terminal settings, to be set up by the main thread
@@ -97,24 +97,22 @@ class Screen_Buffer:
    def move_cursor(self, x:int, y:int) -> 'Screen_Buffer':
       self.cursor_pos.x = x
       self.cursor_pos.y = y
+      self.dirty_cursor = True
       return self
 
    def redraw(self, only_dirty:bool=True) -> 'Screen_Buffer':
-      logger.info(f"Enter draw request, {only_dirty=}")
       with self.mutex:
          text = "" if only_dirty else "\033[2J"
          for y in range(len(self.rows)):
             if self.dirty_rows[y] or (not only_dirty):
                text += coord(1, y+1) + self.rows[y]
                self.dirty_rows[y] = False
-         if len(text) > 0 or self.dirty_cursor:
+         if self.dirty_cursor or len(text) > 0:
             text += coord(self.cursor_pos.x + 1, self.cursor_pos.y + 1)
-            logger.info(f"Moving cursor to {self.cursor_pos.x + 1}, {self.cursor_pos.y + 1}")
             self.dirty_cursor = False
-            logger.info("Redrawing cursor from buffer")
          if len(text) > 0:
-            logger.info(f"Printing {len(text.encode())} bytes to screen")
             print(text, end='')
+            sys.stdout.flush()
       return self
 
 
@@ -138,7 +136,7 @@ class Input_Handler:
 
    def clear_input(self, disable_input:bool=False):
       self.curr_input = ""
-      self.input_ptr = 1
+      self.input_ptr = 0
       if disable_input:
          self.accepting_input = False
 
@@ -171,27 +169,20 @@ class Input_Handler:
       return None
 
    def rewrite_buffer(self, start_index:int) -> None:
-      width = self.rect.w - len(INPUT_PREFIX)
-
-      if start_index == -1:
-         self.screen_buffer.put_text_in(self.rect, 0, 0, INPUT_PREFIX)
-         start_index = 0
-
-      start_x = start_index %  width
-      start_y = start_index // width
+      start_x = start_index %  self.rect.w
+      start_y = start_index // self.rect.w
       end_x = start_x + (len(self.curr_input) - start_index)
 
       while end_x > 0:
-         start_ptr = start_y * width + start_x
-         end_ptr = min(start_y * width + end_x, width)
+         start_ptr = start_y * self.rect.w + start_x
+         end_ptr = min(start_y * self.rect.w + end_x, self.rect.w)
          self.screen_buffer.put_text_in(self.rect, start_x, start_y, self.curr_input[start_ptr:end_ptr])
          start_y += 1
          start_x = 0
-         end_x -= width
+         end_x -= self.rect.w
 
    def move_cursor(self) -> None:
-      width = self.rect.w - len(INPUT_PREFIX)
-      self.screen_buffer.move_cursor(self.rect.x1 + len(INPUT_PREFIX) + (self.input_ptr-1) % width, self.rect.y1 + (self.input_ptr-1) // width)
+      self.screen_buffer.move_cursor(self.rect.x1 + (self.input_ptr % self.rect.w), self.rect.y1 + (self.input_ptr // self.rect.w))
 
    def run(self) -> None:
       try:
@@ -284,8 +275,10 @@ class Screen_Handler:
             self.screen_buffer.put_text_in(self.rect, 0, y, "|")
             self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
+         self.screen_buffer.put_text_in(self.rect, 0, self.input_handler.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
-         self.input_handler.rewrite_buffer(-1)
+         self.screen_buffer.put_text_in(self.rect, 2, self.input_handler.rect.y1, INPUT_PREFIX)
+         self.input_handler.rewrite_buffer(0)
          self.input_handler.move_cursor()
          self.screen_buffer.redraw(only_dirty=False)
 
