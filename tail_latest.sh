@@ -1,7 +1,7 @@
 #!/bin/bash
 while true; do
    LATEST=$(ls -t logs/game/*/debug.log | head -n1)
-   tail -f "$LATEST" & 
+   tail -f "$LATEST" -n 1024 & 
    TAIL_PID=$!
    
    # Watch for new files
