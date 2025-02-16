@@ -3,10 +3,11 @@ from prompts import SYSTEM_MESSAGE
 from functions import Function_Map, parse_function, match_function
 import events as E
 from game import Game
+from screen_handler import Screen_Handler
 
 from typing import Callable, Optional, List, Dict
-import logging, os, datetime, json, requests # type: ignore
-
+import logging, os, datetime, json, requests, time # type: ignore
+from threading import Thread
 
 def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
    curr_attempts = 0
@@ -14,7 +15,7 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
    messages = [
       {"role":"system", "content":SYSTEM_MESSAGE.replace("%%API_DEFINITION%%", Function_Map.api_definition())}
    ]
-   lines = []
+   lines: List[str] = []
    for event in game.events:
       if isinstance(event, E.Player_Input_Event):
          if len(lines) > 0:
@@ -56,6 +57,7 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
                decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "output":output.split("\n"), "line":line, "message":msg})
                break
          else:
+            decision_log.append({"event":"Fully processed output and advanced game state", "output":output.split("\n")})
             return delta_game
 
       curr_attempts += 1
@@ -145,11 +147,21 @@ if __name__ == "__main__":
       (lambda: E.move_to(game, loc_id="iosla_town_square")),
       (lambda: E.player_input(game, "What kind of buildings surround me?")),
       (lambda: E.narrate(game, "You look around and see many small houses, with a tavern a little ways down the road.")),
-      (lambda: E.player_input(game, "I would like to go into the tavern.")),
    ]
    for call in starting_events:
       ok, msg = call()
       if not ok:
          raise RuntimeError(f"Error pre-populating game: {msg}")
 
-   game_loop(game, FOLDER_DIR)
+   screen_handler = Screen_Handler(game)
+   thread = Thread(target=screen_handler.run)
+   thread.start()
+
+   try:
+      while True:
+         time.sleep(0.01)
+   except KeyboardInterrupt:
+      screen_handler.kill_event.set()
+      thread.join()
+
+   # game_loop(game, FOLDER_DIR)

@@ -39,3 +39,12 @@ class Game:
    def add_event(self, event:Event) -> None:
       event.clean()
       self.events.append(event)
+
+   def get_npc_name(self, npc_id:str) -> str:
+      options = []
+      for event in self.events:
+         if isinstance(event, E.Create_Npc_Event):
+            if event.npc_id == npc_id:
+               return event.name
+            options.append(event.npc_id)
+      raise ValueError(f"Failed to find NPC with ID '{npc_id}', options were {options}")
