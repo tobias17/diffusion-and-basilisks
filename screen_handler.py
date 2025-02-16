@@ -12,7 +12,9 @@ TARGET_FPS = 1.0
 FRAME_DELTA = 1.0 / TARGET_FPS
 SLEEP_MS = 10.0
 
-SCREEN_WIDTH  = 150
+# SCREEN_WIDTH  = 150
+# SCREEN_HEIGHT = 50
+SCREEN_WIDTH  = 80
 SCREEN_HEIGHT = 30
 
 @dataclass
@@ -56,12 +58,17 @@ def coord(x:int, y:int) -> str:
 
 
 class Special_Keys(Enum):
-   LEFT_ARROW = auto()
-   RIGHT_ARROW = auto()
+   CTRL_C = auto()
+   ENTER = auto()
    ESCAPE = auto()
    BACKSPACE = auto()
    DELETE = auto()
-   CTRL_C = auto()
+   LEFT_ARROW = auto()
+   RIGHT_ARROW = auto()
+   HOME = auto()
+   END = auto()
+   CTRL_LEFT = auto()
+   CTRL_RIGHT = auto()
 
 
 class Screen_Buffer:
@@ -150,36 +157,48 @@ class Input_Handler:
       if len(seq) == 1:
          if seq[0] == 3:
             return Special_Keys.CTRL_C
-         elif seq[0] == 27:
+         if seq[0] == 13:
+            return Special_Keys.ENTER
+         if seq[0] == 27:
             return Special_Keys.ESCAPE
-         elif seq[0] >= 32 and seq[0] < 126:
-            return seq.decode()
+         if seq[0] == 127:
+            return Special_Keys.BACKSPACE
+         if seq[0] >= 32 and seq[0] < 126:
+            return seq.decode() # ASCII
       else:
-         if seq[0] != 27 and seq[1] == 91:
-            logger.error(f"Got unknown seq {list(seq)} with non-27 start")
+         if seq[0] != 27 and seq[1] != 91:
+            logger.error(f"Got unknown seq {list(seq)} with non-(27,91) start")
             return None
-         else:
-            if len(seq) == 2:
-               return Special_Keys.ESCAPE
+         if len(seq) == 2:
+            return Special_Keys.ESCAPE
+         elif len(seq) == 3:
             if seq[2] == 67:
                return Special_Keys.RIGHT_ARROW
-            elif seq[2] == 68:
+            if seq[2] == 68:
                return Special_Keys.LEFT_ARROW
+            if seq[2] == 72:
+               return Special_Keys.HOME
+            if seq[2] == 70:
+               return Special_Keys.END
+         elif len(seq) == 4:
+            if seq[2] == 51 and seq[3] == 126:
+               return Special_Keys.DELETE
+         elif len(seq) == 6:
+            if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
+               if seq[5] == 68:
+                  return Special_Keys.CTRL_LEFT
+               if seq[5] == 67:
+                  return Special_Keys.CTRL_RIGHT
+
       logger.info(f"Got unknown byte sequence {list(seq)}")
       return None
 
-   def rewrite_buffer(self, start_index:int) -> None:
-      start_x = start_index %  self.rect.w
-      start_y = start_index // self.rect.w
-      end_x = start_x + (len(self.curr_input) - start_index)
-
-      while end_x > 0:
-         start_ptr = start_y * self.rect.w + start_x
-         end_ptr = min(start_y * self.rect.w + end_x, self.rect.w)
-         self.screen_buffer.put_text_in(self.rect, start_x, start_y, self.curr_input[start_ptr:end_ptr])
-         start_y += 1
-         start_x = 0
-         end_x -= self.rect.w
+   def rewrite_buffer(self) -> None:
+      text = self.curr_input
+      for y in range(self.rect.h):
+         line, text = text[:self.rect.w], text[self.rect.w:]
+         line += " "*(self.rect.w - len(line))
+         self.screen_buffer.put_text_in(self.rect, 0, y, line)
 
    def move_cursor(self) -> None:
       self.screen_buffer.move_cursor(self.rect.x1 + (self.input_ptr % self.rect.w), self.rect.y1 + (self.input_ptr // self.rect.w))
@@ -207,22 +226,59 @@ class Input_Handler:
                else:
                   self.curr_input = self.curr_input[:self.input_ptr] + key + self.curr_input[self.input_ptr:]
                   self.input_ptr += 1
-               self.rewrite_buffer(self.input_ptr-1)
+               self.rewrite_buffer()
                self.move_cursor()
-               self.screen_buffer.redraw()
             elif isinstance(key, Special_Keys):
                # Special control character
                if key == Special_Keys.CTRL_C:
                   logger.info("Detected ctrl+c, setting kill event")
                   self.kill_event.set()
                elif key == Special_Keys.LEFT_ARROW:
-                  self.input_ptr = max(1, self.input_ptr - 1)
+                  self.input_ptr = max(0, self.input_ptr - 1)
                   self.move_cursor()
                   self.screen_buffer.redraw()
                elif key == Special_Keys.RIGHT_ARROW:
                   self.input_ptr = min(self.input_ptr + 1, len(self.curr_input))
                   self.move_cursor()
                   self.screen_buffer.redraw()
+               elif key == Special_Keys.BACKSPACE:
+                  if self.input_ptr > 0:
+                     self.curr_input = self.curr_input[:self.input_ptr-1] + self.curr_input[self.input_ptr:]
+                     self.input_ptr -= 1
+                     self.rewrite_buffer()
+                     self.move_cursor()
+               elif key == Special_Keys.DELETE:
+                  if self.input_ptr < len(self.curr_input):
+                     self.curr_input = self.curr_input[:self.input_ptr] + self.curr_input[self.input_ptr+1:]
+                     self.rewrite_buffer()
+               elif key == Special_Keys.HOME:
+                  self.input_ptr = 0
+                  self.move_cursor()
+               elif key == Special_Keys.END:
+                  self.input_ptr = len(self.curr_input)
+                  self.move_cursor()
+               elif key in (Special_Keys.CTRL_LEFT, Special_Keys.CTRL_RIGHT):
+                  direction = -1 if key == Special_Keys.CTRL_LEFT else 1
+                  walk_ptr = self.input_ptr
+                  in_white = True
+                  while True:
+                     step_ptr = walk_ptr + direction
+                     if step_ptr <= 0 or step_ptr >= len(self.curr_input):
+                        if step_ptr == 0:
+                           walk_ptr = 0
+                        break # next step is out-of-bounds
+                     if self.curr_input[step_ptr] == " ":
+                        if not in_white:
+                           break
+                     elif in_white:
+                        in_white = False
+                     walk_ptr = step_ptr
+                  self.input_ptr = walk_ptr
+                  self.move_cursor()
+            
+            # Always request a redraw (will not nothing if nothing was changed)
+            self.screen_buffer.redraw()
+
 
       except Exception:
          logger.error(f"Screen Hanlder ran into error in run")
@@ -278,7 +334,7 @@ class Screen_Handler:
          self.screen_buffer.put_text_in(self.rect, 0, self.input_handler.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
          self.screen_buffer.put_text_in(self.rect, 2, self.input_handler.rect.y1, INPUT_PREFIX)
-         self.input_handler.rewrite_buffer(0)
+         self.input_handler.rewrite_buffer()
          self.input_handler.move_cursor()
          self.screen_buffer.redraw(only_dirty=False)
 
