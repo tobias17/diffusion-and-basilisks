@@ -355,6 +355,13 @@ class Screen_Handler:
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
          self.screen_buffer.put_text_in(self.rect, 0, self.bottom_text_box.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
+         # Tabs
+         text_row = "| Actions | Speaking | Characters |"
+         border_row = "".join(["+" if c == "|" else "-" for c in text_row])
+         self.screen_buffer.put_text_in(self.rect, 0, 0, border_row)
+         self.screen_buffer.put_text_in(self.rect, 0, 1, text_row)
+         self.screen_buffer.put_text_in(self.rect, 0, 2, border_row)
+
          # User Input
          self.screen_buffer.put_text_in(self.rect, 2, self.bottom_text_box.rect.y1, INPUT_PREFIX)
          self.bottom_text_box.write_to_buffer()
