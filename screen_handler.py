@@ -7,7 +7,8 @@ from typing import List, Union, Optional
 from enum import Enum, auto
 from queue import Queue
 from abc import ABC, abstractmethod
-import time, sys, termios, select, tty, os, traceback, threading
+import numpy as np
+import sys, termios, select, tty, os, traceback, threading
 
 TARGET_FPS = 1.0
 FRAME_DELTA = 1.0 / TARGET_FPS
@@ -77,32 +78,41 @@ class Input_Target(ABC):
 
 
 class Screen_Buffer:
-   rows: List[str]
+   height: int
+   width: int
    mutex: threading.Lock
-   cursor_pos: Pos
 
+   data: np.ndarray
+   bold: np.ndarray
    dirty_rows: List[bool]
+
+   cursor_pos: Pos
    dirty_cursor: bool
 
    def __init__(self, width:int, height:int):
-      self.rows = [" "*width for _ in range(height)]
-      self.dirty_rows = [False for _ in range(height)]
-      self.dirty_cursor = False
+      self.height = height
+      self.width = width
       self.mutex = threading.Lock()
+
+      self.data = np.full((height,width), " ", np.character)
+      self.bold = np.zeros((height,width), np.bool_)
+      self.dirty_rows = [False for _ in range(height)]
+
       self.cursor_pos = Pos(0, 0)
+      self.dirty_cursor = False
    
    def put_text_in(self, rect:Rect, x:int, y:int, text:str) -> 'Screen_Buffer':
-      assert rect.x1 >= 0 and rect.x2 <= len(self.rows[0]) and rect.y1 >= 0 and rect.y2 <= len(self.rows)
+      assert rect.x1 >= 0 and rect.x2 <= self.width and rect.y1 >= 0 and rect.y2 <= self.height
 
-      assert 0 <= y <= rect.h, f"0 <= {y} < {rect.h}"
-      assert 0 <= x <= rect.w, f"0 <= {x} < {rect.w}"
-      assert 0 <= x+len(text) <= rect.w, f"0 <= {x+len(text)} < {rect.w}"
+      assert 0 <= y <= rect.h, f"Expected 0 <= {y} < {rect.h}"
+      assert 0 <= x <= rect.w, f"Expected 0 <= {x} < {rect.w}"
+      assert 0 <= x+len(text) <= rect.w, f"Expected 0 <= {x+len(text)} < {rect.w}"
 
       row_y = rect.y1 + y
       start_x = rect.x1 + x
-      end_x = start_x + len(text)
 
-      self.rows[row_y] = self.rows[row_y][:start_x] + text + self.rows[row_y][end_x:]
+      for i in range(len(text)):
+         self.data[row_y, start_x + i] = text[i]
       self.dirty_rows[row_y] = True
       return self
 
@@ -115,9 +125,11 @@ class Screen_Buffer:
    def draw(self, only_dirty:bool=True) -> 'Screen_Buffer':
       with self.mutex:
          text = "" if only_dirty else "\033[2J"
-         for y in range(len(self.rows)):
+         for y in range(self.height):
             if self.dirty_rows[y] or (not only_dirty):
-               text += coord(1, y+1) + self.rows[y]
+               text += coord(1, y+1)
+               for x in range(self.width):
+                  text += self.data[y,x].decode()
                self.dirty_rows[y] = False
          if self.dirty_cursor or len(text) > 0:
             text += coord(self.cursor_pos.x + 1, self.cursor_pos.y + 1)
