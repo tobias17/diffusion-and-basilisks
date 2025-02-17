@@ -42,20 +42,20 @@ Create_Location_Event.system = (lambda e: create_location_func.system(e)) # type
 
 
 @dataclass
-class Move_To_Event(Event):
+class Move_Player_To_Event(Event):
    loc_id: str
    def player(self, game:Game) -> Optional[str]:
-      return f"You moved to {self.loc_id}"
-def move_to(self:Game, loc_id:str) -> Tuple[bool,str]:
-   self.add_event(Move_To_Event(loc_id))
+      return f"You arrive at {game.get_loc_name(self.loc_id)}"
+def move_player_to(self:Game, loc_id:str) -> Tuple[bool,str]:
+   self.add_event(Move_Player_To_Event(loc_id))
    return True, ""
 Function_Map.funcs.append(
-   move_to_func := Function(
-      move_to, "PLAYER.move_to",
+   move_player_to_func := Function(
+      move_player_to, "GAME.move_player_to",
       Parameter("loc_id", str),
    )
 )
-Move_To_Event.system = (lambda e: move_to_func.system(e)) # type: ignore
+Move_Player_To_Event.system = (lambda e: move_player_to_func.system(e)) # type: ignore
 
 
 @dataclass

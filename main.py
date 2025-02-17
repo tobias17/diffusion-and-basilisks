@@ -164,7 +164,7 @@ if __name__ == "__main__":
    game = Game()
    starting_events = [
       (lambda: E.create_location(game, loc_id="iosla_town_square", name="Iosla", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")),
-      (lambda: E.move_to(game, loc_id="iosla_town_square")),
+      (lambda: E.move_player_to(game, loc_id="iosla_town_square")),
       (lambda: E.player_input(game, "What kind of buildings surround me?")),
       (lambda: E.narrate(game, "You look around and see many small houses, with a tavern a little ways down the road.")),
    ]

@@ -48,3 +48,12 @@ class Game:
                return event.name
             options.append(event.npc_id)
       raise ValueError(f"Failed to find NPC with ID '{npc_id}', options were {options}")
+
+   def get_loc_name(self, loc_id:str) -> str:
+      options = []
+      for event in self.events:
+         if isinstance(event, E.Create_Location_Event):
+            if event.loc_id == loc_id:
+               return event.name
+            options.append(event.loc_id)
+      raise ValueError(f"Failed to find Location with ID '{loc_id}', options were {options}")

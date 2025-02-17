@@ -3,18 +3,18 @@ from common import logger
 from game import Game
 
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Union, Optional
 from enum import Enum, auto
 from queue import Queue
+from abc import ABC, abstractmethod
 import time, sys, termios, select, tty, os, traceback, threading
 
 TARGET_FPS = 1.0
 FRAME_DELTA = 1.0 / TARGET_FPS
 SLEEP_MS = 10.0
 
-SCREEN_WIDTH  = 150
-# SCREEN_HEIGHT = 50
-SCREEN_HEIGHT = 30
+SCREEN_WIDTH  = 200
+SCREEN_HEIGHT = 50
 
 @dataclass
 class Pos:
@@ -37,7 +37,7 @@ class Rect:
 INPUT_HEIGHT = 4
 INPUT_PREFIX = "> "
 
-EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
+EVENT_SPACE = Rect(2, 3, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 5)
 INPUT_SPACE = Rect(2 + len(INPUT_PREFIX), EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - len(INPUT_PREFIX), INPUT_HEIGHT)
 
 
@@ -48,7 +48,7 @@ class Peek_Terminal_Input:
       self.old_settings = termios.tcgetattr(self.fd)
       tty.setraw(self.fd)
       return self
-   def __exit__(self, exc_type, exc_val, exc_tb):
+   def __exit__(self, *_):
       termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
 
@@ -68,6 +68,12 @@ class Special_Keys(Enum):
    END = auto()
    CTRL_LEFT = auto()
    CTRL_RIGHT = auto()
+
+
+class Input_Target(ABC):
+   @abstractmethod
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
 
 
 class Screen_Buffer:
@@ -122,8 +128,7 @@ class Screen_Buffer:
       return self
 
 
-class Input_Handler:
-   POOL_INTERVAL_SEC = 0.01
+class Bottom_Text_Box(Input_Target):
    rect: Rect = INPUT_SPACE
 
    accepting_input: bool = True
@@ -138,7 +143,6 @@ class Input_Handler:
       self.kill_event = kill_event
       self.input_complete_callback = input_complete_callback
       self.clear_input()
-      self.fd = sys.stdin.fileno()
 
    def clear_input(self, disable_input:bool=False):
       self.curr_input = ""
@@ -148,9 +152,156 @@ class Input_Handler:
       self.write_to_buffer()
       self.move_cursor()
 
+   def write_to_buffer(self) -> None:
+      text = self.curr_input
+      for y in range(self.rect.h):
+         line, text = text[:self.rect.w], text[self.rect.w:]
+         line += " "*(self.rect.w - len(line))
+         self.screen_buffer.put_text_in(self.rect, 0, y, line)
+
+   def move_cursor(self) -> None:
+      self.screen_buffer.move_cursor(self.rect.x1 + (self.input_ptr % self.rect.w), self.rect.y1 + (self.input_ptr // self.rect.w))
+
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      if isinstance(inp, str):
+         # ASCII character
+         if self.input_ptr >= len(self.curr_input):
+            self.curr_input += inp
+            self.input_ptr = len(self.curr_input)
+         else:
+            self.curr_input = self.curr_input[:self.input_ptr] + inp + self.curr_input[self.input_ptr:]
+            self.input_ptr += 1
+         self.write_to_buffer()
+         self.move_cursor()
+      elif isinstance(inp, Special_Keys):
+         # Special control character
+         if inp == Special_Keys.LEFT_ARROW:
+            self.input_ptr = max(0, self.input_ptr - 1)
+            self.move_cursor()
+            self.screen_buffer.draw()
+         elif inp == Special_Keys.RIGHT_ARROW:
+            self.input_ptr = min(self.input_ptr + 1, len(self.curr_input))
+            self.move_cursor()
+            self.screen_buffer.draw()
+         elif inp == Special_Keys.BACKSPACE:
+            if self.input_ptr > 0:
+               self.curr_input = self.curr_input[:self.input_ptr-1] + self.curr_input[self.input_ptr:]
+               self.input_ptr -= 1
+               self.write_to_buffer()
+               self.move_cursor()
+         elif inp == Special_Keys.DELETE:
+            if self.input_ptr < len(self.curr_input):
+               self.curr_input = self.curr_input[:self.input_ptr] + self.curr_input[self.input_ptr+1:]
+               self.write_to_buffer()
+         elif inp == Special_Keys.HOME:
+            self.input_ptr = 0
+            self.move_cursor()
+         elif inp == Special_Keys.END:
+            self.input_ptr = len(self.curr_input)
+            self.move_cursor()
+         elif inp in (Special_Keys.CTRL_LEFT, Special_Keys.CTRL_RIGHT):
+            direction = -1 if inp == Special_Keys.CTRL_LEFT else 1
+            walk_ptr = self.input_ptr
+            in_white = True
+            while True:
+               step_ptr = walk_ptr + direction
+               if step_ptr <= 0 or step_ptr >= len(self.curr_input):
+                  if step_ptr == 0:
+                     walk_ptr = 0
+                  break # next step is out-of-bounds
+               if self.curr_input[step_ptr] == " ":
+                  if not in_white:
+                     break
+               elif in_white:
+                  in_white = False
+               walk_ptr = step_ptr
+            self.input_ptr = walk_ptr
+            self.move_cursor()
+         elif inp == Special_Keys.ENTER:
+            if len(self.curr_input) < 1:
+               logger.error("Cannot submit empty input")
+            else:
+               self.input_complete_callback()
+
+      # Always request a draw (will not nothing if nothing was changed)
+      self.screen_buffer.draw()
+
+
+class Event_Display:
+   rect: Rect = EVENT_SPACE
+   event_page_index: int = 0
+   is_visible: bool = True
+
+   screen_buffer: Screen_Buffer
+   event_lines: List[str]
+   
+   def __init__(self, screen_buffer:Screen_Buffer, game:Game):
+      self.screen_buffer = screen_buffer
+      self.update_game(game)
+
+   def update_game(self, game:Game) -> None:
+      self.event_lines = []
+      for event in game.events:
+         text = event.player(game)
+         if text is not None:
+            while len(text) > self.rect.w:
+               self.event_lines.append(text[:self.rect.w])
+               text = text[self.rect.w:]
+            self.event_lines.append(text)
+            self.event_lines.append("")
+      self.event_lines.pop(-1) # remove last newline
+
+      if self.is_visible:
+         self.clear_buffer()
+         self.write_to_buffer()
+
+   def clear_buffer(self):
+      for y in range(self.rect.h):
+         self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
+
+   def write_to_buffer(self):
+      for i in range(self.rect.h):
+         if i >= len(self.event_lines):
+            break
+         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.event_lines[-(i+1)])
+
+
+class Screen_Handler:
+   POLL_INTERVAL_SEC = 0.01
+   rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+
+   kill_event: threading.Event
+   user_input_queue: Queue
+   screen_buffer: Screen_Buffer
+   event_display: Event_Display
+   bottom_text_box: Bottom_Text_Box
+
+   input_target: Optional[Input_Target] = None
+
+   def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[str]):
+      self.kill_event = kill_event
+      self.user_input_queue = user_input_queue
+      self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+      self.event_display = Event_Display(self.screen_buffer, game)
+      self.bottom_text_box = Bottom_Text_Box(self.screen_buffer, self.kill_event, self.__user_input_complete)
+      self.fd = sys.stdin.fileno()
+      self.input_target = self.bottom_text_box
+
+   def update_game(self, game:Game) -> None:
+      self.event_display.update_game(game)
+      self.screen_buffer.draw()
+
+   def accept_input(self) -> None:
+      self.bottom_text_box.accepting_input = True
+
+   def __user_input_complete(self) -> None:
+      text = self.bottom_text_box.curr_input
+      self.bottom_text_box.clear_input()
+      self.user_input_queue.put(text)
+
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():
-         if select.select([sys.stdin], [], [], self.POOL_INTERVAL_SEC)[0]:
+         if select.select([sys.stdin], [], [], self.POLL_INTERVAL_SEC)[0]:
             return os.read(self.fd, 16)
       return bytes()
 
@@ -194,202 +345,39 @@ class Input_Handler:
       logger.info(f"Got unknown byte sequence {list(seq)}")
       return None
 
-   def write_to_buffer(self) -> None:
-      text = self.curr_input
-      for y in range(self.rect.h):
-         line, text = text[:self.rect.w], text[self.rect.w:]
-         line += " "*(self.rect.w - len(line))
-         self.screen_buffer.put_text_in(self.rect, 0, y, line)
-
-   def move_cursor(self) -> None:
-      self.screen_buffer.move_cursor(self.rect.x1 + (self.input_ptr % self.rect.w), self.rect.y1 + (self.input_ptr // self.rect.w))
-
    def run(self) -> None:
       try:
-         while not self.kill_event.is_set():
-            if not self.accepting_input:
-               time.sleep(self.POOL_INTERVAL_SEC)
-               continue
-
-            seq = self.__read_bytes()
-            if len(seq) == 0:
-               continue
-            key = self.__interpret_bytes(seq)
-
-            if key is None:
-               continue
-            elif isinstance(key, str):
-               # ASCII character
-               if self.input_ptr >= len(self.curr_input):
-                  self.curr_input += key
-                  self.input_ptr = len(self.curr_input)
-               else:
-                  self.curr_input = self.curr_input[:self.input_ptr] + key + self.curr_input[self.input_ptr:]
-                  self.input_ptr += 1
-               self.write_to_buffer()
-               self.move_cursor()
-            elif isinstance(key, Special_Keys):
-               # Special control character
-               if key == Special_Keys.CTRL_C:
-                  logger.info("Detected ctrl+c, setting kill event")
-                  self.kill_event.set()
-               elif key == Special_Keys.LEFT_ARROW:
-                  self.input_ptr = max(0, self.input_ptr - 1)
-                  self.move_cursor()
-                  self.screen_buffer.draw()
-               elif key == Special_Keys.RIGHT_ARROW:
-                  self.input_ptr = min(self.input_ptr + 1, len(self.curr_input))
-                  self.move_cursor()
-                  self.screen_buffer.draw()
-               elif key == Special_Keys.BACKSPACE:
-                  if self.input_ptr > 0:
-                     self.curr_input = self.curr_input[:self.input_ptr-1] + self.curr_input[self.input_ptr:]
-                     self.input_ptr -= 1
-                     self.write_to_buffer()
-                     self.move_cursor()
-               elif key == Special_Keys.DELETE:
-                  if self.input_ptr < len(self.curr_input):
-                     self.curr_input = self.curr_input[:self.input_ptr] + self.curr_input[self.input_ptr+1:]
-                     self.write_to_buffer()
-               elif key == Special_Keys.HOME:
-                  self.input_ptr = 0
-                  self.move_cursor()
-               elif key == Special_Keys.END:
-                  self.input_ptr = len(self.curr_input)
-                  self.move_cursor()
-               elif key in (Special_Keys.CTRL_LEFT, Special_Keys.CTRL_RIGHT):
-                  direction = -1 if key == Special_Keys.CTRL_LEFT else 1
-                  walk_ptr = self.input_ptr
-                  in_white = True
-                  while True:
-                     step_ptr = walk_ptr + direction
-                     if step_ptr <= 0 or step_ptr >= len(self.curr_input):
-                        if step_ptr == 0:
-                           walk_ptr = 0
-                        break # next step is out-of-bounds
-                     if self.curr_input[step_ptr] == " ":
-                        if not in_white:
-                           break
-                     elif in_white:
-                        in_white = False
-                     walk_ptr = step_ptr
-                  self.input_ptr = walk_ptr
-                  self.move_cursor()
-               elif key == Special_Keys.ENTER:
-                  if len(self.curr_input) < 1:
-                     logger.error("Cannot submit empty input")
-                  else:
-                     self.input_complete_callback()
-
-            # Always request a draw (will not nothing if nothing was changed)
-            self.screen_buffer.draw()
-
-      except Exception:
-         logger.error(f"Screen Hanlder ran into error in run")
-         for line in traceback.format_exc().split("\n"):
-            logger.error(line)
-         self.kill_event.set()
-
-
-class Event_Display:
-   rect: Rect = EVENT_SPACE
-   event_page_index: int = 0
-   is_visible: bool = True
-
-   screen_buffer: Screen_Buffer
-   event_lines: List[str]
-   
-   def __init__(self, screen_buffer:Screen_Buffer, game:Game):
-      self.screen_buffer = screen_buffer
-      self.update_game(game)
-
-   def update_game(self, game:Game) -> None:
-      self.event_lines = []
-      for event in game.events:
-         text = event.player(game)
-         if text is not None:
-            while len(text) > self.rect.w:
-               self.event_lines.append(text[:self.rect.w])
-               text = text[self.rect.w:]
-            self.event_lines.append(text)
-            self.event_lines.append("")
-      self.event_lines.pop(-1) # remove last newline
-
-      if self.is_visible:
-         self.clear_buffer()
-         self.write_to_buffer()
-
-   def clear_buffer(self):
-      for y in range(self.rect.h):
-         self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
-
-   def write_to_buffer(self):
-      for i in range(self.rect.h):
-         if i >= len(self.event_lines):
-            break
-         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.event_lines[-(i+1)])
-
-
-class Screen_Handler:
-   rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
-
-   kill_event: threading.Event
-   user_input_queue: Queue
-   screen_buffer: Screen_Buffer
-   event_display: Event_Display
-   input_handler: Input_Handler
-
-   def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[str]):
-      self.kill_event = kill_event
-      self.user_input_queue = user_input_queue
-      self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
-      self.event_display = Event_Display(self.screen_buffer, game)
-      self.input_handler = Input_Handler(self.screen_buffer, self.kill_event, self.__user_input_complete)
-
-   def update_game(self, game:Game) -> None:
-      self.event_display.update_game(game)
-      self.screen_buffer.draw()
-
-   def accept_input(self) -> None:
-      self.input_handler.accepting_input = True
-
-   def __user_input_complete(self) -> None:
-      text = self.input_handler.curr_input
-      self.input_handler.clear_input()
-      self.user_input_queue.put(text)
-
-   def run(self) -> None:
-      try:
-         # Thread(target=self.input_handler.run).start()
-
          # Borders
          self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*(SCREEN_WIDTH-2) + "+")
          for y in range(1, SCREEN_HEIGHT-1):
             self.screen_buffer.put_text_in(self.rect, 0, y, "|")
             self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
-         self.screen_buffer.put_text_in(self.rect, 0, self.input_handler.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
+         self.screen_buffer.put_text_in(self.rect, 0, self.bottom_text_box.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
          # User Input
-         self.screen_buffer.put_text_in(self.rect, 2, self.input_handler.rect.y1, INPUT_PREFIX)
-         self.input_handler.write_to_buffer()
-         self.input_handler.move_cursor()
+         self.screen_buffer.put_text_in(self.rect, 2, self.bottom_text_box.rect.y1, INPUT_PREFIX)
+         self.bottom_text_box.write_to_buffer()
+         self.bottom_text_box.move_cursor()
 
          # Draw the whole screen
          self.screen_buffer.draw(only_dirty=False)
 
-         # Give thread control to the input handler
-         self.input_handler.run()
+         # Start our main read and process loop
+         while not self.kill_event.is_set():
+            seq = self.__read_bytes()
+            if len(seq) == 0:
+               continue # normally means our kill_event got set
+            inp = self.__interpret_bytes(seq)
+            if inp is None:
+               continue # normally means it's a special key we do not handle
 
-         # e_time = time.time()
-         # while not self.kill_event.is_set():
-         #    if time.time() < e_time:
-         #       time.sleep(SLEEP_MS / 1000.0)
-         #       continue
+            if isinstance(inp, Special_Keys) and inp == Special_Keys.CTRL_C:
+               logger.info("Detected ctrl+c, setting kill event")
+               self.kill_event.set()
 
-         #    # self.screen_buffer.draw(only_dirty=False)
-
-         #    e_time += FRAME_DELTA
+            if self.input_target is not None:
+               self.input_target.process_input(inp)
 
       except Exception:
          logger.error(f"Screen Hanlder ran into error in run")
