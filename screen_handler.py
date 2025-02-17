@@ -69,6 +69,8 @@ class Special_Keys(Enum):
    END = auto()
    CTRL_LEFT = auto()
    CTRL_RIGHT = auto()
+   TAB = auto()
+   SHIFT_TAB = auto()
 
 
 class Input_Target(ABC):
@@ -101,12 +103,15 @@ class Screen_Buffer:
       self.cursor_pos = Pos(0, 0)
       self.dirty_cursor = False
    
-   def put_text_in(self, rect:Rect, x:int, y:int, text:str) -> 'Screen_Buffer':
+   def __assert_shape(self, rect:Rect, x:int, y:int, dx:int, dy:int) -> None:
       assert rect.x1 >= 0 and rect.x2 <= self.width and rect.y1 >= 0 and rect.y2 <= self.height
-
       assert 0 <= y <= rect.h, f"Expected 0 <= {y} < {rect.h}"
       assert 0 <= x <= rect.w, f"Expected 0 <= {x} < {rect.w}"
-      assert 0 <= x+len(text) <= rect.w, f"Expected 0 <= {x+len(text)} < {rect.w}"
+      assert 0 <= x+dx <= rect.w, f"Expected 0 <= {x+dx} < {rect.w}"
+      assert 0 <= y+dy <= rect.h, f"Expected 0 <= {y+dy} < {rect.h}"
+
+   def put_text_in(self, rect:Rect, x:int, y:int, text:str) -> None:
+      self.__assert_shape(rect, x, y, len(text), 0)
 
       row_y = rect.y1 + y
       start_x = rect.x1 + x
@@ -114,21 +119,37 @@ class Screen_Buffer:
       for i in range(len(text)):
          self.data[row_y, start_x + i] = text[i]
       self.dirty_rows[row_y] = True
-      return self
 
-   def move_cursor(self, x:int, y:int) -> 'Screen_Buffer':
+   def set_region_bold(self, rect:Rect, x:int, y:int, w:int, h:int, set_bold:bool) -> None:
+      assert w > 0 and h > 0
+      self.__assert_shape(rect, x, y, w, h)
+      self.bold[rect.y1+y:rect.y1+y+h, rect.x1+x:rect.x1+x+w] = set_bold
+      for yy in range(rect.y1+y, rect.y1+y+h):
+         self.dirty_rows[yy] = True
+
+   def move_cursor(self, x:int, y:int) -> None:
       self.cursor_pos.x = x
       self.cursor_pos.y = y
       self.dirty_cursor = True
-      return self
 
-   def draw(self, only_dirty:bool=True) -> 'Screen_Buffer':
+   def draw(self, only_dirty:bool=True) -> None:
+      BOLD_ON_CODE  = "1"
+      BOLD_OFF_CODE = "22"
+
       with self.mutex:
          text = "" if only_dirty else "\033[2J"
+         curr_style = ""
          for y in range(self.height):
             if self.dirty_rows[y] or (not only_dirty):
                text += coord(1, y+1)
                for x in range(self.width):
+                  codes = [
+                     BOLD_ON_CODE if self.bold[y,x] else BOLD_OFF_CODE,
+                  ]
+                  target_style = f"\033[" + ";".join(codes) + "m"
+                  if curr_style != target_style:
+                     text += target_style
+                     curr_style = target_style
                   text += self.data[y,x].decode()
                self.dirty_rows[y] = False
          if self.dirty_cursor or len(text) > 0:
@@ -137,7 +158,6 @@ class Screen_Buffer:
          if len(text) > 0:
             print(text, end='')
             sys.stdout.flush()
-      return self
 
 
 class Bottom_Text_Box(Input_Target):
@@ -278,6 +298,45 @@ class Event_Display:
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.event_lines[-(i+1)])
 
 
+class Tab_Names:
+   ACTIONS = "Actions"
+   SPEAKING = "Speaking"
+   CHARACTERS = "Characters"
+
+class Tab_Selection:
+   SPACE_PADDING = 3
+   screen_buffer: Screen_Buffer
+   names: List[str]
+   rect: Rect
+
+   def __init__(self, screen_buffer:Screen_Buffer, names:List[str]):
+      self.screen_buffer = screen_buffer
+      self.names = names
+      width = 1
+      for name in names:
+         width += self.SPACE_PADDING*2 + len(name) + 1
+      self.rect = Rect(0, 0, width, 5)
+
+   def write_to_buffer(self) -> None:
+      text_row = "|" + "|".join(" "*self.SPACE_PADDING + n + " "*self.SPACE_PADDING for n in self.names) + "|"
+      gap_row = "|" + "|".join(" "*self.SPACE_PADDING + " "*len(n) + " "*self.SPACE_PADDING for n in self.names) + "|"
+      border_row = "+" + "+".join("-"*(self.SPACE_PADDING*2 + len(n)) for n in self.names) + "+"
+      self.screen_buffer.put_text_in(self.rect, 0, 0, border_row)
+      self.screen_buffer.put_text_in(self.rect, 0, 1, gap_row)
+      self.screen_buffer.put_text_in(self.rect, 0, 2, text_row)
+      self.screen_buffer.put_text_in(self.rect, 0, 3, gap_row)
+      self.screen_buffer.put_text_in(self.rect, 0, 4, border_row)
+
+   def select(self, index:int) -> None:
+      text = ""
+      for i, n in enumerate(self.names):
+         self.screen_buffer.set_region_bold(self.rect, len(text)+2, 2, len(n) + 2*self.SPACE_PADDING - 4, 1, i == index)
+         text += "|" if (i == index and i == 0) else "+"
+         text += (" " if i == index else "-") * (len(n) + 2*self.SPACE_PADDING)
+      text += "+"
+      self.screen_buffer.put_text_in(self.rect, 0, 4, text)
+
+
 class Screen_Handler:
    POLL_INTERVAL_SEC = 0.01
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -288,6 +347,10 @@ class Screen_Handler:
    event_display: Event_Display
    bottom_text_box: Bottom_Text_Box
 
+   tab_selection: Tab_Selection
+   tab_names = [Tab_Names.ACTIONS, Tab_Names.SPEAKING, Tab_Names.CHARACTERS]
+   tab_index = 0
+
    input_target: Optional[Input_Target] = None
 
    def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[str]):
@@ -296,6 +359,7 @@ class Screen_Handler:
       self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
       self.event_display = Event_Display(self.screen_buffer, game)
       self.bottom_text_box = Bottom_Text_Box(self.screen_buffer, self.kill_event, self.__user_input_complete)
+      self.tab_selection = Tab_Selection(self.screen_buffer, self.tab_names)
       self.fd = sys.stdin.fileno()
       self.input_target = self.bottom_text_box
 
@@ -321,6 +385,8 @@ class Screen_Handler:
       if len(seq) == 1:
          if seq[0] == 3:
             return Special_Keys.CTRL_C
+         if seq[0] == 9:
+            return Special_Keys.TAB
          if seq[0] == 13:
             return Special_Keys.ENTER
          if seq[0] == 27:
@@ -344,6 +410,8 @@ class Screen_Handler:
                return Special_Keys.HOME
             if seq[2] == 70:
                return Special_Keys.END
+            if seq[2] == 90:
+               return Special_Keys.SHIFT_TAB
          elif len(seq) == 4:
             if seq[2] == 51 and seq[3] == 126:
                return Special_Keys.DELETE
@@ -360,19 +428,16 @@ class Screen_Handler:
    def run(self) -> None:
       try:
          # Borders
-         self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*(SCREEN_WIDTH-2) + "+")
-         for y in range(1, SCREEN_HEIGHT-1):
+         self.screen_buffer.put_text_in(self.rect, 0, 4, "+" + "-"*(SCREEN_WIDTH-2) + "+")
+         for y in range(5, SCREEN_HEIGHT-1):
             self.screen_buffer.put_text_in(self.rect, 0, y, "|")
             self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
          self.screen_buffer.put_text_in(self.rect, 0, self.bottom_text_box.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
          # Tabs
-         text_row = "| Actions | Speaking | Characters |"
-         border_row = "".join(["+" if c == "|" else "-" for c in text_row])
-         self.screen_buffer.put_text_in(self.rect, 0, 0, border_row)
-         self.screen_buffer.put_text_in(self.rect, 0, 1, text_row)
-         self.screen_buffer.put_text_in(self.rect, 0, 2, border_row)
+         self.tab_selection.write_to_buffer()
+         self.tab_selection.select(self.tab_index)
 
          # User Input
          self.screen_buffer.put_text_in(self.rect, 2, self.bottom_text_box.rect.y1, INPUT_PREFIX)
@@ -391,9 +456,22 @@ class Screen_Handler:
             if inp is None:
                continue # normally means it's a special key we do not handle
 
-            if isinstance(inp, Special_Keys) and inp == Special_Keys.CTRL_C:
-               logger.info("Detected ctrl+c, setting kill event")
-               self.kill_event.set()
+            if isinstance(inp, Special_Keys):
+               if inp == Special_Keys.CTRL_C:
+                  logger.info("Detected ctrl+c, setting kill event")
+                  self.kill_event.set()
+               elif inp == Special_Keys.TAB:
+                  self.tab_index += 1
+                  if self.tab_index >= len(self.tab_names):
+                     self.tab_index -= len(self.tab_names)
+                  self.tab_selection.select(self.tab_index)
+               elif inp == Special_Keys.SHIFT_TAB:
+                  self.tab_index -= 1
+                  if self.tab_index < 0:
+                     self.tab_index += len(self.tab_names)
+                  self.tab_selection.select(self.tab_index)
+               self.screen_buffer.draw()
+               continue
 
             if self.input_target is not None:
                self.input_target.process_input(inp)
