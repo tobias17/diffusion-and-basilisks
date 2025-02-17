@@ -45,7 +45,7 @@ class Game:
       for event in self.events:
          if isinstance(event, E.Create_Npc_Event):
             if event.npc_id == npc_id:
-               return event.name
+               return f"{event.first_name} {event.last_name}"
             options.append(event.npc_id)
       raise ValueError(f"Failed to find NPC with ID '{npc_id}', options were {options}")
 

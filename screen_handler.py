@@ -38,7 +38,7 @@ class Rect:
 INPUT_HEIGHT = 4
 INPUT_PREFIX = "> "
 
-EVENT_SPACE = Rect(2, 3, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 5)
+EVENT_SPACE = Rect(2, 5, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 7)
 INPUT_SPACE = Rect(2 + len(INPUT_PREFIX), EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - len(INPUT_PREFIX), INPUT_HEIGHT)
 
 
@@ -281,7 +281,6 @@ class Event_Display:
                text = text[self.rect.w:]
             self.event_lines.append(text)
             self.event_lines.append("")
-      self.event_lines.pop(-1) # remove last newline
 
       if self.is_visible:
          self.clear_buffer()
@@ -465,13 +464,15 @@ class Screen_Handler:
                   if self.tab_index >= len(self.tab_names):
                      self.tab_index -= len(self.tab_names)
                   self.tab_selection.select(self.tab_index)
+                  self.screen_buffer.draw()
+                  continue
                elif inp == Special_Keys.SHIFT_TAB:
                   self.tab_index -= 1
                   if self.tab_index < 0:
                      self.tab_index += len(self.tab_names)
                   self.tab_selection.select(self.tab_index)
-               self.screen_buffer.draw()
-               continue
+                  self.screen_buffer.draw()
+                  continue
 
             if self.input_target is not None:
                self.input_target.process_input(inp)
