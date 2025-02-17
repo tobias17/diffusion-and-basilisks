@@ -6,10 +6,10 @@ from game import Game
 from screen_handler import Screen_Handler, Peek_Terminal_Input
 
 from typing import Callable, Optional, List, Dict
-import logging, os, datetime, json, requests, time # type: ignore
-from threading import Thread
+import logging, os, datetime, json, requests, time, threading # type: ignore
+from queue import Queue
 
-def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
+def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], decision_log:List[Dict]) -> Optional[Game]:
    curr_attempts = 0
 
    messages = [
@@ -28,47 +28,41 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
    if len(lines) > 0:
       messages.append({"role":"assistant", "content":"\n".join(lines)})
 
-   while True:
-      decision_log.append({"event":"Computed API Messages", "messages":messages})
-      output = output_from_messages(messages)
-      assert output is not None, f"Ran out of outputs before completing processing"
+   decision_log.append({"event":"Computed API Messages", "messages":messages})
+   output = output_from_messages(messages)
+   assert output is not None, f"Ran out of outputs before completing processing"
 
-      lines = output.split("\n")
-      lines = [l.strip() for l in lines if l]
+   lines = output.split("\n")
+   lines = [l.strip() for l in lines if l]
 
-      if len(lines) == 0:
-         decision_log.append({"event":"ERROR: Got back 0 lines from the model", "output":output.split("\n")})
+   if len(lines) == 0:
+      decision_log.append({"event":"ERROR: Got back 0 lines from the model", "output":output.split("\n")})
+   else:
+      delta_game = game.copy()
+      for line in lines:
+         call_data, msg = parse_function(line)
+         if call_data is None:
+            logger.error(msg)
+            decision_log.append({"event":"ERROR: Ran into issue parsing function", "output":output.split("\n"), "line":line, "message":msg})
+            break
+         func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs)
+         if func_call is None:
+            logger.error(msg)
+            decision_log.append({"event":"ERROR: Ran into issue matching function", "output":output.split("\n"), "line":line, "message":msg})
+            break
+         ok, msg = func_call(delta_game)
+         if not ok:
+            logger.error(msg)
+            decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "output":output.split("\n"), "line":line, "message":msg})
+            break
       else:
-         delta_game = game.copy()
-         for line in lines:
-            call_data, msg = parse_function(line)
-            if call_data is None:
-               logger.error(msg)
-               decision_log.append({"event":"ERROR: Ran into issue parsing function", "output":output.split("\n"), "line":line, "message":msg})
-               break
-            func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs)
-            if func_call is None:
-               logger.error(msg)
-               decision_log.append({"event":"ERROR: Ran into issue matching function", "output":output.split("\n"), "line":line, "message":msg})
-               break
-            ok, msg = func_call(delta_game)
-            if not ok:
-               logger.error(msg)
-               decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "output":output.split("\n"), "line":line, "message":msg})
-               break
-         else:
-            decision_log.append({"event":"Fully processed output and advanced game state", "output":output.split("\n")})
-            return delta_game
+         decision_log.append({"event":"Fully processed output and advanced game state", "output":output.split("\n")})
+         return delta_game
 
-      curr_attempts += 1
-      if curr_attempts >= max_attempts:
-         return None
+   return None
 
 
-json_log = None
 def make_completion(messages:List[Dict[str,str]]) -> Optional[str]:
-   global client, json_log
-
    endpoint = "http://192.168.1.200:7776/v1"
    headers = { "Content-Type": "application/json" }
    data = { "messages": messages }
@@ -92,58 +86,69 @@ def make_completion(messages:List[Dict[str,str]]) -> Optional[str]:
       raise RuntimeError(f"Endpoint returned non-200 status code {resp.status_code}")
 
 
-def old_game_loop(game:Game, log_dirpath:str):
-   decision_log = []
-   while True:
-      last_event = game.events[-1]
+class AI_Manager:
+   MAX_ATTEMPTS: int = 8
+   kill_event: threading.Event
+   log_dirpath: str
+   decision_logs: List[List[Dict]]
 
-      if isinstance(last_event, E.Player_Input_Event):
-         # AI's turn to produce next block
-         decision_log.append({"event":f"Performing Game Loop Tick", "message":"Requesting LLM completion"})
+   def __init__(self, kill_event:threading.Event, log_dirpath:str):
+      self.kill_event = kill_event
+      self.log_dirpath = log_dirpath
+      self.decision_logs = []
+
+   def process(self, game:Game) -> Optional[Game]:
+      final_game = None
+      decision_log = []
+      decision_log.append({"event":f"Performing Game Loop Tick", "message":"Requesting LLM completion"})
+      for _ in range(self.MAX_ATTEMPTS):
+         if self.kill_event.is_set():
+            return game
          new_game = process_game_state(game, make_completion, decision_log)
          if new_game is not None:
-            game = new_game
-            new_events: List[Event] = []
-            for event in game.events[::-1]:
-               if isinstance(event, E.Player_Input_Event):
-                  break
-               new_events.insert(0, event)
-            for event in new_events:
-               msg = event.system()
-               if msg:
-                  print(msg)
-         else:
-            raise RuntimeError("Could not resolve from LLM")
+            final_game = new_game
+            break
 
-      else:
-         # User's turn to produce next block
-         decision_log.append({"event":f"Performing Game Loop Tick", "message":"Requesting user input"})
-         text = ""
-         while not text:
-            text = input("Response? ").strip()
-         if text == "q":
-            return
-         decision_log.append({"event":"Got player input", "text":text})
-         game.add_event(E.Player_Input_Event(text))
+      self.decision_logs.append(decision_log)
+      with open(f"{self.log_dirpath}/decision_log.json", "w") as f: json.dump(self.decision_logs, f, indent="\t")
+      with open(f"{self.log_dirpath}/game.json",         "w") as f: json.dump(game.to_json(),     f, indent="\t")
 
-      with open(f"{log_dirpath}/decision_log.json", "w") as f: json.dump(decision_log,   f, indent="\t")
-      with open(f"{log_dirpath}/game.json",         "w") as f: json.dump(game.to_json(), f, indent="\t")
+      return final_game
 
 
 def game_loop(game:Game, log_dirpath:str):
+   kill_event = threading.Event()
+   ai_manager = AI_Manager(kill_event, log_dirpath)
+   user_input_queue: Queue[str] = Queue(maxsize=1)
+
    # Create a screen handler object and start it up
-   screen_handler = Screen_Handler(game)
-   thread = Thread(target=screen_handler.run)
+   screen_handler = Screen_Handler(kill_event, game, user_input_queue)
+   thread = threading.Thread(target=screen_handler.run)
    thread.start()
 
    # Main game loop
    try:
-      while not screen_handler.kill_event.is_set():
+      while not kill_event.is_set():
+         if user_input_queue.full():
+            text = user_input_queue.get()
+            new_game1 = game.copy()
+            new_game1.add_event(E.Player_Input_Event(text))
+            screen_handler.update_game(new_game1)
+
+            new_game2 = ai_manager.process(new_game1)
+            if new_game2 is None:
+               logger.error("Could not progress game state with AI, reverting user input")
+            else:
+               game = new_game2
+            screen_handler.update_game(game)
+            screen_handler.accept_input()
+
          time.sleep(0.01)
    except KeyboardInterrupt:
       logger.info("Got keyboard interupt, setting kill event")
       screen_handler.kill_event.set()
       thread.join()
+
 
 if __name__ == "__main__":
    FOLDER_DIR = datetime.datetime.now().strftime("logs/game/%m-%d-%Y_%H-%M-%S")

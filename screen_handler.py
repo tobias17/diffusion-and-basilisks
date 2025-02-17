@@ -3,18 +3,17 @@ from common import logger
 from game import Game
 
 from dataclasses import dataclass
-from threading import Thread, Event, Lock
-from typing import Optional, List, Union
+from typing import List, Union
 from enum import Enum, auto
-import time, sys, termios, select, tty, os, traceback
+from queue import Queue
+import time, sys, termios, select, tty, os, traceback, threading
 
 TARGET_FPS = 1.0
 FRAME_DELTA = 1.0 / TARGET_FPS
 SLEEP_MS = 10.0
 
-# SCREEN_WIDTH  = 150
+SCREEN_WIDTH  = 150
 # SCREEN_HEIGHT = 50
-SCREEN_WIDTH  = 80
 SCREEN_HEIGHT = 30
 
 @dataclass
@@ -73,7 +72,7 @@ class Special_Keys(Enum):
 
 class Screen_Buffer:
    rows: List[str]
-   mutex: Lock
+   mutex: threading.Lock
    cursor_pos: Pos
 
    dirty_rows: List[bool]
@@ -83,7 +82,7 @@ class Screen_Buffer:
       self.rows = [" "*width for _ in range(height)]
       self.dirty_rows = [False for _ in range(height)]
       self.dirty_cursor = False
-      self.mutex = Lock()
+      self.mutex = threading.Lock()
       self.cursor_pos = Pos(0, 0)
    
    def put_text_in(self, rect:Rect, x:int, y:int, text:str) -> 'Screen_Buffer':
@@ -128,16 +127,16 @@ class Input_Handler:
    rect: Rect = INPUT_SPACE
 
    accepting_input: bool = True
-   kill_event: Event
+   kill_event: threading.Event
    screen_buffer: Screen_Buffer
 
    curr_input: str
    input_ptr: int
 
-   def __init__(self, screen_buffer:Screen_Buffer, kill_event:Event, buffer_complete_fnx):
+   def __init__(self, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
       self.screen_buffer = screen_buffer
       self.kill_event = kill_event
-      self.buffer_complete_fnx = buffer_complete_fnx
+      self.input_complete_callback = input_complete_callback
       self.clear_input()
       self.fd = sys.stdin.fileno()
 
@@ -146,6 +145,8 @@ class Input_Handler:
       self.input_ptr = 0
       if disable_input:
          self.accepting_input = False
+      self.write_to_buffer()
+      self.move_cursor()
 
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():
@@ -193,7 +194,7 @@ class Input_Handler:
       logger.info(f"Got unknown byte sequence {list(seq)}")
       return None
 
-   def write_buffer(self) -> None:
+   def write_to_buffer(self) -> None:
       text = self.curr_input
       for y in range(self.rect.h):
          line, text = text[:self.rect.w], text[self.rect.w:]
@@ -225,7 +226,7 @@ class Input_Handler:
                else:
                   self.curr_input = self.curr_input[:self.input_ptr] + key + self.curr_input[self.input_ptr:]
                   self.input_ptr += 1
-               self.write_buffer()
+               self.write_to_buffer()
                self.move_cursor()
             elif isinstance(key, Special_Keys):
                # Special control character
@@ -244,12 +245,12 @@ class Input_Handler:
                   if self.input_ptr > 0:
                      self.curr_input = self.curr_input[:self.input_ptr-1] + self.curr_input[self.input_ptr:]
                      self.input_ptr -= 1
-                     self.write_buffer()
+                     self.write_to_buffer()
                      self.move_cursor()
                elif key == Special_Keys.DELETE:
                   if self.input_ptr < len(self.curr_input):
                      self.curr_input = self.curr_input[:self.input_ptr] + self.curr_input[self.input_ptr+1:]
-                     self.write_buffer()
+                     self.write_to_buffer()
                elif key == Special_Keys.HOME:
                   self.input_ptr = 0
                   self.move_cursor()
@@ -274,10 +275,14 @@ class Input_Handler:
                      walk_ptr = step_ptr
                   self.input_ptr = walk_ptr
                   self.move_cursor()
-            
+               elif key == Special_Keys.ENTER:
+                  if len(self.curr_input) < 1:
+                     logger.error("Cannot submit empty input")
+                  else:
+                     self.input_complete_callback()
+
             # Always request a draw (will not nothing if nothing was changed)
             self.screen_buffer.draw()
-
 
       except Exception:
          logger.error(f"Screen Hanlder ran into error in run")
@@ -311,13 +316,14 @@ class Event_Display:
       self.event_lines.pop(-1) # remove last newline
 
       if self.is_visible:
-         self.write_buffer()
+         self.clear_buffer()
+         self.write_to_buffer()
 
    def clear_buffer(self):
       for y in range(self.rect.h):
          self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
 
-   def write_buffer(self):
+   def write_to_buffer(self):
       for i in range(self.rect.h):
          if i >= len(self.event_lines):
             break
@@ -325,25 +331,36 @@ class Event_Display:
 
 
 class Screen_Handler:
-   kill_event: Event
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
+   kill_event: threading.Event
+   user_input_queue: Queue
    screen_buffer: Screen_Buffer
    event_display: Event_Display
    input_handler: Input_Handler
 
-   def __init__(self, game:Game):
-      self.kill_event = Event()
+   def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[str]):
+      self.kill_event = kill_event
+      self.user_input_queue = user_input_queue
       self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
       self.event_display = Event_Display(self.screen_buffer, game)
-      self.input_handler = Input_Handler(self.screen_buffer, self.kill_event, self.__buffer_complete)
+      self.input_handler = Input_Handler(self.screen_buffer, self.kill_event, self.__user_input_complete)
 
-   def __buffer_complete(self) -> None:
-      pass
+   def update_game(self, game:Game) -> None:
+      self.event_display.update_game(game)
+      self.screen_buffer.draw()
+
+   def accept_input(self) -> None:
+      self.input_handler.accepting_input = True
+
+   def __user_input_complete(self) -> None:
+      text = self.input_handler.curr_input
+      self.input_handler.clear_input()
+      self.user_input_queue.put(text)
 
    def run(self) -> None:
       try:
-         Thread(target=self.input_handler.run).start()
+         # Thread(target=self.input_handler.run).start()
 
          # Borders
          self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*(SCREEN_WIDTH-2) + "+")
@@ -353,25 +370,26 @@ class Screen_Handler:
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
          self.screen_buffer.put_text_in(self.rect, 0, self.input_handler.rect.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
-         # Events tab
-         
-
          # User Input
          self.screen_buffer.put_text_in(self.rect, 2, self.input_handler.rect.y1, INPUT_PREFIX)
-         self.input_handler.write_buffer()
+         self.input_handler.write_to_buffer()
          self.input_handler.move_cursor()
 
+         # Draw the whole screen
          self.screen_buffer.draw(only_dirty=False)
 
-         e_time = time.time()
-         while not self.kill_event.is_set():
-            if time.time() < e_time:
-               time.sleep(SLEEP_MS / 1000.0)
-               continue
+         # Give thread control to the input handler
+         self.input_handler.run()
 
-            # self.screen_buffer.draw(only_dirty=False)
+         # e_time = time.time()
+         # while not self.kill_event.is_set():
+         #    if time.time() < e_time:
+         #       time.sleep(SLEEP_MS / 1000.0)
+         #       continue
 
-            e_time += FRAME_DELTA
+         #    # self.screen_buffer.draw(only_dirty=False)
+
+         #    e_time += FRAME_DELTA
 
       except Exception:
          logger.error(f"Screen Hanlder ran into error in run")
