@@ -17,11 +17,13 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
    ]
    lines: List[str] = []
    for event in game.events:
-      if isinstance(event, E.Player_Input_Event):
+      if event.is_player_provided():
          if len(lines) > 0:
             messages.append({"role":"assistant", "content":"\n".join(lines)})
             lines = []
-         messages.append({"role":"user", "content":event.text})
+         text = event.system()
+         assert text
+         messages.append({"role":"user", "content":text})
       else:
          line = event.system()
          if line: lines.append(line)
@@ -110,8 +112,9 @@ class AI_Manager:
             break
 
       self.decision_logs.append(decision_log)
-      with open(f"{self.log_dirpath}/decision_log.json", "w") as f: json.dump(self.decision_logs, f, indent="\t")
-      with open(f"{self.log_dirpath}/game.json",         "w") as f: json.dump(game.to_json(),     f, indent="\t")
+      save_game = game if final_game is None else final_game
+      with open(f"{self.log_dirpath}/decision_log.json", "w") as f: json.dump(self.decision_logs,  f, indent="\t")
+      with open(f"{self.log_dirpath}/game.json",         "w") as f: json.dump(save_game.to_json(), f, indent="\t")
 
       return final_game
 
@@ -119,7 +122,7 @@ class AI_Manager:
 def game_loop(game:Game, log_dirpath:str):
    kill_event = threading.Event()
    ai_manager = AI_Manager(kill_event, log_dirpath)
-   user_input_queue: Queue[str] = Queue(maxsize=1)
+   user_input_queue: Queue[Event] = Queue(maxsize=1)
 
    # Create a screen handler object and start it up
    screen_handler = Screen_Handler(kill_event, game, user_input_queue)
@@ -130,11 +133,12 @@ def game_loop(game:Game, log_dirpath:str):
    try:
       while not kill_event.is_set():
          if user_input_queue.full():
-            text = user_input_queue.get()
+            event = user_input_queue.get()
             new_game1 = game.copy()
-            new_game1.add_event(E.Player_Input_Event(text))
+            new_game1.add_event(event)
             screen_handler.update_game(new_game1)
 
+            logger.info("New event detected, processing AI response")
             new_game2 = ai_manager.process(new_game1)
             if new_game2 is None:
                logger.error("Could not progress game state with AI, reverting user input")
@@ -165,7 +169,7 @@ if __name__ == "__main__":
    starting_events = [
       (lambda: E.create_location(game, loc_id="iosla_town_square", name="Iosla", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")),
       (lambda: E.move_player_to(game, loc_id="iosla_town_square")),
-      (lambda: E.player_input(game, "What kind of buildings surround me?")),
+      (lambda: E.player_request_action(game, "What kind of buildings surround me?")),
       (lambda: E.narrate(game, "You look around and see many small houses, with a tavern a little ways down the road.")),
    ]
    for call in starting_events:

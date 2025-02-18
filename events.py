@@ -8,12 +8,18 @@ from typing import Tuple, Optional
 
 
 @dataclass
-class Player_Input_Event(Event):
+class Player_Request_Action_Event(Event):
    text: str
-   def player(self, game:Game) -> Optional[str]:
-      return f'You say: "{self.text}"'
-def player_input(self:Game, text:str) -> Tuple[bool,str]:
-   self.add_event(Player_Input_Event(text))
+   def clean(self) -> None:
+      self.text = self.text.replace("\\", "").replace('"', "'")
+   def player_event(self, game:Game) -> Optional[str]:
+      return f'You request: "{self.text}"'
+   def system(self) -> Optional[str]:
+      return f'PLAYER.request_action(text="{self.text}")'
+   def is_player_provided(self) -> bool:
+      return True
+def player_request_action(self:Game, text:str) -> Tuple[bool,str]:
+   self.add_event(Player_Request_Action_Event(text))
    return True, ""
 
 
@@ -22,7 +28,7 @@ class Create_Location_Event(Event):
    loc_id: str
    name: str
    desc: str
-   def player(self, game:Game) -> Optional[str]:
+   def player_event(self, game:Game) -> Optional[str]:
       return f"You discover a new location, {self.name}"
 def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
@@ -44,7 +50,7 @@ Create_Location_Event.system = (lambda e: create_location_func.system(e)) # type
 @dataclass
 class Move_Player_To_Event(Event):
    loc_id: str
-   def player(self, game:Game) -> Optional[str]:
+   def player_event(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
 def move_player_to(self:Game, loc_id:str) -> Tuple[bool,str]:
    for event in self.events:
@@ -67,7 +73,7 @@ class Create_Npc_Event(Event):
    first_name: str
    last_name: str
    desc: str
-   def player(self, game:Game) -> Optional[str]:
+   def player_event(self, game:Game) -> Optional[str]:
       return f"You meet a new character, {self.first_name} {self.last_name}"
 def create_npc(self:Game, npc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
@@ -95,24 +101,21 @@ class Speak_Event(Event):
    def system(self) -> Optional[str]:
       prefix = f"PLAYER.speak_to_npc" if self.is_player_speaking else "NPC.speak_to_player"
       return f'{prefix}(npc_id="{self.npc_id}", text="{self.text}")'
-   def player(self, game:Game) -> Optional[str]:
+   def player_event(self, game:Game) -> Optional[str]:
       if self.is_player_speaking:
-         return f"You tell {game.get_npc_name(self.npc_id)}: {self.text}"
+         return f'You tell {game.get_npc_name(self.npc_id)}: "{self.text}"'
       else:
-         return f"{game.get_npc_name(self.npc_id)} tells You: {self.text}"
+         return f'{game.get_npc_name(self.npc_id)} tells You: "{self.text}"'
+   def player_speak(self, game:Game) -> Optional[str]:
+      return ("You" if self.is_player_speaking else game.get_npc_name(self.npc_id)) + f': "{self.text}"'
+   def is_player_provided(self) -> bool:
+      return self.is_player_speaking
 def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
          self.add_event(Speak_Event(npc_id, text, True))
          return True, ""
    return False, f"Failed to find a Character with the ID '{npc_id}'"
-Function_Map.funcs.append(
-   Function(
-      speak_player_to_npc, "PLAYER.speak_to_npc",
-      Parameter("npc_id", str),
-      Parameter("text", str),
-   )
-)
 def speak_npc_to_player(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
@@ -131,8 +134,8 @@ Function_Map.funcs.append(
 @dataclass
 class Narrate_Event(Event):
    text: str
-   def player(self, game:Game) -> Optional[str]:
-      return f"Narrator: {self.text}"
+   def player_event(self, game:Game) -> Optional[str]:
+      return f'Narrator: "{self.text}"'
 def narrate(self:Game, text:str) -> Tuple[bool,str]:
    self.add_event(Narrate_Event(text))
    return True, ""

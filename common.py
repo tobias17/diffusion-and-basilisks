@@ -6,25 +6,19 @@ import logging
 logger = logging.getLogger("Diff_and_Bas")
 logger.setLevel(logging.DEBUG)
 LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
-# console = logging.StreamHandler()
-# console.setLevel(logging.INFO)
-# console.setFormatter(LOG_FORMAT)
-# logger.addHandler(console)
 
 @dataclass
 class Event:
-   def player(self, game)-> Optional[str]:
+   def player_event(self, game)-> Optional[str]:
+      return None
+   def player_speak(self, game)-> Optional[str]:
       return None
    def system(self) -> Optional[str]:
       return None
    def clean(self) -> None:
       pass
-
-   def _strip_text(self, text:str) -> str:
-      return text.strip().strip(",.")
-   def _fix_name(self, text:str) -> str:
-      chunks = self._strip_text(text).split(" ")
-      return " ".join(c[0].upper() + (c[1:].lower() if len(c) >= 2 else "") for c in chunks if len(c) >= 1)
+   def is_player_provided(self) -> bool:
+      return False
 
 def exc_loc_str() -> str:
    _, _, exc_tb = sys.exc_info()
