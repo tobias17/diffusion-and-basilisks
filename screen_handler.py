@@ -323,6 +323,7 @@ class Speech_Display(Tab_Page):
       self.update_game(game)
 
    def set_speak_target(self, npc_id:str) -> None:
+      self.speak_target = npc_id
       self.speech_lines = [f"Start of conversation with {self.game.get_npc_name(npc_id)}", ""]
       for event in self.game.events:
          if isinstance(event, E.Speak_Event) and event.npc_id == npc_id:
@@ -346,11 +347,12 @@ class Speech_Display(Tab_Page):
       if len(curr_loc_npc_infos) > 0:
          curr_loc_npc_infos = sorted(curr_loc_npc_infos, key=lambda i: i.last_interaction)
          self.set_speak_target(curr_loc_npc_infos[-1].npc_id)
+      else:
+         self.speak_target = None
 
    def write_to_buffer(self):
-      if self.speak_target is None:
-         self.clear_buffer()
-      else:
+      self.clear_buffer()
+      if self.speak_target is not None:
          for i in range(self.rect.h):
             if i >= len(self.speech_lines):
                break

@@ -47,8 +47,11 @@ class Move_Player_To_Event(Event):
    def player(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
 def move_player_to(self:Game, loc_id:str) -> Tuple[bool,str]:
-   self.add_event(Move_Player_To_Event(loc_id))
-   return True, ""
+   for event in self.events:
+      if isinstance(event, Create_Location_Event) and event.loc_id == loc_id:
+         self.add_event(Move_Player_To_Event(loc_id))
+         return True, ""
+   return False, f"Could not find a location with the ID '{loc_id}'"
 Function_Map.funcs.append(
    move_player_to_func := Function(
       move_player_to, "GAME.move_player_to",
@@ -96,7 +99,7 @@ class Speak_Event(Event):
       if self.is_player_speaking:
          return f"You tell {game.get_npc_name(self.npc_id)}: {self.text}"
       else:
-         return f"{game.get_npc_name(self.npc_id)} tells you: {self.text}"
+         return f"{game.get_npc_name(self.npc_id)} tells You: {self.text}"
 def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
