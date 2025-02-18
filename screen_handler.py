@@ -1,6 +1,7 @@
 from __future__ import annotations
 from common import logger
 from game import Game
+import events as E
 
 from dataclasses import dataclass
 from typing import List, Union, Optional
@@ -259,15 +260,31 @@ class Bottom_Text_Box(Input_Target):
       self.screen_buffer.draw()
 
 
-class Event_Display:
+class Tab_Page(ABC):
    rect: Rect = EVENT_SPACE
-   event_page_index: int = 0
-   is_visible: bool = True
-
+   title: str
    screen_buffer: Screen_Buffer
+   is_visible: bool = False
+
+   @abstractmethod
+   def update_game(self, game:Game) -> None:
+      pass
+
+   def clear_buffer(self):
+      for y in range(self.rect.h):
+         self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
+
+   @abstractmethod
+   def write_to_buffer(self):
+      pass
+
+
+class Event_Display(Tab_Page):
+   event_page_index: int = 0
    event_lines: List[str]
    
    def __init__(self, screen_buffer:Screen_Buffer, game:Game):
+      self.title = "Actions"
       self.screen_buffer = screen_buffer
       self.update_game(game)
 
@@ -286,15 +303,58 @@ class Event_Display:
          self.clear_buffer()
          self.write_to_buffer()
 
-   def clear_buffer(self):
-      for y in range(self.rect.h):
-         self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
-
    def write_to_buffer(self):
       for i in range(self.rect.h):
          if i >= len(self.event_lines):
             break
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.event_lines[-(i+1)])
+
+
+class Speech_Display(Tab_Page):
+   screen_buffer: Screen_Buffer
+   game: Game
+   speak_target: Optional[str] = None
+   speech_page_index: int = 0
+   speech_lines: List[str]
+   
+   def __init__(self, screen_buffer:Screen_Buffer, game:Game):
+      self.title = "Speaking"
+      self.screen_buffer = screen_buffer
+      self.update_game(game)
+
+   def set_speak_target(self, npc_id:str) -> None:
+      self.speech_lines = [f"Start of conversation with {self.game.get_npc_name(npc_id)}", ""]
+      for event in self.game.events:
+         if isinstance(event, E.Speak_Event) and event.npc_id == npc_id:
+            line = event.player(self.game)
+            assert line is not None
+            while len(line) > self.rect.w:
+               self.speech_lines.append(line[:self.rect.w])
+               line = line[self.rect.w:]
+            self.speech_lines.append(line)
+            self.speech_lines.append("")
+      if self.is_visible:
+         self.clear_buffer()
+         self.write_to_buffer()
+
+   def update_game(self, game:Game) -> None:
+      self.game = game
+      npc_infos = game.get_npc_infos()
+      curr_loc_id = game.get_curr_loc_id()
+      curr_loc_npc_infos = [i for i in npc_infos if i.loc_id == curr_loc_id]
+
+      if len(curr_loc_npc_infos) > 0:
+         curr_loc_npc_infos = sorted(curr_loc_npc_infos, key=lambda i: i.last_interaction)
+         self.set_speak_target(curr_loc_npc_infos[-1].npc_id)
+
+   def write_to_buffer(self):
+      if self.speak_target is None:
+         self.clear_buffer()
+      else:
+         for i in range(self.rect.h):
+            if i >= len(self.speech_lines):
+               break
+            self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.speech_lines[-(i+1)])
 
 
 class Tab_Names:
@@ -305,14 +365,16 @@ class Tab_Names:
 class Tab_Selection:
    SPACE_PADDING = 3
    screen_buffer: Screen_Buffer
+   pages: List[Tab_Page]
    names: List[str]
    rect: Rect
 
-   def __init__(self, screen_buffer:Screen_Buffer, names:List[str]):
+   def __init__(self, screen_buffer:Screen_Buffer, pages:List[Tab_Page]):
       self.screen_buffer = screen_buffer
-      self.names = names
+      self.pages = pages
+      self.names = [tab.title for tab in pages]
       width = 1
-      for name in names:
+      for name in self.names:
          width += self.SPACE_PADDING*2 + len(name) + 1
       self.rect = Rect(0, 0, width, 5)
 
@@ -334,6 +396,10 @@ class Tab_Selection:
          text += (" " if i == index else "-") * (len(n) + 2*self.SPACE_PADDING)
       text += "+"
       self.screen_buffer.put_text_in(self.rect, 0, 4, text)
+      for i, page in enumerate(self.pages):
+         page.is_visible = (i == index)
+         if page.is_visible:
+            page.write_to_buffer()
 
 
 class Screen_Handler:
@@ -347,7 +413,7 @@ class Screen_Handler:
    bottom_text_box: Bottom_Text_Box
 
    tab_selection: Tab_Selection
-   tab_names = [Tab_Names.ACTIONS, Tab_Names.SPEAKING, Tab_Names.CHARACTERS]
+   tab_pages: List[Tab_Page]
    tab_index = 0
 
    input_target: Optional[Input_Target] = None
@@ -358,12 +424,14 @@ class Screen_Handler:
       self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
       self.event_display = Event_Display(self.screen_buffer, game)
       self.bottom_text_box = Bottom_Text_Box(self.screen_buffer, self.kill_event, self.__user_input_complete)
-      self.tab_selection = Tab_Selection(self.screen_buffer, self.tab_names)
+      self.tab_pages = [Event_Display(self.screen_buffer, game), Speech_Display(self.screen_buffer, game)]
+      self.tab_selection = Tab_Selection(self.screen_buffer, self.tab_pages)
       self.fd = sys.stdin.fileno()
       self.input_target = self.bottom_text_box
 
    def update_game(self, game:Game) -> None:
-      self.event_display.update_game(game)
+      for page in self.tab_pages:
+         page.update_game(game)
       self.screen_buffer.draw()
 
    def accept_input(self) -> None:
@@ -461,15 +529,15 @@ class Screen_Handler:
                   self.kill_event.set()
                elif inp == Special_Keys.TAB:
                   self.tab_index += 1
-                  if self.tab_index >= len(self.tab_names):
-                     self.tab_index -= len(self.tab_names)
+                  if self.tab_index >= len(self.tab_pages):
+                     self.tab_index -= len(self.tab_pages)
                   self.tab_selection.select(self.tab_index)
                   self.screen_buffer.draw()
                   continue
                elif inp == Special_Keys.SHIFT_TAB:
                   self.tab_index -= 1
                   if self.tab_index < 0:
-                     self.tab_index += len(self.tab_names)
+                     self.tab_index += len(self.tab_pages)
                   self.tab_selection.select(self.tab_index)
                   self.screen_buffer.draw()
                   continue

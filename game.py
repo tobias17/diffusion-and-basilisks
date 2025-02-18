@@ -3,9 +3,17 @@ from common import Event
 import events as E
 
 from typing import List, Optional, Dict, Any, List, Callable, Type, TypeVar, Tuple
-from dataclasses import asdict
+from dataclasses import dataclass, asdict
 
 T = TypeVar('T')
+
+@dataclass
+class Npc_Info:
+   npc_id: str
+   npc_name: str
+   loc_id: str
+   loc_name: str
+   last_interaction: int
 
 class Game:
    events: List[Event]
@@ -57,3 +65,37 @@ class Game:
                return event.name
             options.append(event.loc_id)
       raise ValueError(f"Failed to find Location with ID '{loc_id}', options were {options}")
+
+   def get_curr_loc_id(self) -> str:
+      for event in reversed(self.events):
+         if isinstance(event, E.Move_Player_To_Event):
+            return event.loc_id
+      raise RuntimeError(f"Failed to find a player move event")
+
+   def get_npc_infos(self) -> List[Npc_Info]:
+      loc_id_to_name: Dict[str,str] = {}
+      npc_infos: Dict[str,Npc_Info] = {}
+      curr_loc_id = None
+
+      INTERACT_EVENT_MAP: Dict[Type[Event],str] = {
+         E.Speak_Event: "npc_id",
+      }
+
+      for i, event in enumerate(self.events):
+         if isinstance(event, E.Create_Location_Event):
+            loc_id_to_name[event.loc_id] = event.name
+         elif isinstance(event, E.Move_Player_To_Event):
+            curr_loc_id = event.loc_id
+         elif isinstance(event, E.Create_Npc_Event):
+            assert curr_loc_id is not None, f"Found a create NPC event {event} before a location was established"
+            loc_name = loc_id_to_name.get(curr_loc_id, None)
+            assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
+            npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", curr_loc_id, loc_name, i)
+         elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
+            attr = INTERACT_EVENT_MAP[type(event)]
+            npc_id = getattr(event, attr)
+            npc_info = npc_infos.get(npc_id, None)
+            assert npc_info is not None, f"Failed to find npc_info with npc_id '{npc_id}' referenced by {event}"
+            npc_info.last_interaction = i
+
+      return list(npc_infos.values())
