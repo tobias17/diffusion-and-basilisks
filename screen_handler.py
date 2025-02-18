@@ -11,12 +11,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import sys, termios, select, tty, os, traceback, threading
 
-TARGET_FPS = 1.0
-FRAME_DELTA = 1.0 / TARGET_FPS
-SLEEP_MS = 10.0
-
 SCREEN_WIDTH  = 200
-SCREEN_HEIGHT = 50
+SCREEN_HEIGHT = 45
 
 @dataclass
 class Pos:
@@ -71,6 +67,7 @@ class Special_Keys(Enum):
    CTRL_RIGHT = auto()
    TAB = auto()
    SHIFT_TAB = auto()
+   CTRL_R = auto()
 
 
 class Screen_Buffer:
@@ -420,6 +417,7 @@ class Tab_Selection:
          if page.is_visible:
             page.write_to_buffer()
             page.text_box.write_to_buffer()
+            page.text_box.write_cursor_pos()
 
 
 class Screen_Handler:
@@ -484,6 +482,8 @@ class Screen_Handler:
             return Special_Keys.TAB
          if seq[0] == 13:
             return Special_Keys.ENTER
+         if seq[0] == 18:
+            return Special_Keys.CTRL_R
          if seq[0] == 27:
             return Special_Keys.ESCAPE
          if seq[0] == 127:
@@ -564,6 +564,9 @@ class Screen_Handler:
                if inp == Special_Keys.CTRL_C:
                   logger.info("Detected ctrl+c, setting kill event")
                   self.kill_event.set()
+               elif inp == Special_Keys.CTRL_R:
+                  logger.info("Redrawing entire screen buffer")
+                  self.screen_buffer.draw(only_dirty=False)
                elif inp == Special_Keys.TAB:
                   self.change_tab(+1)
                   continue
