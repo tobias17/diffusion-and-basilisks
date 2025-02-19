@@ -4,7 +4,7 @@ from game import Game
 import events as E
 
 from dataclasses import dataclass
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
 from enum import Enum, auto
 from queue import Queue
 from abc import ABC, abstractmethod
@@ -32,9 +32,9 @@ class Rect:
    @property
    def y2(self) -> int: return self.y1 + self.h
 
-INPUT_HEIGHT = 4
+INPUT_HEIGHT = 6
 
-EVENT_SPACE = Rect(2, 5, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 7)
+EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
 INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4, INPUT_HEIGHT)
 
 
@@ -209,160 +209,156 @@ class Screen_Buffer:
             sys.stdout.flush()
 
 
-class Text_Box():
+@dataclass
+class Input_Data:
+   name: str
+   pointer: int = 0
+   text: str = ""
+
+class Text_Box:
+   SEPERATOR = " > "
    rect: Rect = INPUT_SPACE
-   screen_buffer: Screen_Buffer
    accepting_input: bool = True
-   enabled: bool = True
-   curr_input: str = ""
 
-   def __init__(self, screen_buffer:Screen_Buffer):
-      self.screen_buffer = screen_buffer
-
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      pass
-
-   def clear_input(self) -> None:
-      pass
-
-   def write_to_buffer(self) -> None:
-      self.screen_buffer.put_text_in(self.rect, 0, 0, " "*self.rect.w)
-
-   def write_cursor_pos(self) -> None:
-      self.screen_buffer.move_cursor(self.rect.x1, self.rect.y1)
-
-   def draw(self) -> None:
-      self.write_to_buffer()
-      self.write_cursor_pos()
-      self.screen_buffer.draw()
-
-
-class Real_Text_Box(Text_Box):
+   screen_buffer: Screen_Buffer
    kill_event: threading.Event
-   input_prefix: str
-   input_ptr: int
+   datas: List[Input_Data]
+   index: int = 0
+   actions_line = ""
+   actions_bold: List[Tuple[int,int]]
 
-   def __init__(self, input_prefix:str, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
-      self.input_prefix = input_prefix
+   def __init__(self, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
       self.screen_buffer = screen_buffer
       self.kill_event = kill_event
       self.input_complete_callback = input_complete_callback
+      self.datas = []
+      self.actions_bold = []
       self.clear_input()
 
+   def update_game(self, game:Game) -> None:
+      self.datas = [Input_Data(f"Act {i}") for i in range(1, 4)]
+      self.index = 0
+
+      self.actions_line = "Press Tab to Cycle:"
+      self.actions_bold = []
+      for data in self.datas:
+         entry = f" [{data.name}]"
+         self.actions_bold.append((len(self.actions_line)+1,len(self.actions_line+entry)))
+         self.actions_line += entry
+
    def clear_input(self):
-      self.input_ptr = 0
-      self.curr_input = ""
+      self.datas = []
+      self.index = 0
+      self.actions_line = "Awaiting model response"
 
    def write_to_buffer(self) -> None:
-      text = self.input_prefix + self.curr_input
-      for y in range(self.rect.h):
-         line, text = text[:self.rect.w], text[self.rect.w:]
-         line += " "*(self.rect.w - len(line))
-         self.screen_buffer.put_text_in(self.rect, 0, y, line)
+      if len(self.datas) == 0:
+         for y in range(self.rect.h):
+            self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
+      else:
+         self.screen_buffer.put_text_in(self.rect, 0, 0, self.actions_line + " "*(self.rect.w - len(self.actions_line)))
+         data = self.datas[self.index]
+         text = data.name + self.SEPERATOR + data.text
+         for y in range(2, self.rect.h):
+            line, text = text[:self.rect.w], text[self.rect.w:]
+            line += " "*(self.rect.w - len(line))
+            self.screen_buffer.put_text_in(self.rect, 0, y, line)
 
    def write_cursor_pos(self) -> None:
-      disp_ptr = self.input_ptr + len(self.input_prefix)
-      self.screen_buffer.move_cursor(self.rect.x1 + (disp_ptr % self.rect.w), self.rect.y1 + (disp_ptr // self.rect.w))
+      if len(self.datas) == 0:
+         self.screen_buffer.move_cursor(self.rect.x1 + len(self.actions_line), self.rect.y1)
+      else:
+         data = self.datas[self.index]
+         disp_ptr = data.pointer + len(data.name + self.SEPERATOR)
+         self.screen_buffer.move_cursor(self.rect.x1 + (disp_ptr % self.rect.w), self.rect.y1 + 2 + (disp_ptr // self.rect.w))
 
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      if not self.accepting_input or not self.enabled:
+      if not self.accepting_input or len(self.datas) == 0:
          return
 
+      data = self.datas[self.index]
       if isinstance(inp, str):
          # ASCII character
-         if self.input_ptr >= len(self.curr_input):
-            self.curr_input += inp
-            self.input_ptr = len(self.curr_input)
+         if data.pointer >= len(data.text):
+            data.text += inp
+            data.pointer = len(data.text)
          else:
-            self.curr_input = self.curr_input[:self.input_ptr] + inp + self.curr_input[self.input_ptr:]
-            self.input_ptr += 1
+            data.text = data.text[:data.pointer] + inp + data.text[data.pointer:]
+            data.pointer += 1
          self.write_to_buffer()
          self.write_cursor_pos()
       elif isinstance(inp, Special_Keys):
          # Special control character
          if inp == Special_Keys.LEFT:
-            self.input_ptr = max(0, self.input_ptr - 1)
+            data.pointer = max(0, data.pointer - 1)
             self.write_cursor_pos()
             self.screen_buffer.draw()
          elif inp == Special_Keys.RIGHT:
-            self.input_ptr = min(self.input_ptr + 1, len(self.curr_input))
+            data.pointer = min(data.pointer + 1, len(data.text))
             self.write_cursor_pos()
             self.screen_buffer.draw()
          elif inp == Special_Keys.BACKSPACE:
-            if self.input_ptr > 0:
-               self.curr_input = self.curr_input[:self.input_ptr-1] + self.curr_input[self.input_ptr:]
-               self.input_ptr -= 1
+            if data.pointer > 0:
+               data.text = data.text[:data.pointer-1] + data.text[data.pointer:]
+               data.pointer -= 1
                self.write_to_buffer()
                self.write_cursor_pos()
          elif inp == Special_Keys.DELETE:
-            if self.input_ptr < len(self.curr_input):
-               self.curr_input = self.curr_input[:self.input_ptr] + self.curr_input[self.input_ptr+1:]
+            if data.pointer < len(data.text):
+               data.text = data.text[:data.pointer] + data.text[data.pointer+1:]
                self.write_to_buffer()
          elif inp == Special_Keys.HOME:
-            self.input_ptr = 0
+            data.pointer = 0
             self.write_cursor_pos()
          elif inp == Special_Keys.END:
-            self.input_ptr = len(self.curr_input)
+            data.pointer = len(data.text)
             self.write_cursor_pos()
          elif inp in (Special_Keys.CTRL_LEFT, Special_Keys.CTRL_RIGHT):
             direction = -1 if inp == Special_Keys.CTRL_LEFT else 1
-            walk_ptr = self.input_ptr
+            walk_ptr = data.pointer
             in_white = True
             while True:
                step_ptr = walk_ptr + direction
-               if step_ptr <= 0 or step_ptr >= len(self.curr_input):
+               if step_ptr <= 0 or step_ptr >= len(data.text):
                   if step_ptr == 0:
                      walk_ptr = 0
                   break # next step is out-of-bounds
-               if self.curr_input[step_ptr] == " ":
+               if data.text[step_ptr] == " ":
                   if not in_white:
                      break
                elif in_white:
                   in_white = False
                walk_ptr = step_ptr
-            self.input_ptr = walk_ptr
+            data.pointer = walk_ptr
             self.write_cursor_pos()
          elif inp == Special_Keys.ENTER:
-            if len(self.curr_input) < 1:
+            if len(data.text) < 1:
                logger.error("Cannot submit empty input")
             else:
                self.input_complete_callback()
+         elif inp in (Special_Keys.TAB, Special_Keys.SHIFT_TAB):
+            self.index += (1 if inp == Special_Keys.TAB else -1)
+            if self.index >= len(self.datas):
+               self.index -= len(self.datas)
+            if self.index < 0:
+               self.index += len(self.datas)
+            self.write_to_buffer()
+            self.write_cursor_pos()
 
       # Always request a draw (will do nothing if nothing was changed)
       self.screen_buffer.draw()
 
 
-class Tab_Page(ABC):
+class Events_Display:
    rect: Rect = EVENT_SPACE
-   title: str
    text_box: Text_Box
    screen_buffer: Screen_Buffer
-   is_visible: bool = False
-
-   @abstractmethod
-   def update_game(self, game:Game) -> None:
-      pass
-
-   def clear_buffer(self):
-      for y in range(self.rect.h):
-         self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
-
-   @abstractmethod
-   def write_to_buffer(self):
-      pass
-
-   @abstractmethod
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      pass
-
-
-class Action_Display(Tab_Page):
    event_page_index: int = 0
    event_lines: List[str]
-   
+
    def __init__(self, screen_buffer:Screen_Buffer, game:Game, kill_event:threading.Event, input_complete_callback):
       self.title = "Actions"
-      self.text_box = Real_Text_Box("Act > ", screen_buffer, kill_event, input_complete_callback)
+      self.text_box = Text_Box(screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
       self.update_game(game)
    
@@ -397,9 +393,8 @@ class Action_Display(Tab_Page):
             self.event_lines.append(text)
             self.event_lines.append("")
 
-      if self.is_visible:
-         self.clear_buffer()
-         self.write_to_buffer()
+      self.write_to_buffer()
+      self.text_box.update_game(game)
 
    def write_to_buffer(self):
       for i in range(self.rect.h):
@@ -410,120 +405,6 @@ class Action_Display(Tab_Page):
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
 
 
-class Speech_Display(Tab_Page):
-   screen_buffer: Screen_Buffer
-   game: Game
-   speak_target: Optional[str] = None
-   speech_page_index: int = 0
-   speech_lines: List[str]
-   
-   def __init__(self, screen_buffer:Screen_Buffer, game:Game, kill_event:threading.Event, input_complete_callback):
-      self.title = "Speaking"
-      self.text_box = Real_Text_Box("Say > ", screen_buffer, kill_event, input_complete_callback)
-      self.screen_buffer = screen_buffer
-      self.update_game(game)
-   
-   def __move_index(self, amount:int) -> None:
-      self.speech_page_index = max(0, min(len(self.speech_lines), self.speech_page_index + amount))
-      self.write_to_buffer()
-      self.screen_buffer.draw()
-
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      if isinstance(inp, str):
-         self.text_box.process_input(inp)
-      else:
-         if inp == Special_Keys.UP:
-            self.__move_index(+1)
-         elif inp == Special_Keys.DOWN:
-            self.__move_index(-1)
-         elif inp == Special_Keys.PAGE_UP:
-            self.__move_index(+self.rect.h)
-         elif inp == Special_Keys.PAGE_DOWN:
-            self.__move_index(-self.rect.h)
-         else:
-            self.text_box.process_input(inp)
-
-   def set_speak_target(self, npc_id:str) -> None:
-      self.speak_target = npc_id
-      self.speech_lines = [f"Start of conversation with {self.game.get_npc_name(npc_id)}", ""]
-      for event in self.game.events:
-         if isinstance(event, E.Speak_Event) and event.npc_id == npc_id:
-            line = event.player_speak(self.game)
-            assert line is not None
-            while len(line) > self.rect.w:
-               self.speech_lines.append(line[:self.rect.w])
-               line = line[self.rect.w:]
-            self.speech_lines.append(line)
-            self.speech_lines.append("")
-      if self.is_visible:
-         self.clear_buffer()
-         self.write_to_buffer()
-
-   def update_game(self, game:Game) -> None:
-      self.game = game
-      npc_infos = game.get_npc_infos()
-      curr_loc_id = game.get_curr_loc_id()
-      curr_loc_npc_infos = [i for i in npc_infos if i.loc_id == curr_loc_id]
-
-      if len(curr_loc_npc_infos) > 0:
-         curr_loc_npc_infos = sorted(curr_loc_npc_infos, key=lambda i: i.last_interaction)
-         self.set_speak_target(curr_loc_npc_infos[-1].npc_id)
-         self.text_box.enabled = True
-      else:
-         self.speak_target = None
-         self.text_box.enabled = False
-
-   def write_to_buffer(self):
-      self.clear_buffer()
-      if self.speak_target is not None:
-         for i in range(self.rect.h):
-            if i >= len(self.speech_lines):
-               break
-            self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.speech_lines[-(i+1)])
-
-
-class Tab_Selection:
-   SPACE_PADDING = 3
-   screen_buffer: Screen_Buffer
-   pages: List[Tab_Page]
-   names: List[str]
-   rect: Rect
-
-   def __init__(self, screen_buffer:Screen_Buffer, pages:List[Tab_Page]):
-      self.screen_buffer = screen_buffer
-      self.pages = pages
-      self.names = [tab.title for tab in pages]
-      width = 1
-      for name in self.names:
-         width += self.SPACE_PADDING*2 + len(name) + 1
-      self.rect = Rect(0, 0, width, 5)
-
-   def write_to_buffer(self) -> None:
-      text_row = "|" + "|".join(" "*self.SPACE_PADDING + n + " "*self.SPACE_PADDING for n in self.names) + "|"
-      gap_row = "|" + "|".join(" "*self.SPACE_PADDING + " "*len(n) + " "*self.SPACE_PADDING for n in self.names) + "|"
-      border_row = "+" + "+".join("-"*(self.SPACE_PADDING*2 + len(n)) for n in self.names) + "+"
-      self.screen_buffer.put_text_in(self.rect, 0, 0, border_row)
-      self.screen_buffer.put_text_in(self.rect, 0, 1, gap_row)
-      self.screen_buffer.put_text_in(self.rect, 0, 2, text_row)
-      self.screen_buffer.put_text_in(self.rect, 0, 3, gap_row)
-      self.screen_buffer.put_text_in(self.rect, 0, 4, border_row)
-
-   def select(self, index:int) -> None:
-      text = ""
-      for i, n in enumerate(self.names):
-         self.screen_buffer.set_region_bold(self.rect, len(text)+2, 2, len(n) + 2*self.SPACE_PADDING - 4, 1, i == index)
-         text += "|" if (i == index and i == 0) else "+"
-         text += (" " if i == index else "-") * (len(n) + 2*self.SPACE_PADDING)
-      text += "+"
-      self.screen_buffer.put_text_in(self.rect, 0, 4, text)
-      for i, page in enumerate(self.pages):
-         page.is_visible = (i == index)
-         if page.is_visible:
-            page.write_to_buffer()
-            page.text_box.write_to_buffer()
-            page.text_box.write_cursor_pos()
-
-
 class Screen_Handler:
    POLL_INTERVAL_SEC = 0.01
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -531,51 +412,43 @@ class Screen_Handler:
    kill_event: threading.Event
    user_input_queue: Queue[Event]
    screen_buffer: Screen_Buffer
-
-   tab_selection: Tab_Selection
-   tab_pages: List[Tab_Page]
-   tab_index = 0
+   events_display: Events_Display
 
    def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[Event]):
       self.kill_event = kill_event
       self.user_input_queue = user_input_queue
       self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
-      self.tab_pages = [
-         Action_Display (self.screen_buffer, game, kill_event, self.__user_input_complete),
-         Speech_Display(self.screen_buffer, game, kill_event, self.__user_input_complete),
-      ]
-      self.tab_selection = Tab_Selection(self.screen_buffer, self.tab_pages)
+      self.events_display = Events_Display(self.screen_buffer, game, kill_event, self.__user_input_complete)
       self.fd = sys.stdin.fileno()
 
    def update_game(self, game:Game) -> None:
-      for page in self.tab_pages:
-         page.update_game(game)
+      self.events_display.update_game(game)
       self.screen_buffer.draw()
 
    def accept_input(self) -> None:
-      for page in self.tab_pages:
-         page.text_box.accepting_input = True
+      self.events_display.text_box.accepting_input = True
 
    def __user_input_complete(self) -> None:
-      curr_tab = self.tab_pages[self.tab_index]
-      text = curr_tab.text_box.curr_input
-      assert text
-      for page in self.tab_pages:
-         page.text_box.clear_input()
-         page.text_box.accepting_input = False
-      curr_tab.text_box.draw()
+      pass
+      # curr_tab = self.tab_pages[self.tab_index]
+      # text = curr_tab.text_box.curr_input
+      # assert text
+      # for page in self.tab_pages:
+      #    page.text_box.clear_input()
+      #    page.text_box.accepting_input = False
+      # curr_tab.text_box.draw()
 
-      event: Event
-      if isinstance(curr_tab, Action_Display):
-         event = E.Player_Request_Action_Event(text)
-      elif isinstance(curr_tab, Speech_Display):
-         assert curr_tab.speak_target is not None
-         event = E.Speak_Event(curr_tab.speak_target, text, True)
-         self.tab_index = 0
-         self.tab_selection.select(self.tab_index)
-      else:
-         raise ValueError(f"Got input complete callback from {type(curr_tab)}, should not have happened")
-      self.user_input_queue.put(event)
+      # event: Event
+      # if isinstance(curr_tab, Events_Display):
+      #    event = E.Player_Request_Action_Event(text)
+      # elif isinstance(curr_tab, Speech_Display):
+      #    assert curr_tab.speak_target is not None
+      #    event = E.Speak_Event(curr_tab.speak_target, text, True)
+      #    self.tab_index = 0
+      #    self.tab_selection.select(self.tab_index)
+      # else:
+      #    raise ValueError(f"Got input complete callback from {type(curr_tab)}, should not have happened")
+      # self.user_input_queue.put(event)
 
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():
@@ -583,33 +456,20 @@ class Screen_Handler:
             return os.read(self.fd, 16)
       return bytes()
 
-   def change_tab(self, amount:int) -> None:
-      self.tab_index += amount
-      if self.tab_index < 0:
-         self.tab_index += len(self.tab_pages)
-      if self.tab_index >= len(self.tab_pages):
-         self.tab_index -= len(self.tab_pages)
-      self.tab_selection.select(self.tab_index)
-      self.screen_buffer.draw()
-
    def run(self) -> None:
       try:
          # Borders
-         self.screen_buffer.put_text_in(self.rect, 0, 4, "+" + "-"*(SCREEN_WIDTH-2) + "+")
-         for y in range(5, SCREEN_HEIGHT-1):
+         self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*(SCREEN_WIDTH-2) + "+")
+         for y in range(1, SCREEN_HEIGHT-1):
             self.screen_buffer.put_text_in(self.rect, 0, y, "|")
             self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
          self.screen_buffer.put_text_in(self.rect, 0, INPUT_SPACE.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
 
-         # Tabs
-         self.tab_selection.write_to_buffer()
-         self.tab_selection.select(self.tab_index)
-
-         # User Input
-         text_box = self.tab_pages[self.tab_index].text_box
-         text_box.write_to_buffer()
-         text_box.write_cursor_pos()
+         # Events and Input
+         self.events_display.write_to_buffer()
+         self.events_display.text_box.write_to_buffer()
+         self.events_display.text_box.write_cursor_pos()
 
          # Draw the whole screen
          self.screen_buffer.draw(only_dirty=False)
@@ -630,14 +490,8 @@ class Screen_Handler:
                elif inp == Special_Keys.CTRL_R:
                   logger.info("Redrawing entire screen buffer")
                   self.screen_buffer.draw(only_dirty=False)
-               elif inp == Special_Keys.TAB:
-                  self.change_tab(+1)
-                  continue
-               elif inp == Special_Keys.SHIFT_TAB:
-                  self.change_tab(-1)
-                  continue
 
-            self.tab_pages[self.tab_index].process_input(inp)
+            self.events_display.process_input(inp)
 
       except Exception:
          logger.error(f"Screen Hanlder ran into error in run")
