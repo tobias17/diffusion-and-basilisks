@@ -57,6 +57,16 @@
 		"text": "head into the tavern"
 	},
 	{
+		"cls": "Create_Location_Event",
+		"loc_id": "iosla_tavern",
+		"name": "The Hopswithy Mess",
+		"desc": "a tavern made from rough wood, it has a wide range of drinks and a small room with 4, three-person tables."
+	},
+	{
+		"cls": "Move_Player_To_Event",
+		"loc_id": "iosla_tavern"
+	},
+	{
 		"cls": "Narrate_Event",
 		"text": "You make your way to the tavern. Hearing the commotion inside, you notice that you see why the fisherman washes away his morning there with ale."
 	},

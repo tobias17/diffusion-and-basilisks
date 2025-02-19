@@ -4,7 +4,7 @@ from game import Game
 import events as E
 
 from dataclasses import dataclass
-from typing import List, Union, Optional, Tuple
+from typing import List, Union, Optional, Tuple, Type, Dict
 from enum import Enum, auto
 from queue import Queue
 from abc import ABC, abstractmethod
@@ -181,6 +181,10 @@ class Screen_Buffer:
       self.cursor_pos.y = y
       self.dirty_cursor = True
 
+   def clear_text(self, rect:Rect) -> None:
+      for y in range(rect.h):
+         self.put_text_in(rect, 0, y, " "*rect.w)
+
    def draw(self, only_dirty:bool=True) -> None:
       BOLD_ON_CODE  = "1"
       BOLD_OFF_CODE = "22"
@@ -212,6 +216,8 @@ class Screen_Buffer:
 @dataclass
 class Input_Data:
    name: str
+   event: Type[Event]
+   data: Dict
    pointer: int = 0
    text: str = ""
 
@@ -226,6 +232,7 @@ class Text_Box:
    index: int = 0
    actions_line = ""
    actions_bold: List[Tuple[int,int]]
+   waiting_line = "Awaiting model response..."
 
    def __init__(self, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
       self.screen_buffer = screen_buffer
@@ -233,30 +240,42 @@ class Text_Box:
       self.input_complete_callback = input_complete_callback
       self.datas = []
       self.actions_bold = []
-      self.clear_input()
 
-   def update_game(self, game:Game) -> None:
-      self.datas = [Input_Data(f"Act {i}") for i in range(1, 4)]
+   def update_game(self, game:Game, accept_input:bool=False) -> None:
+      self.datas = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {})]
+      all_npc_infos = game.get_npc_infos()
+      curr_loc_id   = game.get_curr_loc_id()
+      loc_npc_infos = [i for i in all_npc_infos if i.loc_id == curr_loc_id]
+      for info in loc_npc_infos:
+         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Event, {'npc_id':info.npc_id}))
       self.index = 0
 
       self.actions_line = "Press Tab to Cycle:"
       self.actions_bold = []
       for data in self.datas:
          entry = f" [{data.name}]"
-         self.actions_bold.append((len(self.actions_line)+1,len(self.actions_line+entry)))
+         self.actions_bold.append((len(self.actions_line)+1,len(entry)-1))
          self.actions_line += entry
+
+      if accept_input:
+         self.accepting_input = True
+      self.write_to_buffer()
+      self.write_cursor_pos()
 
    def clear_input(self):
       self.datas = []
       self.index = 0
-      self.actions_line = "Awaiting model response"
+      self.accepting_input = False
 
    def write_to_buffer(self) -> None:
-      if len(self.datas) == 0:
-         for y in range(self.rect.h):
-            self.screen_buffer.put_text_in(self.rect, 0, y, " "*self.rect.w)
+      self.screen_buffer.clear_text(self.rect)
+      self.screen_buffer.set_region_bold(self.rect, 0, 0, self.rect.w, 1, False)
+      if not self.accepting_input:
+         self.screen_buffer.put_text_in(self.rect, 0, 0, self.waiting_line)
       else:
-         self.screen_buffer.put_text_in(self.rect, 0, 0, self.actions_line + " "*(self.rect.w - len(self.actions_line)))
+         self.screen_buffer.put_text_in(self.rect, 0, 0, self.actions_line)
+         bold_start, bold_count = self.actions_bold[self.index]
+         self.screen_buffer.set_region_bold(self.rect, bold_start, 0, bold_count, 1, True)
          data = self.datas[self.index]
          text = data.name + self.SEPERATOR + data.text
          for y in range(2, self.rect.h):
@@ -265,12 +284,17 @@ class Text_Box:
             self.screen_buffer.put_text_in(self.rect, 0, y, line)
 
    def write_cursor_pos(self) -> None:
-      if len(self.datas) == 0:
-         self.screen_buffer.move_cursor(self.rect.x1 + len(self.actions_line), self.rect.y1)
+      if not self.accepting_input:
+         self.screen_buffer.move_cursor(self.rect.x1 + len(self.waiting_line), self.rect.y1)
       else:
          data = self.datas[self.index]
          disp_ptr = data.pointer + len(data.name + self.SEPERATOR)
          self.screen_buffer.move_cursor(self.rect.x1 + (disp_ptr % self.rect.w), self.rect.y1 + 2 + (disp_ptr // self.rect.w))
+   
+   def draw(self) -> None:
+      self.write_to_buffer()
+      self.write_cursor_pos()
+      self.screen_buffer.draw()
 
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
       if not self.accepting_input or len(self.datas) == 0:
@@ -331,11 +355,6 @@ class Text_Box:
                walk_ptr = step_ptr
             data.pointer = walk_ptr
             self.write_cursor_pos()
-         elif inp == Special_Keys.ENTER:
-            if len(data.text) < 1:
-               logger.error("Cannot submit empty input")
-            else:
-               self.input_complete_callback()
          elif inp in (Special_Keys.TAB, Special_Keys.SHIFT_TAB):
             self.index += (1 if inp == Special_Keys.TAB else -1)
             if self.index >= len(self.datas):
@@ -344,6 +363,11 @@ class Text_Box:
                self.index += len(self.datas)
             self.write_to_buffer()
             self.write_cursor_pos()
+         elif inp == Special_Keys.ENTER:
+            if len(data.text) < 1:
+               logger.error("Cannot submit empty input")
+            else:
+               self.input_complete_callback(data)
 
       # Always request a draw (will do nothing if nothing was changed)
       self.screen_buffer.draw()
@@ -382,7 +406,7 @@ class Events_Display:
          else:
             self.text_box.process_input(inp)
 
-   def update_game(self, game:Game) -> None:
+   def update_game(self, game:Game, accept_input:bool=False) -> None:
       self.event_lines = []
       for event in game.events:
          text = event.player_event(game)
@@ -394,7 +418,7 @@ class Events_Display:
             self.event_lines.append("")
 
       self.write_to_buffer()
-      self.text_box.update_game(game)
+      self.text_box.update_game(game, accept_input)
 
    def write_to_buffer(self):
       for i in range(self.rect.h):
@@ -421,34 +445,21 @@ class Screen_Handler:
       self.events_display = Events_Display(self.screen_buffer, game, kill_event, self.__user_input_complete)
       self.fd = sys.stdin.fileno()
 
-   def update_game(self, game:Game) -> None:
-      self.events_display.update_game(game)
+   def update_game(self, game:Game, done_generating:bool=False) -> None:
+      self.events_display.update_game(game, done_generating)
       self.screen_buffer.draw()
 
    def accept_input(self) -> None:
       self.events_display.text_box.accepting_input = True
 
-   def __user_input_complete(self) -> None:
-      pass
-      # curr_tab = self.tab_pages[self.tab_index]
-      # text = curr_tab.text_box.curr_input
-      # assert text
-      # for page in self.tab_pages:
-      #    page.text_box.clear_input()
-      #    page.text_box.accepting_input = False
-      # curr_tab.text_box.draw()
-
-      # event: Event
-      # if isinstance(curr_tab, Events_Display):
-      #    event = E.Player_Request_Action_Event(text)
-      # elif isinstance(curr_tab, Speech_Display):
-      #    assert curr_tab.speak_target is not None
-      #    event = E.Speak_Event(curr_tab.speak_target, text, True)
-      #    self.tab_index = 0
-      #    self.tab_selection.select(self.tab_index)
-      # else:
-      #    raise ValueError(f"Got input complete callback from {type(curr_tab)}, should not have happened")
-      # self.user_input_queue.put(event)
+   def __user_input_complete(self, data:Input_Data) -> None:
+      self.events_display.text_box.clear_input()
+      self.events_display.text_box.draw()
+      
+      if data.event is E.Player_Request_Action_Event:
+         self.user_input_queue.put(E.Player_Request_Action_Event(data.text))
+      elif data.event is E.Speak_Event:
+         self.user_input_queue.put(E.Speak_Event(data.data['npc_id'], data.text, True))
 
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():

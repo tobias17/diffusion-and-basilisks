@@ -161,7 +161,7 @@ def game_loop(game:Game, log_dirpath:str):
                      new_event_count -= 1
                   else:
                      time.sleep(0.01)
-               screen_handler.update_game(new_game2)
+               screen_handler.update_game(new_game2, True)
             screen_handler.accept_input()
 
          time.sleep(0.01)
