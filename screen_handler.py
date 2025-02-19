@@ -367,9 +367,7 @@ class Action_Display(Tab_Page):
       self.update_game(game)
    
    def __move_index(self, amount:int) -> None:
-      logger.info(f"Before: {self.event_page_index}")
       self.event_page_index = max(0, min(len(self.event_lines)-1, self.event_page_index + amount))
-      logger.info(f"After:  {self.event_page_index}")
       self.write_to_buffer()
       self.screen_buffer.draw()
 

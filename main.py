@@ -129,6 +129,9 @@ def game_loop(game:Game, log_dirpath:str):
    thread = threading.Thread(target=screen_handler.run)
    thread.start()
 
+   UPDATE_TIME_DELTA = 2.0
+   next_update_time  = 0.0
+
    # Main game loop
    try:
       while not kill_event.is_set():
@@ -137,14 +140,28 @@ def game_loop(game:Game, log_dirpath:str):
             new_game1 = game.copy()
             new_game1.add_event(event)
             screen_handler.update_game(new_game1)
+            next_update_time = time.time()
 
             logger.info("New event detected, processing AI response")
             new_game2 = ai_manager.process(new_game1)
             if new_game2 is None:
                logger.error("Could not progress game state with AI, reverting user input")
+               screen_handler.update_game(game)
             else:
-               game = new_game2
-            screen_handler.update_game(game)
+               new_event_count = len(new_game2.events) - len(new_game1.events) - 1
+               while new_event_count > 0:
+                  if kill_event.is_set():
+                     return
+                  curr_time = time.time()
+                  if curr_time >= next_update_time:
+                     delta_game = new_game2.copy()
+                     delta_game.events = delta_game.events[:-new_event_count]
+                     screen_handler.update_game(delta_game)
+                     next_update_time = curr_time + UPDATE_TIME_DELTA
+                     new_event_count -= 1
+                  else:
+                     time.sleep(0.01)
+               screen_handler.update_game(new_game2)
             screen_handler.accept_input()
 
          time.sleep(0.01)
