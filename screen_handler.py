@@ -293,6 +293,10 @@ class Tab_Page(ABC):
    def write_to_buffer(self):
       pass
 
+   @abstractmethod
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
+
 
 class Action_Display(Tab_Page):
    event_page_index: int = 0
@@ -303,6 +307,9 @@ class Action_Display(Tab_Page):
       self.text_box = Real_Text_Box("Act > ", screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
       self.update_game(game)
+   
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      self.text_box.process_input(inp)
 
    def update_game(self, game:Game) -> None:
       self.event_lines = []
@@ -338,6 +345,9 @@ class Speech_Display(Tab_Page):
       self.text_box = Real_Text_Box("Say > ", screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
       self.update_game(game)
+   
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      self.text_box.process_input(inp)
 
    def set_speak_target(self, npc_id:str) -> None:
       self.speak_target = npc_id
@@ -458,6 +468,7 @@ class Screen_Handler:
       assert text
       for page in self.tab_pages:
          page.text_box.clear_input()
+         page.text_box.accepting_input = False
       curr_tab.text_box.draw()
 
       event: Event
@@ -466,6 +477,8 @@ class Screen_Handler:
       elif isinstance(curr_tab, Speech_Display):
          assert curr_tab.speak_target is not None
          event = E.Speak_Event(curr_tab.speak_target, text, True)
+      else:
+         raise ValueError(f"Got input complete callback from {type(curr_tab)}, should not have happened")
       self.user_input_queue.put(event)
 
    def __read_bytes(self) -> bytes:
@@ -574,7 +587,7 @@ class Screen_Handler:
                   self.change_tab(-1)
                   continue
 
-            self.tab_pages[self.tab_index].text_box.process_input(inp)
+            self.tab_pages[self.tab_index].process_input(inp)
 
       except Exception:
          logger.error(f"Screen Hanlder ran into error in run")
