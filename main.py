@@ -165,17 +165,22 @@ if __name__ == "__main__":
    file.setFormatter(LOG_FORMAT)
    logger.addHandler(file)
 
-   game = Game()
-   starting_events = [
-      (lambda: E.create_location(game, loc_id="iosla_town_square", name="Iosla", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")),
-      (lambda: E.move_player_to(game, loc_id="iosla_town_square")),
-      (lambda: E.player_request_action(game, "What kind of buildings surround me?")),
-      (lambda: E.narrate(game, "You look around and see many small houses, with a tavern a little ways down the road.")),
-   ]
-   for call in starting_events:
-      ok, msg = call()
-      if not ok:
-         raise RuntimeError(f"Error pre-populating game: {msg}")
+   input_game_path = "game.json"
+   if os.path.exists(input_game_path):
+      with open(input_game_path) as f:
+         game = Game.from_json(json.load(f))
+   else:
+      game = Game()
+      starting_events = [
+         (lambda: E.create_location(game, loc_id="iosla_town_square", name="Iosla", desc="A charming seaside town centered around an ancient gnarled oak tree with massive spreading branches in the town square.")),
+         (lambda: E.move_player_to(game, loc_id="iosla_town_square")),
+         (lambda: E.player_request_action(game, "What kind of buildings surround me?")),
+         (lambda: E.narrate(game, "You look around and see many small houses, with a tavern a little ways down the road.")),
+      ]
+      for call in starting_events:
+         ok, msg = call()
+         if not ok:
+            raise RuntimeError(f"Error pre-populating game: {msg}")
 
    with Peek_Terminal_Input():
       game_loop(game, FOLDER_DIR)

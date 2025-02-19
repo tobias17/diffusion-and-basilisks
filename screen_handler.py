@@ -59,8 +59,10 @@ class Special_Keys(Enum):
    ESCAPE = auto()
    BACKSPACE = auto()
    DELETE = auto()
-   LEFT_ARROW = auto()
-   RIGHT_ARROW = auto()
+   LEFT = auto()
+   RIGHT = auto()
+   UP = auto()
+   DOWN = auto()
    HOME = auto()
    END = auto()
    CTRL_LEFT = auto()
@@ -68,6 +70,62 @@ class Special_Keys(Enum):
    TAB = auto()
    SHIFT_TAB = auto()
    CTRL_R = auto()
+   PAGE_UP = auto()
+   PAGE_DOWN = auto()
+
+def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
+   if len(seq) == 1:
+      if seq[0] == 3:
+         return Special_Keys.CTRL_C
+      if seq[0] == 9:
+         return Special_Keys.TAB
+      if seq[0] == 13:
+         return Special_Keys.ENTER
+      if seq[0] == 18:
+         return Special_Keys.CTRL_R
+      if seq[0] == 27:
+         return Special_Keys.ESCAPE
+      if seq[0] == 127:
+         return Special_Keys.BACKSPACE
+      if seq[0] >= 32 and seq[0] < 126:
+         return seq.decode() # ASCII
+   else:
+      if seq[0] != 27 and seq[1] != 91:
+         logger.error(f"Got unknown seq {list(seq)} with non-(27,91) start")
+         return None
+      if len(seq) == 2:
+         return Special_Keys.ESCAPE
+      elif len(seq) == 3:
+         if seq[2] == 65:
+            return Special_Keys.UP
+         if seq[2] == 66:
+            return Special_Keys.DOWN
+         if seq[2] == 67:
+            return Special_Keys.RIGHT
+         if seq[2] == 68:
+            return Special_Keys.LEFT
+         if seq[2] == 72:
+            return Special_Keys.HOME
+         if seq[2] == 70:
+            return Special_Keys.END
+         if seq[2] == 90:
+            return Special_Keys.SHIFT_TAB
+      elif len(seq) == 4:
+         if seq[2] == 51 and seq[3] == 126:
+            return Special_Keys.DELETE
+         if seq[2] == 53 and seq[3] == 126:
+            return Special_Keys.PAGE_UP
+         if seq[2] == 54 and seq[3] == 126:
+            return Special_Keys.PAGE_DOWN
+      elif len(seq) == 6:
+         if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
+            if seq[5] == 68:
+               return Special_Keys.CTRL_LEFT
+            if seq[5] == 67:
+               return Special_Keys.CTRL_RIGHT
+
+   logger.info(f"Got unknown byte sequence {list(seq)}")
+   return None
 
 
 class Screen_Buffer:
@@ -222,11 +280,11 @@ class Real_Text_Box(Text_Box):
          self.write_cursor_pos()
       elif isinstance(inp, Special_Keys):
          # Special control character
-         if inp == Special_Keys.LEFT_ARROW:
+         if inp == Special_Keys.LEFT:
             self.input_ptr = max(0, self.input_ptr - 1)
             self.write_cursor_pos()
             self.screen_buffer.draw()
-         elif inp == Special_Keys.RIGHT_ARROW:
+         elif inp == Special_Keys.RIGHT:
             self.input_ptr = min(self.input_ptr + 1, len(self.curr_input))
             self.write_cursor_pos()
             self.screen_buffer.draw()
@@ -308,8 +366,27 @@ class Action_Display(Tab_Page):
       self.screen_buffer = screen_buffer
       self.update_game(game)
    
+   def __move_index(self, amount:int) -> None:
+      logger.info(f"Before: {self.event_page_index}")
+      self.event_page_index = max(0, min(len(self.event_lines)-1, self.event_page_index + amount))
+      logger.info(f"After:  {self.event_page_index}")
+      self.write_to_buffer()
+      self.screen_buffer.draw()
+
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      self.text_box.process_input(inp)
+      if isinstance(inp, str):
+         self.text_box.process_input(inp)
+      else:
+         if inp == Special_Keys.UP:
+            self.__move_index(+1)
+         elif inp == Special_Keys.DOWN:
+            self.__move_index(-1)
+         elif inp == Special_Keys.PAGE_UP:
+            self.__move_index(+self.rect.h)
+         elif inp == Special_Keys.PAGE_DOWN:
+            self.__move_index(-self.rect.h)
+         else:
+            self.text_box.process_input(inp)
 
    def update_game(self, game:Game) -> None:
       self.event_lines = []
@@ -328,9 +405,11 @@ class Action_Display(Tab_Page):
 
    def write_to_buffer(self):
       for i in range(self.rect.h):
-         if i >= len(self.event_lines):
-            break
-         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, self.event_lines[-(i+1)])
+         if i + self.event_page_index >= len(self.event_lines):
+            line = ""
+         else:
+            line = self.event_lines[-(i+self.event_page_index+1)]
+         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
 
 
 class Speech_Display(Tab_Page):
@@ -346,8 +425,25 @@ class Speech_Display(Tab_Page):
       self.screen_buffer = screen_buffer
       self.update_game(game)
    
+   def __move_index(self, amount:int) -> None:
+      self.speech_page_index = max(0, min(len(self.speech_lines), self.speech_page_index + amount))
+      self.write_to_buffer()
+      self.screen_buffer.draw()
+
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      self.text_box.process_input(inp)
+      if isinstance(inp, str):
+         self.text_box.process_input(inp)
+      else:
+         if inp == Special_Keys.UP:
+            self.__move_index(+1)
+         elif inp == Special_Keys.DOWN:
+            self.__move_index(-1)
+         elif inp == Special_Keys.PAGE_UP:
+            self.__move_index(+self.rect.h)
+         elif inp == Special_Keys.PAGE_DOWN:
+            self.__move_index(-self.rect.h)
+         else:
+            self.text_box.process_input(inp)
 
    def set_speak_target(self, npc_id:str) -> None:
       self.speak_target = npc_id
@@ -477,6 +573,8 @@ class Screen_Handler:
       elif isinstance(curr_tab, Speech_Display):
          assert curr_tab.speak_target is not None
          event = E.Speak_Event(curr_tab.speak_target, text, True)
+         self.tab_index = 0
+         self.tab_selection.select(self.tab_index)
       else:
          raise ValueError(f"Got input complete callback from {type(curr_tab)}, should not have happened")
       self.user_input_queue.put(event)
@@ -486,52 +584,6 @@ class Screen_Handler:
          if select.select([sys.stdin], [], [], self.POLL_INTERVAL_SEC)[0]:
             return os.read(self.fd, 16)
       return bytes()
-
-   def __interpret_bytes(self, seq:bytes) -> Union[None,str,Special_Keys]:
-      if len(seq) == 1:
-         if seq[0] == 3:
-            return Special_Keys.CTRL_C
-         if seq[0] == 9:
-            return Special_Keys.TAB
-         if seq[0] == 13:
-            return Special_Keys.ENTER
-         if seq[0] == 18:
-            return Special_Keys.CTRL_R
-         if seq[0] == 27:
-            return Special_Keys.ESCAPE
-         if seq[0] == 127:
-            return Special_Keys.BACKSPACE
-         if seq[0] >= 32 and seq[0] < 126:
-            return seq.decode() # ASCII
-      else:
-         if seq[0] != 27 and seq[1] != 91:
-            logger.error(f"Got unknown seq {list(seq)} with non-(27,91) start")
-            return None
-         if len(seq) == 2:
-            return Special_Keys.ESCAPE
-         elif len(seq) == 3:
-            if seq[2] == 67:
-               return Special_Keys.RIGHT_ARROW
-            if seq[2] == 68:
-               return Special_Keys.LEFT_ARROW
-            if seq[2] == 72:
-               return Special_Keys.HOME
-            if seq[2] == 70:
-               return Special_Keys.END
-            if seq[2] == 90:
-               return Special_Keys.SHIFT_TAB
-         elif len(seq) == 4:
-            if seq[2] == 51 and seq[3] == 126:
-               return Special_Keys.DELETE
-         elif len(seq) == 6:
-            if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
-               if seq[5] == 68:
-                  return Special_Keys.CTRL_LEFT
-               if seq[5] == 67:
-                  return Special_Keys.CTRL_RIGHT
-
-      logger.info(f"Got unknown byte sequence {list(seq)}")
-      return None
 
    def change_tab(self, amount:int) -> None:
       self.tab_index += amount
@@ -569,7 +621,7 @@ class Screen_Handler:
             seq = self.__read_bytes()
             if len(seq) == 0:
                continue # normally means our kill_event got set
-            inp = self.__interpret_bytes(seq)
+            inp = interpret_bytes(seq)
             if inp is None:
                continue # normally means it's a special key we do not handle
 
