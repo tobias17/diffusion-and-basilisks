@@ -17,6 +17,8 @@ class Npc_Info:
 
 class Game:
    events: List[Event]
+   new_events: int = 0
+
    def __init__(self, events:Optional[List[Event]]=None):
       self.events = [] if events is None else events
 
