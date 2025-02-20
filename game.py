@@ -94,7 +94,7 @@ class Game:
             assert curr_loc_id is not None, f"Found a create NPC event {event} before a location was established"
             loc_name = loc_id_to_name.get(curr_loc_id, None)
             assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
-            npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", curr_loc_id, loc_name, i)
+            npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", event.start_loc_id, loc_name, i)
          elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
             attrs = INTERACT_EVENT_MAP[type(event)]
             for attr in attrs:

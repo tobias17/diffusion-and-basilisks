@@ -460,8 +460,8 @@ class Screen_Handler:
       
       if data.event is E.Player_Request_Action_Event:
          self.user_input_queue.put(E.Player_Request_Action_Event(data.text))
-      elif data.event is E.Speak_Event:
-         self.user_input_queue.put(E.Speak_Event(data.data['npc_id'], data.text, True))
+      elif data.event is E.Speak_Player_to_Npc_Event:
+         self.user_input_queue.put(E.Speak_Player_to_Npc_Event(data.data['npc_id'], data.text))
 
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():

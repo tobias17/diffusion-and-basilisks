@@ -70,21 +70,23 @@ Move_Player_To_Event.system = (lambda e: move_player_to_func.system(e)) # type: 
 @dataclass
 class Create_Npc_Event(Event):
    npc_id: str
+   start_loc_id: str
    first_name: str
    last_name: str
    desc: str
    def player_event(self, game:Game) -> Optional[str]:
       return f"You meet a new character, {self.first_name} {self.last_name}"
-def create_npc(self:Game, npc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
+def create_npc(self:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id.lower() == npc_id.lower():
          return False, f"A character with the ID '{npc_id}' already exists"
-   self.add_event(Create_Npc_Event(npc_id, first_name, last_name, desc))
+   self.add_event(Create_Npc_Event(npc_id, start_loc_id, first_name, last_name, desc))
    return True, ""
 Function_Map.funcs.append(
    create_npc_func := Function(
       create_npc, "GAME.create_npc",
       Parameter("npc_id", str),
+      Parameter("start_loc_id", str),
       Parameter("first_name", str),
       Parameter("last_name", str),
       Parameter("desc", str),
@@ -166,7 +168,7 @@ Function_Map.funcs.append(
       Parameter("text", str),
    )
 )
-Speak_Npc_to_Player_Event.system = (lambda e: speak_npc_to_npc_func.system(e)) # type: ignore
+Speak_Npc_to_Npc_Event.system = (lambda e: speak_npc_to_npc_func.system(e)) # type: ignore
 
 
 @dataclass
