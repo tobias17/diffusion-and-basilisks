@@ -94,41 +94,79 @@ Create_Npc_Event.system = (lambda e: create_npc_func.system(e)) # type: ignore
 
 
 @dataclass
-class Speak_Event(Event):
+class Speak_Player_to_Npc_Event(Event):
    npc_id: str
    text: str
-   is_player_speaking: bool
    def system(self) -> Optional[str]:
-      prefix = f"PLAYER.speak_to_npc" if self.is_player_speaking else "NPC.speak_to_player"
-      return f'{prefix}(npc_id="{self.npc_id}", text="{self.text}")'
+      return f'PLAYER.speak_to_npc(npc_id="{self.npc_id}", text="{self.text}")'
    def player_event(self, game:Game) -> Optional[str]:
-      if self.is_player_speaking:
-         return f'You tell {game.get_npc_name(self.npc_id)}: "{self.text}"'
-      else:
-         return f'{game.get_npc_name(self.npc_id)} tells You: "{self.text}"'
-   def player_speak(self, game:Game) -> Optional[str]:
-      return ("You" if self.is_player_speaking else game.get_npc_name(self.npc_id)) + f': "{self.text}"'
+      return f'You tell {game.get_npc_name(self.npc_id)}: "{self.text}"'
    def is_player_provided(self) -> bool:
-      return self.is_player_speaking
+      return True
 def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
-         self.add_event(Speak_Event(npc_id, text, True))
+         self.add_event(Speak_Player_to_Npc_Event(npc_id, text))
          return True, ""
    return False, f"Failed to find a Character with the ID '{npc_id}'"
+
+
+@dataclass
+class Speak_Npc_to_Player_Event(Event):
+   npc_id: str
+   text: str
+   def player_event(self, game:Game) -> Optional[str]:
+      return f'{game.get_npc_name(self.npc_id)} tells You: "{self.text}"'
 def speak_npc_to_player(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
-         self.add_event(Speak_Event(npc_id, text, False))
+         self.add_event(Speak_Npc_to_Player_Event(npc_id, text))
          return True, ""
    return False, f"Failed to find a Character with the ID '{npc_id}'"
 Function_Map.funcs.append(
-   Function(
+   speak_npc_to_player_func := Function(
       speak_npc_to_player, "NPC.speak_to_player",
       Parameter("npc_id", str),
       Parameter("text", str),
    )
 )
+Speak_Npc_to_Player_Event.system = (lambda e: speak_npc_to_player_func.system(e)) # type: ignore
+
+
+@dataclass
+class Speak_Npc_to_Npc_Event(Event):
+   from_npc_id: str
+   to_npc_id: str
+   text: str
+   def player_event(self, game:Game) -> Optional[str]:
+      return f'{game.get_npc_name(self.from_npc_id)} tells {game.get_npc_name(self.to_npc_id)}: "{self.text}"'
+def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tuple[bool,str]:
+   if from_npc_id == to_npc_id:
+      return False, "An NPC cannot talk to themselves"
+   found_from = found_to = False
+   for event in self.events:
+      if isinstance(event, Create_Npc_Event):
+         if event.npc_id == from_npc_id:
+            found_from = True
+         elif event.npc_id == to_npc_id:
+            found_to = True
+         if found_from and found_to:
+            self.add_event(Speak_Npc_to_Npc_Event(from_npc_id, to_npc_id, text))
+            return True, ""
+   if not found_from:
+      return False, f"Failed to find a Character with the ID '{from_npc_id}'"
+   if not found_to:
+      return False, f"Failed to find a Character with the ID '{to_npc_id}'"
+   raise RuntimeError("Invalid state")
+Function_Map.funcs.append(
+   speak_npc_to_npc_func := Function(
+      speak_npc_to_npc, "NPC.speak_to_npc",
+      Parameter("from_npc_id", str),
+      Parameter("to_npc_id", str),
+      Parameter("text", str),
+   )
+)
+Speak_Npc_to_Player_Event.system = (lambda e: speak_npc_to_npc_func.system(e)) # type: ignore
 
 
 @dataclass

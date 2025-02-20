@@ -79,8 +79,10 @@ class Game:
       npc_infos: Dict[str,Npc_Info] = {}
       curr_loc_id = None
 
-      INTERACT_EVENT_MAP: Dict[Type[Event],str] = {
-         E.Speak_Event: "npc_id",
+      INTERACT_EVENT_MAP: Dict[Type[Event],List[str]] = {
+         E.Speak_Player_to_Npc_Event: ["npc_id"],
+         E.Speak_Npc_to_Player_Event: ["npc_id"],
+         E.Speak_Npc_to_Npc_Event: ["from_npc_id", "to_npc_id"],
       }
 
       for i, event in enumerate(self.events):
@@ -94,10 +96,11 @@ class Game:
             assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
             npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", curr_loc_id, loc_name, i)
          elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
-            attr = INTERACT_EVENT_MAP[type(event)]
-            npc_id = getattr(event, attr)
-            npc_info = npc_infos.get(npc_id, None)
-            assert npc_info is not None, f"Failed to find npc_info with npc_id '{npc_id}' referenced by {event}"
-            npc_info.last_interaction = i
+            attrs = INTERACT_EVENT_MAP[type(event)]
+            for attr in attrs:
+               npc_id = getattr(event, attr)
+               npc_info = npc_infos.get(npc_id, None)
+               assert npc_info is not None, f"Failed to find npc_info with npc_id '{npc_id}' referenced by {event}"
+               npc_info.last_interaction = i
 
       return list(npc_infos.values())

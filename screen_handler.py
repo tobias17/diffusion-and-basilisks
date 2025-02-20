@@ -247,7 +247,7 @@ class Text_Box:
       curr_loc_id   = game.get_curr_loc_id()
       loc_npc_infos = [i for i in all_npc_infos if i.loc_id == curr_loc_id]
       for info in loc_npc_infos:
-         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Event, {'npc_id':info.npc_id}))
+         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc_Event, {'npc_id':info.npc_id}))
       self.index = 0
 
       self.actions_line = "Press Tab to Cycle:"

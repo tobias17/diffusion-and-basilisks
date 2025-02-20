@@ -9,9 +9,9 @@ from typing import Callable, Optional, List, Dict
 import logging, os, datetime, json, requests, time, threading # type: ignore
 from queue import Queue
 
-def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], decision_log:List[Dict]) -> Optional[Game]:
-   curr_attempts = 0
+def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], kill_event:threading.Event, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
 
+   # Create the message JSON object to perform request with
    messages = [
       {"role":"system", "content":SYSTEM_MESSAGE.replace("%%API_DEFINITION%%", Function_Map.api_definition())}
    ]
@@ -28,38 +28,48 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
          line = event.system()
          if line: lines.append(line)
    if len(lines) > 0:
-      messages.append({"role":"assistant", "content":"\n".join(lines)})
+      logger.warning(f"Got assistant events at the end of the game when requesting AI response, skipping")
 
-   decision_log.append({"event":"Computed API Messages", "messages":messages})
-   output = output_from_messages(messages)
-   assert output is not None, f"Ran out of outputs before completing processing"
+   # Log the messages in a clean way
+   spread_messages = []
+   for msg in messages:
+      spread_messages.append({ k: (v.split("\n") if k=="content" else v) for k, v in msg.items() })
+   decision_log.append({"event":"Computed API Messages", "messages":spread_messages})
 
-   lines = output.split("\n")
-   lines = [l.strip() for l in lines if l]
+   # Get model response with retry attempts
+   for _ in range(max_attempts):
+      if kill_event.is_set():
+         return None
 
-   if len(lines) == 0:
-      decision_log.append({"event":"ERROR: Got back 0 lines from the model", "output":output.split("\n")})
-   else:
-      delta_game = game.copy()
-      for line in lines:
-         call_data, msg = parse_function(line)
-         if call_data is None:
-            logger.error(msg)
-            decision_log.append({"event":"ERROR: Ran into issue parsing function", "output":output.split("\n"), "line":line, "message":msg})
-            break
-         func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs)
-         if func_call is None:
-            logger.error(msg)
-            decision_log.append({"event":"ERROR: Ran into issue matching function", "output":output.split("\n"), "line":line, "message":msg})
-            break
-         ok, msg = func_call(delta_game)
-         if not ok:
-            logger.error(msg)
-            decision_log.append({"event":"ERROR: Got Back Not-OK Calling Function", "output":output.split("\n"), "line":line, "message":msg})
-            break
+      output = output_from_messages(messages)
+      assert output is not None, f"Ran out of outputs before completing processing"
+
+      lines = output.split("\n")
+      lines = [l.strip() for l in lines if l]
+
+      if len(lines) == 0:
+         decision_log.append({"output":output.split("\n"), "event":"ERROR: Got back 0 lines from the model"})
       else:
-         decision_log.append({"event":"Fully processed output and advanced game state", "output":output.split("\n")})
-         return delta_game
+         delta_game = game.copy()
+         for line in lines:
+            call_data, msg = parse_function(line)
+            if call_data is None:
+               logger.error(msg)
+               decision_log.append({"output":output.split("\n"), "event":"ERROR: Ran into issue parsing function", "message":msg, "on_line":line})
+               continue
+            func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs)
+            if func_call is None:
+               logger.error(msg)
+               decision_log.append({"output":output.split("\n"), "event":"ERROR: Ran into issue matching function", "message":msg, "on_line":line})
+               continue
+            ok, msg = func_call(delta_game)
+            if not ok:
+               logger.error(msg)
+               decision_log.append({"output":output.split("\n"), "event":"ERROR: Got Back Not-OK Calling Function", "message":msg, "on_line":line})
+               continue
+         else:
+            decision_log.append({"output":output.split("\n"), "event":"Fully processed output and advanced game state"})
+            return delta_game
 
    return None
 
@@ -103,13 +113,10 @@ class AI_Manager:
       final_game = None
       decision_log = []
       decision_log.append({"event":f"Performing Game Loop Tick", "message":"Requesting LLM completion"})
-      for _ in range(self.MAX_ATTEMPTS):
-         if self.kill_event.is_set():
-            return game
-         new_game = process_game_state(game, make_completion, decision_log)
-         if new_game is not None:
-            final_game = new_game
-            break
+
+      new_game = process_game_state(game, make_completion, self.kill_event, decision_log)
+      if new_game is not None:
+         final_game = new_game
 
       self.decision_logs.append(decision_log)
       save_game = game if final_game is None else final_game
@@ -158,6 +165,7 @@ def game_loop(game:Game, log_dirpath:str):
                   if curr_time >= next_update_time:
                      if new_event_count == 0:
                         screen_handler.update_game(new_game2, True)
+                        game = new_game2
                         break
                      delta_game = new_game2.copy()
                      delta_game.events = delta_game.events[:-new_event_count]
