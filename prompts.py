@@ -8,6 +8,17 @@ LIMIT your responses. Do NOT call too many functions. ONLY call what is necessar
 
 The following is the API you will have access to:
 ```
-%%API_DEFINITION%%
+{api_definition}
+```
+""".strip()
+
+FINAL_USER_MESSAGE = """
+The following quests are active:
+```
+{quests}```
+
+The user has input the following:
+```
+{content}
 ```
 """.strip()

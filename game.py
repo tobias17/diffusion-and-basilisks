@@ -68,6 +68,31 @@ class Game:
             options.append(event.loc_id)
       raise ValueError(f"Failed to find Location with ID '{loc_id}', options were {options}")
 
+   def get_quest_name(self, quest_id:str) -> str:
+      options = []
+      for event in self.events:
+         if isinstance(event, E.Start_Quest_Event):
+            if event.quest_id == quest_id:
+               return event.name
+            options.append(event.quest_id)
+      raise ValueError(f"Failed to find Quest with ID '{quest_id}', options were {options}")
+
+   def get_active_quests(self) -> List[E.Start_Quest_Event]:
+      quests = []
+      for event in self.events:
+         if isinstance(event, E.Start_Quest_Event):
+            quests.append(event)
+         elif isinstance(event, E.End_Quest_Event):
+            i = 0
+            while True:
+               if i >= len(quests):
+                  break
+               if quests[i].quest_id == event.quest_id:
+                  quests.pop(i)
+               else:
+                  i += 1
+      return quests
+
    def get_curr_loc_id(self) -> str:
       for event in reversed(self.events):
          if isinstance(event, E.Move_Player_To_Event):

@@ -1,5 +1,5 @@
 from common import logger, LOG_FORMAT, Event
-from prompts import SYSTEM_MESSAGE
+from prompts import SYSTEM_MESSAGE, FINAL_USER_MESSAGE
 from functions import Function_Map, parse_function, match_function
 import events as E
 from game import Game
@@ -13,7 +13,7 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
 
    # Create the message JSON object to perform request with
    messages = [
-      {"role":"system", "content":SYSTEM_MESSAGE.replace("%%API_DEFINITION%%", Function_Map.api_definition())}
+      {"role":"system", "content":SYSTEM_MESSAGE.format(api_definition=Function_Map.api_definition())}
    ]
    lines: List[str] = []
    for event in game.events:
@@ -29,6 +29,10 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
          if line: lines.append(line)
    if len(lines) > 0:
       logger.warning(f"Got assistant events at the end of the game when requesting AI response, skipping")
+
+   # Update last message
+   quest_str = "".join([f'Quest(quest_id="{q.quest_id}", name="{q.name}", desc="{q.desc}")\n' for q in game.get_active_quests()])
+   messages[-1]["content"] = FINAL_USER_MESSAGE.format(quests=quest_str, content=messages[-1]["content"])
 
    # Log the messages in a clean way
    spread_messages = []
@@ -52,12 +56,12 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
       else:
          delta_game = game.copy()
          for line in lines:
-            call_data, msg = parse_function(line)
+            call_data, msg = parse_function(line) # type: ignore
             if call_data is None:
                logger.error(msg)
                decision_log.append({"output":output.split("\n"), "event":"ERROR: Ran into issue parsing function", "message":msg, "on_line":line})
                continue
-            func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs)
+            func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs) # type: ignore
             if func_call is None:
                logger.error(msg)
                decision_log.append({"output":output.split("\n"), "event":"ERROR: Ran into issue matching function", "message":msg, "on_line":line})

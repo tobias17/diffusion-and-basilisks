@@ -188,6 +188,48 @@ Function_Map.funcs.append(
 Narrate_Event.system = (lambda e: narrate_func.system(e)) # type: ignore
 
 
+@dataclass
+class Start_Quest_Event(Event):
+   quest_id: str
+   name: str
+   desc: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"You gained a new quest, {self.name}: {self.desc}"
+def start_quest(self:Game, quest_id:str, name:str, desc:str) -> Tuple[bool,str]:
+   for event in self.events:
+      if isinstance(event, Start_Quest_Event) and event.quest_id == quest_id:
+         return False, f"A quest with ID '{quest_id}' already exists"
+   self.add_event(Start_Quest_Event(quest_id, name, desc))
+   return True, ""
+Function_Map.funcs.append(
+   Function(
+      start_quest, "GAME.give_player_quest",
+      Parameter("quest_id", str),
+      Parameter("name", str),
+      Parameter("desc", str),
+   )
+)
+
+
+@dataclass
+class End_Quest_Event(Event):
+   quest_id: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"You completed a quest, {game.get_quest_name(self.quest_id)}"
+def end_quest(self:Game, quest_id:str) -> Tuple[bool,str]:
+   for event in reversed(self.events):
+      if isinstance(event, End_Quest_Event) and event.quest_id == quest_id:
+         return False, f"The quest with ID '{quest_id}' has already been completed"
+      if isinstance(event, Start_Quest_Event) and event.quest_id == quest_id:
+         self.add_event(End_Quest_Event(quest_id))
+         return True, ""
+   return False, f"Could not find quest with ID '{quest_id}'"
+Function_Map.funcs.append(
+   Function(
+      end_quest, "GAME.complete_quest",
+      Parameter("quest_id", str),
+   )
+)
 
 
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }
