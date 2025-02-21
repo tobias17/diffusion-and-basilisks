@@ -47,6 +47,9 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
 
       output = output_from_messages(messages)
       assert output is not None, f"Ran out of outputs before completing processing"
+      if not output.isascii():
+         decision_log.append({"output":output.split("\n"), "event":"ERROR: Model output was not ascii"})
+         continue
 
       lines = output.split("\n")
       lines = [l.strip() for l in lines if l]
@@ -60,17 +63,17 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
             if call_data is None:
                logger.error(msg)
                decision_log.append({"output":output.split("\n"), "event":"ERROR: Ran into issue parsing function", "message":msg, "on_line":line})
-               continue
+               break
             func_call, msg = match_function(call_data.name, call_data.args, call_data.kwargs, Function_Map.funcs) # type: ignore
             if func_call is None:
                logger.error(msg)
                decision_log.append({"output":output.split("\n"), "event":"ERROR: Ran into issue matching function", "message":msg, "on_line":line})
-               continue
+               break
             ok, msg = func_call(delta_game)
             if not ok:
                logger.error(msg)
                decision_log.append({"output":output.split("\n"), "event":"ERROR: Got Back Not-OK Calling Function", "message":msg, "on_line":line})
-               continue
+               break
          else:
             decision_log.append({"output":output.split("\n"), "event":"Fully processed output and advanced game state"})
             return delta_game
