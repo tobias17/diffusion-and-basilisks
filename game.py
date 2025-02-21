@@ -49,6 +49,11 @@ class Game:
    def add_event(self, event:Event) -> None:
       event.clean()
       self.events.append(event)
+      self.new_events += 1
+
+   def reset_event_count(self) -> 'Game':
+      self.new_events = 0
+      return self
 
    def get_npc_name(self, npc_id:str) -> str:
       options = []

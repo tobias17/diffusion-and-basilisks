@@ -241,7 +241,7 @@ class Text_Box:
       self.datas = []
       self.actions_bold = []
 
-   def update_game(self, game:Game, accept_input:bool=False) -> None:
+   def visualize_game(self, game:Game) -> None:
       self.datas = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {})]
       all_npc_infos = game.get_npc_infos()
       curr_loc_id   = game.get_curr_loc_id()
@@ -257,15 +257,13 @@ class Text_Box:
          self.actions_bold.append((len(self.actions_line)+1,len(entry)-1))
          self.actions_line += entry
 
-      if accept_input:
-         self.accepting_input = True
       self.write_to_buffer()
       self.write_cursor_pos()
 
-   def clear_input(self):
+   def clear_input(self, accept_input:bool=False):
+      self.accepting_input = accept_input
       self.datas = []
       self.index = 0
-      self.accepting_input = False
 
    def write_to_buffer(self) -> None:
       self.screen_buffer.clear_text(self.rect)
@@ -384,7 +382,7 @@ class Events_Display:
       self.title = "Actions"
       self.text_box = Text_Box(screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
-      self.update_game(game)
+      self.visualize_game(game)
    
    def __move_index(self, amount:int) -> None:
       self.event_page_index = max(0, min(len(self.event_lines)-1, self.event_page_index + amount))
@@ -406,7 +404,7 @@ class Events_Display:
          else:
             self.text_box.process_input(inp)
 
-   def update_game(self, game:Game, accept_input:bool=False) -> None:
+   def visualize_game(self, game:Game) -> None:
       self.event_lines = []
       for i, event in enumerate(game.events):
          text = event.player(game)
@@ -420,7 +418,7 @@ class Events_Display:
             self.event_lines.append("")
 
       self.write_to_buffer()
-      self.text_box.update_game(game, accept_input)
+      self.text_box.visualize_game(game)
 
    def write_to_buffer(self):
       for i in range(self.rect.h):
@@ -436,32 +434,44 @@ class Screen_Handler:
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
    kill_event: threading.Event
-   user_input_queue: Queue[Event]
+   game: Game
+   user_input_queue: Queue[Game]
    screen_buffer: Screen_Buffer
    events_display: Events_Display
 
-   def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[Event]):
+   def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[Game]):
       self.kill_event = kill_event
+      self.game = game
       self.user_input_queue = user_input_queue
       self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
       self.events_display = Events_Display(self.screen_buffer, game, kill_event, self.__user_input_complete)
       self.fd = sys.stdin.fileno()
 
-   def update_game(self, game:Game, done_generating:bool=False) -> None:
-      self.events_display.update_game(game, done_generating)
+   def visualize_game(self, game:Game) -> None:
+      self.events_display.visualize_game(game)
       self.screen_buffer.draw()
 
-   def accept_input(self) -> None:
+   def accept_input(self, game:Game) -> None:
       self.events_display.text_box.accepting_input = True
+      self.events_display.text_box.draw()
+      self.game = game.reset_event_count()
 
    def __user_input_complete(self, data:Input_Data) -> None:
-      self.events_display.text_box.clear_input()
-      self.events_display.text_box.draw()
-      
+      go_again = data.text.endswith("&")
+      if go_again:
+         data.text = data.text[:-1]
+
       if data.event is E.Player_Request_Action_Event:
-         self.user_input_queue.put(E.Player_Request_Action_Event(data.text))
+         self.game.add_event(E.Player_Request_Action_Event(data.text))
       elif data.event is E.Speak_Player_to_Npc_Event:
-         self.user_input_queue.put(E.Speak_Player_to_Npc_Event(data.data['npc_id'], data.text))
+         self.game.add_event(E.Speak_Player_to_Npc_Event(data.data['npc_id'], data.text))
+      else:
+         raise RuntimeError(f"{self.__class__.__name__} does not support processing user input from event type {data.event.__name__}")
+
+      self.events_display.text_box.clear_input(accept_input=go_again)
+      self.visualize_game(self.game)
+      if not go_again:
+         self.user_input_queue.put(self.game)
 
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():

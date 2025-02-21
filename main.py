@@ -82,14 +82,10 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
 
 
 def make_completion(messages:List[Dict[str,str]]) -> Optional[str]:
-   endpoint = "http://192.168.1.200:7776/v1"
-   headers = { "Content-Type": "application/json" }
-   data = { "messages": messages }
-
    resp = requests.post(
-      f"{endpoint}/chat/completions",
-      headers=headers,
-      json=data
+      "http://192.168.1.200:7776/v1/chat/completions",
+      headers={"Content-Type":"application/json"},
+      json={"messages":messages}
    )
 
    if resp.status_code == 200:
@@ -133,13 +129,13 @@ class AI_Manager:
       return final_game
 
 
-def game_loop(game:Game, log_dirpath:str):
+def game_loop(init_game:Game, log_dirpath:str):
    kill_event = threading.Event()
    ai_manager = AI_Manager(kill_event, log_dirpath)
-   user_input_queue: Queue[Event] = Queue(maxsize=1)
+   user_input_queue: Queue[Game] = Queue(maxsize=1)
 
    # Create a screen handler object and start it up
-   screen_handler = Screen_Handler(kill_event, game, user_input_queue)
+   screen_handler = Screen_Handler(kill_event, init_game, user_input_queue)
    thread = threading.Thread(target=screen_handler.run)
    thread.start()
 
@@ -150,40 +146,29 @@ def game_loop(game:Game, log_dirpath:str):
    try:
       while not kill_event.is_set():
          if user_input_queue.full():
-            event = user_input_queue.get()
-            new_game1 = game.copy()
-            new_game1.add_event(event)
-            new_game1.new_events = 1
-            screen_handler.update_game(new_game1)
+            user_game = user_input_queue.get()
             next_update_time = time.time() + UPDATE_TIME_DELTA
 
             logger.info("New event detected, processing AI response")
-            new_game2 = ai_manager.process(new_game1)
-            if new_game2 is None:
+            ai_game = ai_manager.process(user_game)
+            if ai_game is None:
                logger.error("Could not progress game state with AI, reverting user input")
-               screen_handler.update_game(game)
+               screen_handler.accept_input(init_game)
             else:
                logger.info("Got back AI response, processing new events")
-               new_game2.new_events = len(new_game2.events) - len(new_game1.events)
-               new_event_count = new_game2.new_events - 1
-               while True:
+               delta_game = user_game.copy()
+               delta_events = ai_game.events[len(user_game.events):]
+               while len(delta_events) > 0:
                   if kill_event.is_set():
                      return
                   curr_time = time.time()
-                  if curr_time >= next_update_time:
-                     if new_event_count <= 0:
-                        screen_handler.update_game(new_game2, True)
-                        game = new_game2
-                        break
-                     delta_game = new_game2.copy()
-                     delta_game.events = delta_game.events[:-new_event_count]
-                     delta_game.new_events = new_game2.new_events - new_event_count
-                     screen_handler.update_game(delta_game)
+                  if curr_time > next_update_time:
+                     delta_game.add_event(delta_events.pop(0))
+                     screen_handler.visualize_game(delta_game)
                      next_update_time = curr_time + UPDATE_TIME_DELTA
-                     new_event_count -= 1
                   else:
                      time.sleep(0.01)
-            screen_handler.accept_input()
+               screen_handler.accept_input(ai_game)
 
          time.sleep(0.01)
    except KeyboardInterrupt:
@@ -221,6 +206,6 @@ if __name__ == "__main__":
             raise RuntimeError(f"Error pre-populating game: {msg}")
 
    with Peek_Terminal_Input():
-      game_loop(game, FOLDER_DIR)
+      game_loop(game.reset_event_count(), FOLDER_DIR)
 
    logger.info("Game exited cleanly")
