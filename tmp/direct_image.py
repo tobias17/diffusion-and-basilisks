@@ -1,4 +1,4 @@
-import requests, json
+import requests, json # type: ignore
 from io import BytesIO
 from PIL import Image
 import base64

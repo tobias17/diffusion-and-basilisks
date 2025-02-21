@@ -1,4 +1,4 @@
-import requests, json
+import requests, json # type: ignore
 
 STARTING_MESSAGES = [
    {
