@@ -39,9 +39,9 @@ I would like to go into the tavern.
    }
 ]
 
-# client = OpenAI(base_url="http://192.168.1.200:7776", api_key="")
-# response = client.chat.completions.create(messages=STARTING_MESSAGES, model="")
-# print(response.choices[0].message.content)
+client = OpenAI(base_url="http://192.168.1.200:7776", api_key="")
+response = client.chat.completions.create(messages=STARTING_MESSAGES, model="")
+print(response.choices[0].message.content)
 
 def main():
    endpoint = "http://192.168.1.200:7776/v1"
