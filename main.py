@@ -156,14 +156,15 @@ def game_loop(game:Game, log_dirpath:str):
                logger.error("Could not progress game state with AI, reverting user input")
                screen_handler.update_game(game)
             else:
+               logger.info("Got back AI response, processing new events")
                new_game2.new_events = len(new_game2.events) - len(new_game1.events)
                new_event_count = new_game2.new_events - 1
-               while new_event_count >= 0:
+               while True:
                   if kill_event.is_set():
                      return
                   curr_time = time.time()
                   if curr_time >= next_update_time:
-                     if new_event_count == 0:
+                     if new_event_count <= 0:
                         screen_handler.update_game(new_game2, True)
                         game = new_game2
                         break

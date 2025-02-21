@@ -9,9 +9,7 @@ LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
 
 @dataclass
 class Event:
-   def player_event(self, game)-> Optional[str]:
-      return None
-   def player_speak(self, game)-> Optional[str]:
+   def player(self, game)-> Optional[str]:
       return None
    def system(self) -> Optional[str]:
       return None

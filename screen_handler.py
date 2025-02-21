@@ -409,7 +409,7 @@ class Events_Display:
    def update_game(self, game:Game, accept_input:bool=False) -> None:
       self.event_lines = []
       for i, event in enumerate(game.events):
-         text = event.player_event(game)
+         text = event.player(game)
          if game.new_events > 0 and len(game.events) - i <= game.new_events:
             text = f"* {text}"
          if text is not None:

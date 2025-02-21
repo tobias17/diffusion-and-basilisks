@@ -12,7 +12,7 @@ class Player_Request_Action_Event(Event):
    text: str
    def clean(self) -> None:
       self.text = self.text.replace("\\", "").replace('"', "'")
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f'You request: "{self.text}"'
    def system(self) -> Optional[str]:
       return f'PLAYER.request_action(text="{self.text}")'
@@ -28,7 +28,7 @@ class Create_Location_Event(Event):
    loc_id: str
    name: str
    desc: str
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f"You discover a new location, {self.name}"
 def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
@@ -50,7 +50,7 @@ Create_Location_Event.system = (lambda e: create_location_func.system(e)) # type
 @dataclass
 class Move_Player_To_Event(Event):
    loc_id: str
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
 def move_player_to(self:Game, loc_id:str) -> Tuple[bool,str]:
    for event in self.events:
@@ -74,7 +74,7 @@ class Create_Npc_Event(Event):
    first_name: str
    last_name: str
    desc: str
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f"You meet a new character, {self.first_name} {self.last_name}"
 def create_npc(self:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
@@ -101,7 +101,7 @@ class Speak_Player_to_Npc_Event(Event):
    text: str
    def system(self) -> Optional[str]:
       return f'PLAYER.speak_to_npc(npc_id="{self.npc_id}", text="{self.text}")'
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f'You tell {game.get_npc_name(self.npc_id)}: "{self.text}"'
    def is_player_provided(self) -> bool:
       return True
@@ -114,15 +114,15 @@ def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
 
 
 @dataclass
-class Speak_Npc_to_Player_Event(Event):
+class Speak_Npc_to_player(Event):
    npc_id: str
    text: str
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f'{game.get_npc_name(self.npc_id)} tells You: "{self.text}"'
 def speak_npc_to_player(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
-         self.add_event(Speak_Npc_to_Player_Event(npc_id, text))
+         self.add_event(Speak_Npc_to_player(npc_id, text))
          return True, ""
    return False, f"Failed to find a Character with the ID '{npc_id}'"
 Function_Map.funcs.append(
@@ -132,7 +132,7 @@ Function_Map.funcs.append(
       Parameter("text", str),
    )
 )
-Speak_Npc_to_Player_Event.system = (lambda e: speak_npc_to_player_func.system(e)) # type: ignore
+Speak_Npc_to_player.system = (lambda e: speak_npc_to_player_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -140,7 +140,7 @@ class Speak_Npc_to_Npc_Event(Event):
    from_npc_id: str
    to_npc_id: str
    text: str
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f'{game.get_npc_name(self.from_npc_id)} tells {game.get_npc_name(self.to_npc_id)}: "{self.text}"'
 def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tuple[bool,str]:
    if from_npc_id == to_npc_id:
@@ -174,7 +174,7 @@ Speak_Npc_to_Npc_Event.system = (lambda e: speak_npc_to_npc_func.system(e)) # ty
 @dataclass
 class Narrate_Event(Event):
    text: str
-   def player_event(self, game:Game) -> Optional[str]:
+   def player(self, game:Game) -> Optional[str]:
       return f'Narrator: "{self.text}"'
 def narrate(self:Game, text:str) -> Tuple[bool,str]:
    self.add_event(Narrate_Event(text))
@@ -186,6 +186,8 @@ Function_Map.funcs.append(
    )
 )
 Narrate_Event.system = (lambda e: narrate_func.system(e)) # type: ignore
+
+
 
 
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }

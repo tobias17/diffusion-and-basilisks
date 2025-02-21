@@ -81,7 +81,7 @@ class Game:
 
       INTERACT_EVENT_MAP: Dict[Type[Event],List[str]] = {
          E.Speak_Player_to_Npc_Event: ["npc_id"],
-         E.Speak_Npc_to_Player_Event: ["npc_id"],
+         E.Speak_Npc_to_player: ["npc_id"],
          E.Speak_Npc_to_Npc_Event: ["from_npc_id", "to_npc_id"],
       }
 
