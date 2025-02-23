@@ -4,9 +4,9 @@ import numpy as np
 import cv2, sys
 from typing import Optional
 
-QUANTIZE_COUNT = 32
+QUANTIZE_COUNT = 8
 VALUE_COUNT = 8
-ASCII_CODEX = ' .:-=+*#@'
+ASCII_CODEX = ' .,:;'
 
 CHAR_HEIGHT = 16
 CHAR_WIDTH  = 8
@@ -42,11 +42,12 @@ class DirData:
       self.char = char
       self.in_mat = in_mat
 
-def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_size=3):
+def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_size=3, debug=False):
    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-   cv2.imwrite(f"tmp/gray.png", gray)
    dog = diff_of_gaus(gray)
-   cv2.imwrite(f"tmp/dog.png", dog)
+   if debug:
+      cv2.imwrite(f"tmp/gray.png", gray)
+      cv2.imwrite(f"tmp/dog.png", dog)
 
    x_grad = cv2.Sobel(dog, cv2.CV_32F, 1, 0, ksize=kernel_size)
    y_grad = cv2.Sobel(dog, cv2.CV_32F, 0, 1, ksize=kernel_size)
@@ -59,10 +60,11 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
    x_grad_save = x_grad / 8 + 128
    y_grad_save = y_grad / 8 + 128
 
-   cv2.imwrite("tmp/x_grad.png", x_grad_save.astype(np.uint8))
-   cv2.imwrite("tmp/y_grad.png", y_grad_save.astype(np.uint8))
-   cv2.imwrite("tmp/grad_mag.png", grad_mag.astype(np.uint8))
-   cv2.imwrite("tmp/grad_mag_eroded.png", grad_mag_eroded.astype(np.uint8))
+   if debug:
+      cv2.imwrite("tmp/x_grad.png", x_grad_save.astype(np.uint8))
+      cv2.imwrite("tmp/y_grad.png", y_grad_save.astype(np.uint8))
+      cv2.imwrite("tmp/grad_mag.png", grad_mag.astype(np.uint8))
+      cv2.imwrite("tmp/grad_mag_eroded.png", grad_mag_eroded.astype(np.uint8))
 
    threshold = 20.0
 
@@ -85,7 +87,6 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
          total_mag = np.sum(patch_mag)
          for data in dir_datas:
             data.amnt = np.sum(patch_mag[data.in_mat]) / size
-            # data.amnt = np.sum(patch_mag[data.in_mat])**2 / (total_mag * size)
 
          max_amnt, max_char = threshold, ' '
          for data in dir_datas:
@@ -95,21 +96,9 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
          amnts[y,x] = max_amnt
          chars[y,x] = max_char
 
-   # print(amnts)
-   # print(chars)
-
-   # print(np.max(amnts))
-   # print(np.min(amnts))
-
-   # for y in range(h):
-   #    text = ""
-   #    for x in range(w):
-   #       text += chars[y,x]
-   #    print(text)
-
    return chars
 
-def image_to_ascii(filepath:str):
+def image_to_ascii(filepath:str, debug:bool=False):
    bgr_img = cv2.imread(filepath)
    assert bgr_img is not None, f"Could not find input image, searched for {filepath}"
    shp = bgr_img.shape
@@ -131,11 +120,31 @@ def image_to_ascii(filepath:str):
    img_clusters = cluster_labels.reshape(hsv_img.shape[:2])
 
    centers = kmeans.cluster_centers_
-   print(centers)
    hs_selections = np.zeros((QUANTIZE_COUNT,2))
-   hs_selections[:,0] = np.arctan2(centers[:,0], centers[:,1]) / (2*np.pi) - 0.25
+   hs_selections[:,0] = np.arctan2(centers[:,1], centers[:,0]) / (2*np.pi)
    hs_selections[:,0] = np.where(hs_selections[:,0] < 0.0, hs_selections[:,0] + 1.0, hs_selections[:,0])
    hs_selections[:,1] = np.sqrt(np.square(centers[:,0]), np.square(centers[:,1]))
+
+   if debug:
+      AXIS_SIZE = 200
+      plot = np.zeros((AXIS_SIZE*2, AXIS_SIZE*2, 3))
+      for y in range(to_circle.shape[0]):
+         for x in range(to_circle.shape[1]):
+            px, py = to_circle[y,x]
+            tx, ty = AXIS_SIZE+int(px*AXIS_SIZE*0.95), AXIS_SIZE+int(py*AXIS_SIZE*0.95)
+            plot[ty,tx] = bgr_img[y,x]
+      for i in range(QUANTIZE_COUNT):
+         cv2.circle(plot, (AXIS_SIZE+centers[i]*AXIS_SIZE*0.95).astype(np.int32), 2, (0.0, 0.0, 255.0), thickness=6)
+      cv2.imwrite("tmp/plot.png", plot)
+
+      HEIGHT = 20
+      WIDTH  = 200
+      hsv_show = np.ones((QUANTIZE_COUNT*HEIGHT,WIDTH,3))
+      for i in range(QUANTIZE_COUNT):
+         hsv_show[i*HEIGHT:(i+1)*HEIGHT,:,:2] = hs_selections[i]
+      hsv_show = (hsv_show * SCALE).astype(np.uint8)
+      bgr_show = cv2.cvtColor(hsv_show, cv2.COLOR_HSV2BGR)
+      cv2.imwrite("tmp/bgr_show.png", bgr_show)
 
    hsv_img[:,:,:2] = hs_selections[cluster_labels].reshape((*hsv_img.shape[:2],2))
    hsv_img[:,:,2] = (hsv_img[:,:,2] * VALUE_COUNT).astype(int) / VALUE_COUNT
@@ -145,8 +154,9 @@ def image_to_ascii(filepath:str):
    hsv_selections = np.ones((QUANTIZE_COUNT,3)) * 0.95
    hsv_selections[:,:2] = hs_selections
 
-   cv2.imwrite("tmp/quantized.png", hsv_to_bgr(hsv_img))
-   cv2.imwrite("tmp/quantized_full.png", hsv_to_bgr(hsv_full))
+   if debug:
+      cv2.imwrite("tmp/quantized.png", hsv_to_bgr(hsv_img))
+      cv2.imwrite("tmp/quantized_full.png", hsv_to_bgr(hsv_full))
 
    small_patch_v = np.zeros((TARGET_CHARS_TALL,target_chars_wide))
    small_patch_hsv = np.ones((TARGET_CHARS_TALL,target_chars_wide,3))
@@ -160,7 +170,8 @@ def image_to_ascii(filepath:str):
          patched_hsv[ys:ye,xs:xe,2] = hsv_img[ys:ye,xs:xe,2].mean()
          small_patch_hsv[yi,xi,:2] = hs_selections[mode.mode]
          small_patch_v[yi,xi] = hsv_img[ys:ye,xs:xe,2].mean()
-   cv2.imwrite("tmp/patched.png", hsv_to_bgr(patched_hsv))
+   if debug:
+      cv2.imwrite("tmp/patched.png", hsv_to_bgr(patched_hsv))
    small_patch_bgr = hsv_to_bgr(small_patch_hsv)
 
    text = ""
@@ -170,7 +181,7 @@ def image_to_ascii(filepath:str):
          b, g, r = small_patch_bgr[y,x]
          c = chars[y,x]
          if c == ' ':
-            idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX) * 0.6)))
+            idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX))))
             c = ASCII_CODEX[idx]
          # c = "@"
          text += f"\033[38;2;{r};{g};{b}m{c}"
@@ -179,4 +190,4 @@ def image_to_ascii(filepath:str):
    sys.stdout.flush()
 
 if __name__ == "__main__":
-   image_to_ascii("tmp/image.png")
+   image_to_ascii("tmp/image.png", debug=True)
