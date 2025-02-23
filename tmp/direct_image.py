@@ -27,7 +27,6 @@ def main():
          raise ex from ex
       image_b64 = data["image"]
       image = Image.open(BytesIO(base64.b64decode(image_b64)))
-      image.save("image.png")
       image.show()
    else:
       print(response.text)

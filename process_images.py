@@ -2,8 +2,9 @@ from sklearn.cluster import KMeans
 from scipy import stats
 import numpy as np
 import cv2, sys
+from typing import Optional
 
-QUANTIZE_COUNT = 4
+QUANTIZE_COUNT = 32
 VALUE_COUNT = 8
 ASCII_CODEX = ' .:-=+*#@'
 
@@ -20,9 +21,104 @@ def color(text:str, r:int, g:int, b:int) -> str:
 def hsv_to_bgr(mat):
    return cv2.cvtColor((mat * SCALE).astype(np.uint8), cv2.COLOR_HSV2BGR)
 
+def diff_of_gaus(gray, sigma1=1.6, sigma2=1.2, threshold=0.05, kernel_size:int=2):
+   blur1 = cv2.GaussianBlur(gray, (0,0), sigmaX=sigma1)
+   blur2 = cv2.GaussianBlur(gray, (0,0), sigmaX=sigma2)
+   dog = blur1 - blur2
+   dog_norm = cv2.normalize(np.abs(dog), None, 0, 255, cv2.NORM_MINMAX) # type: ignore
+
+   keypoints = dog_norm > (255 * threshold)
+
+   result = np.zeros_like(gray)
+   result[keypoints] = 255
+
+   kernel = np.ones((kernel_size, kernel_size), np.uint8)
+   eroded = cv2.erode(result, kernel, iterations=2)
+   return eroded
+
+class DirData:
+   amnt: float
+   def __init__(self, char, in_mat):
+      self.char = char
+      self.in_mat = in_mat
+
+def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_size=3):
+   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+   cv2.imwrite(f"tmp/gray.png", gray)
+   dog = diff_of_gaus(gray)
+   cv2.imwrite(f"tmp/dog.png", dog)
+
+   x_grad = cv2.Sobel(dog, cv2.CV_32F, 1, 0, ksize=kernel_size)
+   y_grad = cv2.Sobel(dog, cv2.CV_32F, 0, 1, ksize=kernel_size)
+   grad_dir = np.arctan2(y_grad, x_grad) * 180 / np.pi
+   grad_mag = np.sqrt(np.square(x_grad) + np.square(y_grad))
+   grad_mag = cv2.normalize(grad_mag, None, 0, 255, cv2.NORM_MINMAX) # type: ignore
+   kernel = np.ones((3, 3), np.uint8)
+   grad_mag_eroded = cv2.erode(grad_mag, kernel, iterations=1)
+
+   x_grad_save = x_grad / 8 + 128
+   y_grad_save = y_grad / 8 + 128
+
+   cv2.imwrite("tmp/x_grad.png", x_grad_save.astype(np.uint8))
+   cv2.imwrite("tmp/y_grad.png", y_grad_save.astype(np.uint8))
+   cv2.imwrite("tmp/grad_mag.png", grad_mag.astype(np.uint8))
+   cv2.imwrite("tmp/grad_mag_eroded.png", grad_mag_eroded.astype(np.uint8))
+
+   threshold = 20.0
+
+   amnts = np.zeros((h,w))
+   chars = np.full((h,w), fill_value=' ', dtype='<U1')
+   for y in range(h):
+      for x in range(w):
+         ys, ye = int(y*y_step), int((y+1)*y_step)
+         xs, xe = int(x*x_step), int((x+1)*x_step)
+         patch_mag = grad_mag[ys:ye, xs:xe]
+         patch_dir = grad_dir[ys:ye, xs:xe]
+
+         dir_datas = [
+            DirData('-', ((patch_dir >=  -22.5) & (patch_dir <   22.5)) | ((patch_dir >= 157.5) | (patch_dir < -157.5))),
+            DirData('|', ((patch_dir >= -112.5) & (patch_dir <  -67.5)) | ((patch_dir >=  67.5) & (patch_dir <  112.5))),
+            DirData('/', ((patch_dir >= -157.5) & (patch_dir < -112.5)) | ((patch_dir >=  22.5) & (patch_dir <   67.5))),
+            DirData('/', ((patch_dir >=  -67.5) & (patch_dir <  -22.5)) | ((patch_dir >= 112.5) & (patch_dir <  157.5))),
+         ]
+         size = patch_mag.shape[0] * patch_mag.shape[1]
+         total_mag = np.sum(patch_mag)
+         for data in dir_datas:
+            data.amnt = np.sum(patch_mag[data.in_mat]) / size
+            # data.amnt = np.sum(patch_mag[data.in_mat])**2 / (total_mag * size)
+
+         max_amnt, max_char = threshold, ' '
+         for data in dir_datas:
+            if data.amnt > max_amnt:
+               max_amnt = data.amnt
+               max_char = data.char
+         amnts[y,x] = max_amnt
+         chars[y,x] = max_char
+
+   # print(amnts)
+   # print(chars)
+
+   # print(np.max(amnts))
+   # print(np.min(amnts))
+
+   # for y in range(h):
+   #    text = ""
+   #    for x in range(w):
+   #       text += chars[y,x]
+   #    print(text)
+
+   return chars
+
 def image_to_ascii(filepath:str):
    bgr_img = cv2.imread(filepath)
    assert bgr_img is not None, f"Could not find input image, searched for {filepath}"
+   shp = bgr_img.shape
+
+   target_chars_wide = int(TARGET_CHARS_TALL * (shp[1] / shp[0]) * CHAR_ASPECT_RATIO)
+   y_step = shp[0] / TARGET_CHARS_TALL
+   x_step = shp[1] / target_chars_wide
+
+   chars = apply_sobel_filter(bgr_img, target_chars_wide, TARGET_CHARS_TALL, x_step, y_step)
 
    hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV) / SCALE
 
@@ -35,8 +131,9 @@ def image_to_ascii(filepath:str):
    img_clusters = cluster_labels.reshape(hsv_img.shape[:2])
 
    centers = kmeans.cluster_centers_
+   print(centers)
    hs_selections = np.zeros((QUANTIZE_COUNT,2))
-   hs_selections[:,0] = np.arctan2(centers[:,0], centers[:,1]) / (4*np.pi)
+   hs_selections[:,0] = np.arctan2(centers[:,0], centers[:,1]) / (2*np.pi) - 0.25
    hs_selections[:,0] = np.where(hs_selections[:,0] < 0.0, hs_selections[:,0] + 1.0, hs_selections[:,0])
    hs_selections[:,1] = np.sqrt(np.square(centers[:,0]), np.square(centers[:,1]))
 
@@ -47,22 +144,13 @@ def image_to_ascii(filepath:str):
 
    hsv_selections = np.ones((QUANTIZE_COUNT,3)) * 0.95
    hsv_selections[:,:2] = hs_selections
-   print(hsv_selections)
-   bgr_selections = hsv_to_bgr(hsv_selections.reshape((1,QUANTIZE_COUNT,3))).reshape((QUANTIZE_COUNT,3))
 
-   bgr_img  = hsv_to_bgr(hsv_img)
-   bgr_full = hsv_to_bgr(hsv_full)
-   cv2.imwrite("tmp/quantized.png", bgr_img)
-   cv2.imwrite("tmp/quantized_full.png", bgr_full)
-
-   target_chars_wide = int(TARGET_CHARS_TALL * (bgr_img.shape[1] / bgr_img.shape[0]) * CHAR_ASPECT_RATIO)
-   y_step = bgr_img.shape[0] / TARGET_CHARS_TALL
-   x_step = bgr_img.shape[1] / target_chars_wide
-   print(f"{x_step=} {y_step=} {target_chars_wide=} {TARGET_CHARS_TALL=}")
+   cv2.imwrite("tmp/quantized.png", hsv_to_bgr(hsv_img))
+   cv2.imwrite("tmp/quantized_full.png", hsv_to_bgr(hsv_full))
 
    small_patch_v = np.zeros((TARGET_CHARS_TALL,target_chars_wide))
    small_patch_hsv = np.ones((TARGET_CHARS_TALL,target_chars_wide,3))
-   patched_hsv = np.zeros(bgr_img.shape)
+   patched_hsv = np.zeros(shp)
    for yi in range(TARGET_CHARS_TALL):
       for xi in range(target_chars_wide):
          xs, xe = int(xi*x_step), int((xi+1)*x_step)
@@ -77,13 +165,16 @@ def image_to_ascii(filepath:str):
 
    text = ""
    for y in range(TARGET_CHARS_TALL):
+      text += "\033[48;2;10;10;10m"
       for x in range(target_chars_wide):
          b, g, r = small_patch_bgr[y,x]
-         c = ASCII_CODEX[int(small_patch_v[y,x] * len(ASCII_CODEX))]
+         c = chars[y,x]
+         if c == ' ':
+            idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX) * 0.6)))
+            c = ASCII_CODEX[idx]
          # c = "@"
          text += f"\033[38;2;{r};{g};{b}m{c}"
-      text += "\n"
-   text += "\033[0m"
+      text += "\033[0m\n"
    print(text, end="")
    sys.stdout.flush()
 

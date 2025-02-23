@@ -39,10 +39,6 @@ I would like to go into the tavern.
    }
 ]
 
-client = OpenAI(base_url="http://192.168.1.200:7776", api_key="")
-response = client.chat.completions.create(messages=STARTING_MESSAGES, model="")
-print(response.choices[0].message.content)
-
 def main():
    endpoint = "http://192.168.1.200:7776/v1"
    headers = {
@@ -65,7 +61,7 @@ def main():
       except Exception as ex:
          print(f"Failed to load json data:\n{body}")
          raise ex from ex
-      print(data["choices"][0]["message"]["content"])
+      print(data["choices"][0]["message"]["content"]) # type: ignore
    else:
       print(response.text)
 
