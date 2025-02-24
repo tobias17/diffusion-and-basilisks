@@ -2,11 +2,10 @@ from sklearn.cluster import KMeans
 from scipy import stats
 import numpy as np
 import cv2, sys
-from typing import Optional
 
 QUANTIZE_COUNT = 8
 VALUE_COUNT = 8
-ASCII_CODEX = ' .,:;'
+ASCII_CODEX = ' .,:;+=#'
 
 CHAR_HEIGHT = 16
 CHAR_WIDTH  = 8
@@ -52,10 +51,8 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
    x_grad = cv2.Sobel(dog, cv2.CV_32F, 1, 0, ksize=kernel_size)
    y_grad = cv2.Sobel(dog, cv2.CV_32F, 0, 1, ksize=kernel_size)
    grad_dir = np.arctan2(y_grad, x_grad) * 180 / np.pi
-   grad_mag = np.sqrt(np.square(x_grad) + np.square(y_grad))
-   grad_mag = cv2.normalize(grad_mag, None, 0, 255, cv2.NORM_MINMAX) # type: ignore
-   kernel = np.ones((3, 3), np.uint8)
-   grad_mag_eroded = cv2.erode(grad_mag, kernel, iterations=1)
+   # grad_mag = np.sqrt(np.square(x_grad) + np.square(y_grad))
+   # grad_mag = cv2.normalize(grad_mag, None, 0, 255, cv2.NORM_MINMAX) # type: ignore
 
    x_grad_save = x_grad / 8 + 128
    y_grad_save = y_grad / 8 + 128
@@ -63,10 +60,11 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
    if debug:
       cv2.imwrite("tmp/x_grad.png", x_grad_save.astype(np.uint8))
       cv2.imwrite("tmp/y_grad.png", y_grad_save.astype(np.uint8))
-      cv2.imwrite("tmp/grad_mag.png", grad_mag.astype(np.uint8))
-      cv2.imwrite("tmp/grad_mag_eroded.png", grad_mag_eroded.astype(np.uint8))
+      # cv2.imwrite("tmp/grad_mag.png", grad_mag.astype(np.uint8))
 
-   threshold = 20.0
+   threshold = 10.0
+
+   is_set = np.zeros_like(img)
 
    amnts = np.zeros((h,w))
    chars = np.full((h,w), fill_value=' ', dtype='<U1')
@@ -74,7 +72,7 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
       for x in range(w):
          ys, ye = int(y*y_step), int((y+1)*y_step)
          xs, xe = int(x*x_step), int((x+1)*x_step)
-         patch_mag = grad_mag[ys:ye, xs:xe]
+         patch_mag = dog[ys:ye, xs:xe]
          patch_dir = grad_dir[ys:ye, xs:xe]
 
          dir_datas = [
@@ -84,9 +82,10 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
             DirData('/', ((patch_dir >=  -67.5) & (patch_dir <  -22.5)) | ((patch_dir >= 112.5) & (patch_dir <  157.5))),
          ]
          size = patch_mag.shape[0] * patch_mag.shape[1]
-         total_mag = np.sum(patch_mag)
+         total_amnt = np.sum(patch_mag)
          for data in dir_datas:
-            data.amnt = np.sum(patch_mag[data.in_mat]) / size
+            # data.amnt = np.sum(patch_mag[data.in_mat]) / size
+            data.amnt = np.sum(patch_mag[data.in_mat])**2 / (total_amnt * size)
 
          max_amnt, max_char = threshold, ' '
          for data in dir_datas:
@@ -95,6 +94,12 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
                max_char = data.char
          amnts[y,x] = max_amnt
          chars[y,x] = max_char
+
+         if max_char != ' ':
+            is_set[ys:ye, xs:xe] = 255
+   
+   if debug:
+      cv2.imwrite("tmp/is_set.png", is_set.astype(np.uint8))
 
    return chars
 
@@ -107,7 +112,7 @@ def image_to_ascii(filepath:str, debug:bool=False):
    y_step = shp[0] / TARGET_CHARS_TALL
    x_step = shp[1] / target_chars_wide
 
-   chars = apply_sobel_filter(bgr_img, target_chars_wide, TARGET_CHARS_TALL, x_step, y_step)
+   # chars = apply_sobel_filter(bgr_img, target_chars_wide, TARGET_CHARS_TALL, x_step, y_step, debug=debug)
 
    hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV) / SCALE
 
@@ -147,7 +152,7 @@ def image_to_ascii(filepath:str, debug:bool=False):
       cv2.imwrite("tmp/bgr_show.png", bgr_show)
 
    hsv_img[:,:,:2] = hs_selections[cluster_labels].reshape((*hsv_img.shape[:2],2))
-   hsv_img[:,:,2] = (hsv_img[:,:,2] * VALUE_COUNT).astype(int) / VALUE_COUNT
+   # hsv_img[:,:,2] = (hsv_img[:,:,2] * VALUE_COUNT).astype(int) / VALUE_COUNT
    hsv_full = hsv_img.copy()
    hsv_full[:,:,2] = 0.6
 
@@ -179,15 +184,18 @@ def image_to_ascii(filepath:str, debug:bool=False):
       text += "\033[48;2;10;10;10m"
       for x in range(target_chars_wide):
          b, g, r = small_patch_bgr[y,x]
-         c = chars[y,x]
-         if c == ' ':
-            idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX))))
-            c = ASCII_CODEX[idx]
-         # c = "@"
+         # c = chars[y,x]
+         # if c == ' ':
+         idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX))))
+         c = ASCII_CODEX[idx]
          text += f"\033[38;2;{r};{g};{b}m{c}"
       text += "\033[0m\n"
    print(text, end="")
    sys.stdout.flush()
 
 if __name__ == "__main__":
-   image_to_ascii("tmp/image.png", debug=True)
+   import argparse
+   parser = argparse.ArgumentParser()
+   parser.add_argument('--file', type=str, default='tmp/image.png')
+   args = parser.parse_args()
+   image_to_ascii(args.file, debug=True)

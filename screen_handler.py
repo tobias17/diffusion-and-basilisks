@@ -10,8 +10,8 @@ from queue import Queue
 import numpy as np
 import sys, termios, select, tty, os, traceback, threading
 
-SCREEN_WIDTH  = 200
-SCREEN_HEIGHT = 45
+SCREEN_WIDTH  = 240
+SCREEN_HEIGHT = 62
 
 @dataclass
 class Pos:
@@ -32,9 +32,10 @@ class Rect:
    def y2(self) -> int: return self.y1 + self.h
 
 INPUT_HEIGHT = 6
+IMAGE_WIDTH  = 90
 
-EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
-INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4, INPUT_HEIGHT)
+EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_WIDTH, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
+INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - IMAGE_WIDTH, INPUT_HEIGHT)
 
 
 # Context Manager to configure terminal settings, to be set up by the main thread
@@ -135,6 +136,7 @@ class Screen_Buffer:
    data: np.ndarray
    bold: np.ndarray
    dirty_rows: List[bool]
+   img_rows: List[str]
 
    cursor_pos: Pos
    dirty_cursor: bool
@@ -481,12 +483,15 @@ class Screen_Handler:
    def run(self) -> None:
       try:
          # Borders
-         self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*(SCREEN_WIDTH-2) + "+")
+         left_dash  = SCREEN_WIDTH - 3 - IMAGE_WIDTH
+         right_dash = SCREEN_WIDTH - 3 - left_dash
+         self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
          for y in range(1, SCREEN_HEIGHT-1):
             self.screen_buffer.put_text_in(self.rect, 0, y, "|")
+            self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-IMAGE_WIDTH-2, y, "|")
             self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
-         self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
-         self.screen_buffer.put_text_in(self.rect, 0, INPUT_SPACE.y1-1, "+" + "-"*(SCREEN_WIDTH-2) + "+")
+         self.screen_buffer.put_text_in(self.rect, 0, INPUT_SPACE.y1-1, "+" + "-"*left_dash + "+")
+         self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
 
          # Events and Input
          self.events_display.write_to_buffer()
