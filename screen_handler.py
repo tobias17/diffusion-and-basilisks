@@ -2,13 +2,14 @@ from __future__ import annotations
 from common import logger, Event
 from game import Game
 import events as E
+from process_images import image_to_ascii
 
 from dataclasses import dataclass
 from typing import List, Union, Tuple, Type, Dict
 from enum import Enum, auto
 from queue import Queue
 import numpy as np
-import sys, termios, select, tty, os, traceback, threading
+import sys, termios, select, tty, os, traceback, threading, json
 
 SCREEN_WIDTH  = 240
 SCREEN_HEIGHT = 62
@@ -32,6 +33,7 @@ class Rect:
    def y2(self) -> int: return self.y1 + self.h
 
 INPUT_HEIGHT = 6
+IMAGE_HEIGHT = SCREEN_HEIGHT - 2
 IMAGE_WIDTH  = 90
 
 EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_WIDTH, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
@@ -136,7 +138,10 @@ class Screen_Buffer:
    data: np.ndarray
    bold: np.ndarray
    dirty_rows: List[bool]
+
    img_rows: List[str]
+   img_x_start: int
+   img_x_end: int
 
    cursor_pos: Pos
    dirty_cursor: bool
@@ -149,6 +154,10 @@ class Screen_Buffer:
       self.data = np.full((height,width), " ", np.character)
       self.bold = np.zeros((height,width), np.bool_)
       self.dirty_rows = [False for _ in range(height)]
+
+      self.img_rows = [" "*IMAGE_WIDTH for _ in range(height-2)]
+      self.img_x_start = width - IMAGE_WIDTH - 1
+      self.img_x_end   = width - 1
 
       self.cursor_pos = Pos(0, 0)
       self.dirty_cursor = False
@@ -197,14 +206,18 @@ class Screen_Buffer:
             if self.dirty_rows[y] or (not only_dirty):
                text += coord(1, y+1)
                for x in range(self.width):
-                  codes = [
-                     BOLD_ON_CODE if self.bold[y,x] else BOLD_OFF_CODE,
-                  ]
-                  target_style = f"\033[" + ";".join(codes) + "m"
-                  if curr_style != target_style:
-                     text += target_style
-                     curr_style = target_style
-                  text += self.data[y,x].decode()
+                  if y >= 1 and y < self.height - 1 and x >= self.img_x_start and x < self.img_x_end:
+                     if x == self.img_x_start:
+                        text += self.img_rows[y-1]
+                  else:
+                     codes = [
+                        BOLD_ON_CODE if self.bold[y,x] else BOLD_OFF_CODE,
+                     ]
+                     target_style = f"\033[" + ";".join(codes) + "m"
+                     if curr_style != target_style:
+                        text += target_style
+                        curr_style = target_style
+                     text += self.data[y,x].decode()
                self.dirty_rows[y] = False
          if self.dirty_cursor or len(text) > 0:
             text += coord(self.cursor_pos.x + 1, self.cursor_pos.y + 1)
@@ -219,6 +232,7 @@ class Input_Data:
    name: str
    event: Type[Event]
    data: Dict
+   image_uuid: str
    pointer: int = 0
    text: str = ""
 
@@ -243,12 +257,13 @@ class Text_Box:
       self.actions_bold = []
 
    def visualize_game(self, game:Game) -> None:
-      self.datas = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {})]
+      curr_loc_id = game.get_curr_loc_id()
+      self.datas  = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {}, game.get_loc_image_uuid(curr_loc_id))]
+
       all_npc_infos = game.get_npc_infos()
-      curr_loc_id   = game.get_curr_loc_id()
       loc_npc_infos = [i for i in all_npc_infos if i.loc_id == curr_loc_id]
       for info in loc_npc_infos:
-         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc_Event, {'npc_id':info.npc_id}))
+         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc_Event, {'npc_id':info.npc_id}, info.image_uuid))
       self.index = 0
 
       self.actions_line = "Press Tab to Cycle:"
@@ -267,6 +282,7 @@ class Text_Box:
       self.index = 0
 
    def write_to_buffer(self) -> None:
+      # Normal buffer writing
       self.screen_buffer.clear_text(self.rect)
       self.screen_buffer.set_region_bold(self.rect, 0, 0, self.rect.w, 1, False)
       if not self.accepting_input:
@@ -281,6 +297,26 @@ class Text_Box:
             line, text = text[:self.rect.w], text[self.rect.w:]
             line += " "*(self.rect.w - len(line))
             self.screen_buffer.put_text_in(self.rect, 0, y, line)
+      
+      # Handle images
+      if len(self.datas) > 0:
+         image_uuid = self.datas[self.index].image_uuid
+         image_folder = f"saves/demo/images/{image_uuid}"
+         if not os.path.exists(image_folder):
+            logger.error(f"Could not find input image folder, searched for {image_folder}")
+            return
+         lines_filepath = os.path.join(image_folder, f"{IMAGE_WIDTH}x{IMAGE_HEIGHT}.json")
+         if not os.path.exists(lines_filepath):
+            image_filepath = os.path.join(image_folder, "image.png")
+            if not os.path.exists(image_filepath):
+               logger.error(f"Could not find input image file, searched for {image_filepath}")
+            lines = image_to_ascii(image_filepath, IMAGE_WIDTH)
+            with open(lines_filepath, "w") as f:
+               json.dump(lines, f)
+         else:
+            with open(lines_filepath) as f:
+               lines = json.load(f)
+         self.screen_buffer.img_rows = lines
 
    def write_cursor_pos(self) -> None:
       if not self.accepting_input:

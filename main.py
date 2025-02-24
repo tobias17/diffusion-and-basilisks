@@ -188,7 +188,7 @@ if __name__ == "__main__":
    file.setFormatter(LOG_FORMAT)
    logger.addHandler(file)
 
-   input_game_path = "game.json"
+   input_game_path = "saves/demo/game.json"
    if os.path.exists(input_game_path):
       with open(input_game_path) as f:
          game = Game.from_json(json.load(f))

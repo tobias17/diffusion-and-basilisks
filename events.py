@@ -3,8 +3,9 @@ from common import Event
 from functions import Function_Map, Function, Parameter
 from game import Game
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Tuple, Optional
+import uuid
 
 
 @dataclass
@@ -28,6 +29,7 @@ class Create_Location_Event(Event):
    loc_id: str
    name: str
    desc: str
+   image_uuid: str = field(default_factory=lambda: uuid.uuid4().hex)
    def player(self, game:Game) -> Optional[str]:
       return f"You discover a new location, {self.name}"
 def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str]:
@@ -74,6 +76,7 @@ class Create_Npc_Event(Event):
    first_name: str
    last_name: str
    desc: str
+   image_uuid: str = field(default_factory=lambda: uuid.uuid4().hex)
    def player(self, game:Game) -> Optional[str]:
       return f"You meet a new character, {self.first_name} {self.last_name}"
 def create_npc(self:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:

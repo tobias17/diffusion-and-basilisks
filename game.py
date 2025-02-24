@@ -14,6 +14,7 @@ class Npc_Info:
    loc_id: str
    loc_name: str
    last_interaction: int
+   image_uuid: str
 
 class Game:
    events: List[Event]
@@ -73,6 +74,15 @@ class Game:
             options.append(event.loc_id)
       raise ValueError(f"Failed to find Location with ID '{loc_id}', options were {options}")
 
+   def get_loc_image_uuid(self, loc_id:str) -> str:
+      options = []
+      for event in self.events:
+         if isinstance(event, E.Create_Location_Event):
+            if event.loc_id == loc_id:
+               return event.image_uuid
+            options.append(event.loc_id)
+      raise ValueError(f"Failed to find Location with ID '{loc_id}', options were {options}")
+
    def get_quest_name(self, quest_id:str) -> str:
       options = []
       for event in self.events:
@@ -124,7 +134,7 @@ class Game:
             assert curr_loc_id is not None, f"Found a create NPC event {event} before a location was established"
             loc_name = loc_id_to_name.get(curr_loc_id, None)
             assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
-            npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", event.start_loc_id, loc_name, i)
+            npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", event.start_loc_id, loc_name, i, event.image_uuid)
          elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
             attrs = INTERACT_EVENT_MAP[type(event)]
             for attr in attrs:

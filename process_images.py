@@ -2,6 +2,7 @@ from sklearn.cluster import KMeans
 from scipy import stats
 import numpy as np
 import cv2, sys
+from typing import Optional, List
 
 QUANTIZE_COUNT = 8
 VALUE_COUNT = 8
@@ -103,12 +104,15 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
 
    return chars
 
-def image_to_ascii(filepath:str, debug:bool=False):
+def image_to_ascii(filepath:str, target_chars_wide:Optional[int]=None, debug:bool=False) -> List[str]:
    bgr_img = cv2.imread(filepath)
    assert bgr_img is not None, f"Could not find input image, searched for {filepath}"
    shp = bgr_img.shape
 
-   target_chars_wide = int(TARGET_CHARS_TALL * (shp[1] / shp[0]) * CHAR_ASPECT_RATIO)
+   if target_chars_wide is None:
+      target_chars_wide = int(TARGET_CHARS_TALL * (shp[1] / shp[0]) * CHAR_ASPECT_RATIO)
+      if debug:
+         print(f"Computed {target_chars_wide} chars wide (and {TARGET_CHARS_TALL} chars tall)")
    y_step = shp[0] / TARGET_CHARS_TALL
    x_step = shp[1] / target_chars_wide
 
@@ -179,23 +183,31 @@ def image_to_ascii(filepath:str, debug:bool=False):
       cv2.imwrite("tmp/patched.png", hsv_to_bgr(patched_hsv))
    small_patch_bgr = hsv_to_bgr(small_patch_hsv)
 
-   text = ""
+   lines = []
    for y in range(TARGET_CHARS_TALL):
-      text += "\033[48;2;10;10;10m"
+      text = "\033[48;2;10;10;10m"
+      pb, pg, pr = None, None, None
       for x in range(target_chars_wide):
          b, g, r = small_patch_bgr[y,x]
          # c = chars[y,x]
          # if c == ' ':
          idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX))))
          c = ASCII_CODEX[idx]
-         text += f"\033[38;2;{r};{g};{b}m{c}"
-      text += "\033[0m\n"
-   print(text, end="")
-   sys.stdout.flush()
+         if c == ' ' or ((pb is not None) and (r == pr) and (g == pg) and (r == pr)):
+            text += c
+         else:
+            text += f"\033[38;2;{r};{g};{b}m{c}"
+            pb, pg, pr = b, g, r
+      text += "\033[0m"
+      lines.append(text)
+   return lines
 
 if __name__ == "__main__":
    import argparse
    parser = argparse.ArgumentParser()
    parser.add_argument('--file', type=str, default='tmp/image.png')
    args = parser.parse_args()
-   image_to_ascii(args.file, debug=True)
+
+   lines = image_to_ascii(args.file, debug=True)
+   for line in lines:
+      print(line)
