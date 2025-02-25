@@ -1,13 +1,15 @@
-from common import logger, LOG_FORMAT, Event
+from common import logger, LOG_FORMAT, Event, Save_Data
 from prompts import SYSTEM_MESSAGE, FINAL_USER_MESSAGE
 from functions import Function_Map, parse_function, match_function
 import events as E
 from game import Game
 from screen_handler import Screen_Handler, Peek_Terminal_Input
 
-from typing import Callable, Optional, List, Dict
-import logging, os, datetime, json, requests, time, threading # type: ignore
+from typing import Callable, Optional, List, Dict, Tuple
+import logging, os, datetime, json, requests, time, threading, base64 # type: ignore
 from queue import Queue
+from io import BytesIO
+from PIL import Image
 
 def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], kill_event:threading.Event, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
 
@@ -81,9 +83,12 @@ def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,s
    return None
 
 
+ENDPOINT = "http://192.168.1.200:7776/v1"
+
+
 def make_completion(messages:List[Dict[str,str]]) -> Optional[str]:
    resp = requests.post(
-      "http://192.168.1.200:7776/v1/chat/completions",
+      f"{ENDPOINT}/chat/completions",
       headers={"Content-Type":"application/json"},
       json={"messages":messages}
    )
@@ -107,9 +112,10 @@ class AI_Manager:
    log_dirpath: str
    decision_logs: List[List[Dict]]
 
-   def __init__(self, kill_event:threading.Event, log_dirpath:str):
+   def __init__(self, kill_event:threading.Event, log_dirpath:str, game_filepath:str):
       self.kill_event = kill_event
       self.log_dirpath = log_dirpath
+      self.game_filepath = game_filepath
       self.decision_logs = []
 
    def process(self, game:Game) -> Optional[Game]:
@@ -123,15 +129,67 @@ class AI_Manager:
 
       self.decision_logs.append(decision_log)
       save_game = game if final_game is None else final_game
+      with open(self.game_filepath, "w") as f: json.dump(save_game.to_json(), f, indent="\t")
       with open(f"{self.log_dirpath}/decision_log.json", "w") as f: json.dump(self.decision_logs,  f, indent="\t")
-      with open(f"{self.log_dirpath}/game.json",         "w") as f: json.dump(save_game.to_json(), f, indent="\t")
 
       return final_game
 
 
-def game_loop(init_game:Game, log_dirpath:str):
+class Image_Generator:
+   kill_event: threading.Event
+   input_queue: Queue[Tuple[str,str]]
+   completed_uuids: set[str]
+
+   def __init__(self, kill_event:threading.Event):
+      self.kill_event = kill_event
+      self.input_queue = Queue()
+      self.completed_uuids = set()
+      threading.Thread(target=self.__process_queue).start()
+
+   def __process_queue(self):
+      while not self.kill_event.is_set():
+         if self.input_queue.empty():
+            time.sleep(0.01)
+         else:
+            uuid, prompt = self.input_queue.get()
+            try:
+               response = requests.post(
+                  f"{ENDPOINT}/txt2img",
+                  headers={"Content-Type":"application/json"},
+                  json={"prompt":f"high fantasy, portrait, {prompt}, pixel art"},
+                  stream=True
+               )
+
+               if response.status_code == 200:
+                  body = response.text.split(":", 1)[-1].strip()
+                  try:
+                     data = json.loads(body)
+                  except Exception as ex:
+                     print(f"Failed to load json data:\n{body}")
+                     raise ex from ex
+                  image_b64 = data["image"]
+                  image = Image.open(BytesIO(base64.b64decode(image_b64)))
+                  image.save(Save_Data.get_and_make("images", uuid, "image.png", is_file=True))
+               else:
+                  logger.error("Got back non-200 code from image API:")
+                  for line in response.text.split("\n"):
+                     logger.error(line)
+            except Exception as ex:
+               logger.error(f"Ran into exception while processing image API request: {ex}")
+            finally:
+               self.completed_uuids.add(uuid)
+
+   def wait_for(self, uuid:str) -> None:
+      while not self.kill_event.is_set():
+         if uuid in self.completed_uuids:
+            return
+         time.sleep(0.05)
+
+
+def game_loop(init_game:Game, log_dirpath:str, game_dirpath:str):
    kill_event = threading.Event()
-   ai_manager = AI_Manager(kill_event, log_dirpath)
+   ai_manager = AI_Manager(kill_event, log_dirpath, game_dirpath)
+   image_gen  = Image_Generator(kill_event)
    user_input_queue: Queue[Game] = Queue(maxsize=1)
 
    # Create a screen handler object and start it up
@@ -158,11 +216,20 @@ def game_loop(init_game:Game, log_dirpath:str):
                logger.info("Got back AI response, processing new events")
                delta_game = user_game.copy()
                delta_events = ai_game.events[len(user_game.events):]
+
+               for event in delta_events:
+                  uuid_and_prompt = event.uuid_and_prompt()
+                  if uuid_and_prompt is not None:
+                     image_gen.input_queue.put(uuid_and_prompt)
+
                while len(delta_events) > 0:
                   if kill_event.is_set():
                      return
                   curr_time = time.time()
                   if curr_time > next_update_time:
+                     uuid_and_prompt = delta_events[0].uuid_and_prompt()
+                     if uuid_and_prompt is not None:
+                        image_gen.wait_for(uuid_and_prompt[0])
                      delta_game.add_event(delta_events.pop(0))
                      screen_handler.visualize_game(delta_game)
                      next_update_time = curr_time + UPDATE_TIME_DELTA
@@ -178,19 +245,19 @@ def game_loop(init_game:Game, log_dirpath:str):
 
 
 if __name__ == "__main__":
-   FOLDER_DIR = datetime.datetime.now().strftime("logs/game/%m-%d-%Y_%H-%M-%S")
-   if not os.path.exists(FOLDER_DIR):
-      os.makedirs(FOLDER_DIR)
-   json_log = f"{FOLDER_DIR}/prompts.json"
+   Save_Data.root = "saves/demo"
 
-   file = logging.FileHandler(f"{FOLDER_DIR}/debug.log")
+   LOGS_DIR = Save_Data.get_and_make("logs", datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
+   json_log = f"{LOGS_DIR}/prompts.json"
+
+   file = logging.FileHandler(f"{LOGS_DIR}/debug.log")
    file.setLevel(logging.DEBUG)
    file.setFormatter(LOG_FORMAT)
    logger.addHandler(file)
 
-   input_game_path = "saves/demo/game.json"
-   if os.path.exists(input_game_path):
-      with open(input_game_path) as f:
+   game_path = Save_Data.get_and_make("game.json", is_file=True)
+   if os.path.exists(game_path):
+      with open(game_path) as f:
          game = Game.from_json(json.load(f))
    else:
       game = Game()
@@ -206,6 +273,6 @@ if __name__ == "__main__":
             raise RuntimeError(f"Error pre-populating game: {msg}")
 
    with Peek_Terminal_Input():
-      game_loop(game.reset_event_count(), FOLDER_DIR)
+      game_loop(game.reset_event_count(), LOGS_DIR, game_path)
 
    logger.info("Game exited cleanly")

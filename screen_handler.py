@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import logger, Event
+from common import logger, Event, Save_Data
 from game import Game
 import events as E
 from process_images import image_to_ascii
@@ -142,6 +142,7 @@ class Screen_Buffer:
    img_rows: List[str]
    img_x_start: int
    img_x_end: int
+   img_uuid: str = ""
 
    cursor_pos: Pos
    dirty_cursor: bool
@@ -301,22 +302,23 @@ class Text_Box:
       # Handle images
       if len(self.datas) > 0:
          image_uuid = self.datas[self.index].image_uuid
-         image_folder = f"saves/demo/images/{image_uuid}"
-         if not os.path.exists(image_folder):
-            logger.error(f"Could not find input image folder, searched for {image_folder}")
-            return
-         lines_filepath = os.path.join(image_folder, f"{IMAGE_WIDTH}x{IMAGE_HEIGHT}.json")
-         if not os.path.exists(lines_filepath):
-            image_filepath = os.path.join(image_folder, "image.png")
-            if not os.path.exists(image_filepath):
-               logger.error(f"Could not find input image file, searched for {image_filepath}")
-            lines = image_to_ascii(image_filepath, IMAGE_WIDTH)
-            with open(lines_filepath, "w") as f:
-               json.dump(lines, f)
-         else:
-            with open(lines_filepath) as f:
-               lines = json.load(f)
-         self.screen_buffer.img_rows = lines
+         if self.screen_buffer.img_uuid != image_uuid:
+            image_folder = Save_Data.get_and_make("images", image_uuid)
+            lines_filepath = os.path.join(image_folder, f"{IMAGE_WIDTH}x{IMAGE_HEIGHT}.json")
+            if not os.path.exists(lines_filepath):
+               image_filepath = os.path.join(image_folder, "image.png")
+               if not os.path.exists(image_filepath):
+                  logger.error(f"Could not find input image file, searched for {image_filepath}")
+                  return
+               lines = image_to_ascii(image_filepath, IMAGE_WIDTH)
+               with open(lines_filepath, "w") as f:
+                  json.dump(lines, f)
+            else:
+               with open(lines_filepath) as f:
+                  lines = json.load(f)
+            self.screen_buffer.img_rows = lines
+            for y in range(self.screen_buffer.height):
+               self.screen_buffer.dirty_rows[y] = True
 
    def write_cursor_pos(self) -> None:
       if not self.accepting_input:
