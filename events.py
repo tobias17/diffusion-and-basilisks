@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import Event
+from common import Event, Image_Prompt
 from functions import Function_Map, Function, Parameter
 from game import Game
 
@@ -32,8 +32,8 @@ class Create_Location_Event(Event):
    image_uuid: str = field(default_factory=lambda: uuid.uuid4().hex)
    def player(self, game:Game) -> Optional[str]:
       return f"You discover a new location, {self.name}"
-   def uuid_and_prompt(self) -> Optional[Tuple[str,str]]:
-      return self.image_uuid, self.desc
+   def image_prompt(self) -> Optional[Image_Prompt]:
+      return Image_Prompt(self.desc, self.image_uuid)
 def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Location_Event) and event.loc_id.lower() == loc_id.lower():
@@ -81,8 +81,8 @@ class Create_Npc_Event(Event):
    image_uuid: str = field(default_factory=lambda: uuid.uuid4().hex)
    def player(self, game:Game) -> Optional[str]:
       return f"You meet a new character, {self.first_name} {self.last_name}"
-   def uuid_and_prompt(self) -> Optional[Tuple[str,str]]:
-      return self.image_uuid, self.desc
+   def image_prompt(self) -> Optional[Image_Prompt]:
+      return Image_Prompt(self.desc, self.image_uuid)
 def create_npc(self:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id.lower() == npc_id.lower():

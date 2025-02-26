@@ -4,6 +4,7 @@ import events as E
 
 from typing import List, Optional, Dict, Any, List, Callable, Type, TypeVar, Tuple
 from dataclasses import dataclass, asdict
+from abc import ABC, abstractmethod
 
 T = TypeVar('T')
 
@@ -144,3 +145,22 @@ class Game:
                npc_info.last_interaction = i
 
       return list(npc_infos.values())
+
+
+class Game_Processor(ABC):
+   @abstractmethod
+   def process_game(self, game:Game, other_proc:Game_Processor) -> Optional[Game]:
+      """
+      Main processing turn, returns back the modified game state.
+
+      Can pass a work-in-progress game state to the other_proc using other_proc.peek_game().
+      """
+      pass
+
+   def peek_game(self, game:Game) -> None:
+      """
+      Called by the other processor to let this one know what is happening with the game state.
+
+      Since it's called directly by the other processor this function needs to be non-blocking.
+      """
+      pass

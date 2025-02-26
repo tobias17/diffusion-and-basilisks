@@ -11,7 +11,6 @@ ASCII_CODEX = ' .,:;+=#'
 CHAR_HEIGHT = 16
 CHAR_WIDTH  = 8
 CHAR_ASPECT_RATIO = float(CHAR_HEIGHT) / float(CHAR_WIDTH)
-TARGET_CHARS_TALL = 60
 
 SCALE = [180.0, 255.0, 255.0]
 
@@ -104,19 +103,19 @@ def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_siz
 
    return chars
 
-def image_to_ascii(filepath:str, target_chars_wide:Optional[int]=None, debug:bool=False) -> List[str]:
+def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Optional[int]=None, debug:bool=False) -> List[str]:
    bgr_img = cv2.imread(filepath)
    assert bgr_img is not None, f"Could not find input image, searched for {filepath}"
    shp = bgr_img.shape
 
    if target_chars_wide is None:
-      target_chars_wide = int(TARGET_CHARS_TALL * (shp[1] / shp[0]) * CHAR_ASPECT_RATIO)
+      target_chars_wide = int(target_chars_tall * (shp[1] / shp[0]) * CHAR_ASPECT_RATIO)
       if debug:
-         print(f"Computed {target_chars_wide} chars wide (and {TARGET_CHARS_TALL} chars tall)")
-   y_step = shp[0] / TARGET_CHARS_TALL
+         print(f"Computed {target_chars_wide} chars wide (and {target_chars_tall} chars tall)")
+   y_step = shp[0] / target_chars_tall
    x_step = shp[1] / target_chars_wide
 
-   # chars = apply_sobel_filter(bgr_img, target_chars_wide, TARGET_CHARS_TALL, x_step, y_step, debug=debug)
+   # chars = apply_sobel_filter(bgr_img, target_chars_wide, target_chars_tall, x_step, y_step, debug=debug)
 
    orig_hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV) / SCALE
 
@@ -171,10 +170,10 @@ def image_to_ascii(filepath:str, target_chars_wide:Optional[int]=None, debug:boo
       cv2.imwrite("tmp/quantized.png", hsv_to_bgr(hsv_img))
       cv2.imwrite("tmp/quantized_full.png", hsv_to_bgr(hsv_full))
 
-   small_patch_v = np.zeros((TARGET_CHARS_TALL,target_chars_wide))
-   small_patch_hsv = np.ones((TARGET_CHARS_TALL,target_chars_wide,3))
+   small_patch_v = np.zeros((target_chars_tall,target_chars_wide))
+   small_patch_hsv = np.ones((target_chars_tall,target_chars_wide,3))
    patched_hsv = np.zeros(shp)
-   for yi in range(TARGET_CHARS_TALL):
+   for yi in range(target_chars_tall):
       for xi in range(target_chars_wide):
          xs, xe = int(xi*x_step), int((xi+1)*x_step)
          ys, ye = int(yi*y_step), int((yi+1)*y_step)
@@ -194,7 +193,7 @@ def image_to_ascii(filepath:str, target_chars_wide:Optional[int]=None, debug:boo
    small_patch_bgr = hsv_to_bgr(small_patch_hsv)
 
    lines = []
-   for y in range(TARGET_CHARS_TALL):
+   for y in range(target_chars_tall):
       text = "\033[48;2;10;10;10m"
       pb, pg, pr = None, None, None
       for x in range(target_chars_wide):
@@ -218,6 +217,6 @@ if __name__ == "__main__":
    parser.add_argument('--file', type=str, default='tmp/image.png')
    args = parser.parse_args()
 
-   lines = image_to_ascii(args.file, debug=True)
+   lines = image_to_ascii(args.file, 60, debug=True)
    for line in lines:
       print(line)

@@ -10,6 +10,7 @@ import logging, os, datetime, json, requests, time, threading, base64 # type: ig
 from queue import Queue
 from io import BytesIO
 from PIL import Image
+import shutil
 
 def process_game_state(game:Game, output_from_messages:Callable[[List[Dict[str,str]]],Optional[str]], kill_event:threading.Event, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
 
@@ -245,12 +246,11 @@ def game_loop(init_game:Game, log_dirpath:str, game_dirpath:str):
 
 
 if __name__ == "__main__":
-   Save_Data.root = "saves/demo"
+   Save_Data.config("saves/demo")
+   if not os.path.exists(Save_Data.root):
+      shutil.copytree("saves/template", Save_Data.root)
 
-   LOGS_DIR = Save_Data.get_and_make("logs", datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
-   json_log = f"{LOGS_DIR}/prompts.json"
-
-   file = logging.FileHandler(f"{LOGS_DIR}/debug.log")
+   file = logging.FileHandler(Save_Data.get_and_make(Save_Data.logs_dirpath, "debug.log", is_file=True))
    file.setLevel(logging.DEBUG)
    file.setFormatter(LOG_FORMAT)
    logger.addHandler(file)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import logger, Event, Save_Data
+from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
 from game import Game
 import events as E
 from process_images import image_to_ascii
@@ -12,7 +12,7 @@ import numpy as np
 import sys, termios, select, tty, os, traceback, threading, json
 
 SCREEN_WIDTH  = 240
-SCREEN_HEIGHT = 62
+SCREEN_HEIGHT = IMAGE_CHARS_TALL + 2
 
 @dataclass
 class Pos:
@@ -34,10 +34,9 @@ class Rect:
 
 INPUT_HEIGHT = 6
 IMAGE_HEIGHT = SCREEN_HEIGHT - 2
-IMAGE_WIDTH  = 90
 
-EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_WIDTH, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
-INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - IMAGE_WIDTH, INPUT_HEIGHT)
+EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
+INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, INPUT_HEIGHT)
 
 
 # Context Manager to configure terminal settings, to be set up by the main thread
@@ -156,8 +155,8 @@ class Screen_Buffer:
       self.bold = np.zeros((height,width), np.bool_)
       self.dirty_rows = [False for _ in range(height)]
 
-      self.img_rows = [" "*IMAGE_WIDTH for _ in range(height-2)]
-      self.img_x_start = width - IMAGE_WIDTH - 1
+      self.img_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
+      self.img_x_start = width - IMAGE_CHARS_WIDE - 1
       self.img_x_end   = width - 1
 
       self.cursor_pos = Pos(0, 0)
@@ -304,13 +303,13 @@ class Text_Box:
          image_uuid = self.datas[self.index].image_uuid
          if self.screen_buffer.img_uuid != image_uuid:
             image_folder = Save_Data.get_and_make("images", image_uuid)
-            lines_filepath = os.path.join(image_folder, f"{IMAGE_WIDTH}x{IMAGE_HEIGHT}.json")
+            lines_filepath = os.path.join(image_folder, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json")
             if not os.path.exists(lines_filepath):
                image_filepath = os.path.join(image_folder, "image.png")
                if not os.path.exists(image_filepath):
                   logger.error(f"Could not find input image file, searched for {image_filepath}")
                   return
-               lines = image_to_ascii(image_filepath, IMAGE_WIDTH)
+               lines = image_to_ascii(image_filepath, IMAGE_CHARS_WIDE)
                with open(lines_filepath, "w") as f:
                   json.dump(lines, f)
             else:
@@ -521,12 +520,12 @@ class Screen_Handler:
    def run(self) -> None:
       try:
          # Borders
-         left_dash  = SCREEN_WIDTH - 3 - IMAGE_WIDTH
+         left_dash  = SCREEN_WIDTH - 3 - IMAGE_CHARS_WIDE
          right_dash = SCREEN_WIDTH - 3 - left_dash
          self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
          for y in range(1, SCREEN_HEIGHT-1):
             self.screen_buffer.put_text_in(self.rect, 0, y, "|")
-            self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-IMAGE_WIDTH-2, y, "|")
+            self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-IMAGE_CHARS_WIDE-2, y, "|")
             self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
          self.screen_buffer.put_text_in(self.rect, 0, INPUT_SPACE.y1-1, "+" + "-"*left_dash + "+")
          self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
