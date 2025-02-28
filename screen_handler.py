@@ -2,13 +2,12 @@ from __future__ import annotations
 from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
 from game import Game, Game_Processor
 import events as E
-from process_images import image_to_ascii
 
 import sys, termios, select, tty, os, traceback, threading, json, time
 from typing import List, Union, Tuple, Type, Dict, Optional
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
-from queue import Queue
 import numpy as np
 
 SCREEN_WIDTH  = 240
@@ -69,6 +68,7 @@ class Special_Keys(Enum):
    CTRL_R = auto()
    PAGE_UP = auto()
    PAGE_DOWN = auto()
+
 
 def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
    if len(seq) == 1:
@@ -139,7 +139,7 @@ class Screen_Buffer:
    cursor_pos: Pos
    dirty_cursor: bool
 
-   def __init__(self, width:int, height:int, x_offset:int=0, y_offset:int=0):
+   def __init__(self, width:int, height:int, x_offset:int=0, y_offset:int=0, draw_borders:bool=True):
       self.height = height
       self.width = width
       self.x_offset = x_offset
@@ -152,6 +152,15 @@ class Screen_Buffer:
 
       self.cursor_pos = Pos(0, 0)
       self.dirty_cursor = False
+
+      if draw_borders:
+         init_rect = Rect(0, 0, width, height)
+         self.put_text_in(init_rect, 0, 0, "+" + "-"*(width-2) + "+")
+         for y in range(1, height-1):
+            self.put_text_in(init_rect, 0, y, "|")
+            self.put_text_in(init_rect, width-IMAGE_CHARS_WIDE-2, y, "|")
+            self.put_text_in(init_rect, width-1, y, "|")
+         self.put_text_in(init_rect, 0, height-1, "+" + "-"*(width-2) + "+")
 
    def coord(self, x:int, y:int) -> str:
       return f"\033[{self.y_offset+y+1};{self.x_offset+x+1}H"
@@ -224,7 +233,8 @@ class Image_Screen_Buffer(Screen_Buffer):
    img_uuid: str = ""
 
    def __init__(self, width:int, height:int):
-      super().__init__(width, height)
+      super().__init__(width, height, draw_borders=False)
+
       self.img_x_start = width - IMAGE_CHARS_WIDE - 1
       self.img_x_end   = width - 1
       self.void_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
@@ -232,6 +242,18 @@ class Image_Screen_Buffer(Screen_Buffer):
       self.void_rows[0] = not_found + " "*(IMAGE_CHARS_WIDE-len(not_found))
       self.img_rows = self.void_rows
       self.img_cache = { }
+
+      # Draw initial borders
+      init_rect = Rect(0, 0, width, height)
+      left_dash  = width - 3 - IMAGE_CHARS_WIDE
+      right_dash = width - 3 - left_dash
+      self.put_text_in(init_rect, 0, 0, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
+      for y in range(1, height-1):
+         self.put_text_in(init_rect, 0, y, "|")
+         self.put_text_in(init_rect, width-IMAGE_CHARS_WIDE-2, y, "|")
+         self.put_text_in(init_rect, width-1, y, "|")
+      self.put_text_in(init_rect, 0, INPUT_SPACE.y1-1, "+" + "-"*left_dash + "+")
+      self.put_text_in(init_rect, 0, height-1, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
 
    def set_image(self, uuid:str) -> None:
       if self.img_uuid == uuid:
@@ -443,7 +465,32 @@ class Text_Box:
       self.screen_buffer.draw()
 
 
-class Events_Display:
+class Game_Window(ABC):
+   NAME: str
+   screen_buffer: Screen_Buffer
+   accepting_input: bool
+
+   def accept_input(self) -> None:
+      self.accepting_input = False
+   
+   def clear_input(self, accept_input:bool=False) -> None:
+      self.accepting_input = accept_input
+
+   @abstractmethod
+   def visualize_game(self, game:Game) -> None:
+      pass
+
+   @abstractmethod
+   def write_to_buffer(self) -> None:
+      pass
+
+   @abstractmethod
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
+
+
+class Events_Display(Game_Window):
+   NAME = "Events"
    rect: Rect = EVENT_SPACE
    text_box: Text_Box
    screen_buffer: Image_Screen_Buffer
@@ -451,7 +498,6 @@ class Events_Display:
    event_lines: List[str]
 
    def __init__(self, screen_buffer:Image_Screen_Buffer, kill_event:threading.Event, input_complete_callback):
-      self.title = "Actions"
       self.text_box = Text_Box(screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
       self.event_lines = [""]
@@ -460,6 +506,12 @@ class Events_Display:
       self.event_page_index = max(0, min(len(self.event_lines)-1, self.event_page_index + amount))
       self.write_to_buffer()
       self.screen_buffer.draw()
+
+   def accept_input(self) -> None:
+      self.text_box.accepting_input = True
+   
+   def clear_input(self, accept_input:bool=False) -> None:
+      self.text_box.clear_input(accept_input)
 
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
       if isinstance(inp, str):
@@ -507,20 +559,28 @@ class User_Controller(Game_Processor):
 
    kill_event: threading.Event
    game: Game
-   screen_buffer: Image_Screen_Buffer
-   events_display: Events_Display
+
+   pause_screen: Screen_Buffer
+   game_windows: List[Game_Window]
+   window_index: int
+
    done_processing: bool = False
+
+
 
    def __init__(self, kill_event:threading.Event):
       self.kill_event = kill_event
-      self.screen_buffer = Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
-      self.events_display = Events_Display(self.screen_buffer, kill_event, self.__user_input_complete)
+      self.game_windows = [
+         Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete)
+      ]
+      self.window_index = 0
       self.fd = sys.stdin.fileno()
       threading.Thread(target=self.run).start()
 
    def process_game(self, game:Game, other_proc:Game_Processor) -> Optional[Game]:
       self.done_processing = False
-      self.events_display.text_box.accepting_input = True
+
+      self.game_windows[self.window_index].accept_input()
       self.peek_game(game)
       self.game = game.reset_event_count()
 
@@ -532,8 +592,8 @@ class User_Controller(Game_Processor):
       return None
 
    def peek_game(self, game:Game) -> None:
-      self.events_display.visualize_game(game)
-      self.screen_buffer.draw()
+      self.game_windows[self.window_index].visualize_game(game)
+      self.game_windows[self.window_index].screen_buffer.draw()
 
    def __user_input_complete(self, data:Input_Data) -> None:
       go_again = data.text.endswith("&")
@@ -547,7 +607,7 @@ class User_Controller(Game_Processor):
       else:
          raise RuntimeError(f"{self.__class__.__name__} does not support processing user input from event type {data.event.__name__}")
 
-      self.events_display.text_box.clear_input(accept_input=go_again)
+      self.game_windows[self.window_index].clear_input(accept_input=go_again)
       self.peek_game(self.game)
       if not go_again:
          self.done_processing = True
@@ -560,24 +620,12 @@ class User_Controller(Game_Processor):
 
    def run(self) -> None:
       try:
-         # Borders
-         left_dash  = SCREEN_WIDTH - 3 - IMAGE_CHARS_WIDE
-         right_dash = SCREEN_WIDTH - 3 - left_dash
-         self.screen_buffer.put_text_in(self.rect, 0, 0, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
-         for y in range(1, SCREEN_HEIGHT-1):
-            self.screen_buffer.put_text_in(self.rect, 0, y, "|")
-            self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-IMAGE_CHARS_WIDE-2, y, "|")
-            self.screen_buffer.put_text_in(self.rect, SCREEN_WIDTH-1, y, "|")
-         self.screen_buffer.put_text_in(self.rect, 0, INPUT_SPACE.y1-1, "+" + "-"*left_dash + "+")
-         self.screen_buffer.put_text_in(self.rect, 0, SCREEN_HEIGHT-1, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
-
          # Events and Input
-         self.events_display.write_to_buffer()
-         self.events_display.text_box.write_to_buffer()
-         self.events_display.text_box.write_cursor_pos()
+         window = self.game_windows[self.window_index]
+         window.write_to_buffer()
 
          # Draw the whole screen
-         self.screen_buffer.draw(only_dirty=False)
+         window.screen_buffer.draw(only_dirty=False)
 
          # Start our main read and process loop
          while not self.kill_event.is_set():
@@ -594,9 +642,9 @@ class User_Controller(Game_Processor):
                   self.kill_event.set()
                elif inp == Special_Keys.CTRL_R:
                   logger.info("Redrawing entire screen buffer")
-                  self.screen_buffer.draw(only_dirty=False)
+                  self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
 
-            self.events_display.process_input(inp)
+            self.game_windows[self.window_index].process_input(inp)
 
       except Exception as ex:
          logger.error(f"Screen Hanlder ran into error in run")
