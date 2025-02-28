@@ -131,8 +131,15 @@ def cast_value(value:str, param:Parameter) -> Tuple[Any,str]:
          return int(value), ""
       except Exception:
          return None, f"Error converting parameter '{param.name}' to an integer"
+   elif param.dtype is bool:
+      mapping = { "true":True, "false":False }
+      x = mapping.get(value.lower(), None)
+      if x is None:
+         return None, f"Error converting parameter '{param.name}' to an integer"
+      return x, ""
    else:
       raise RuntimeError(f"Got Parameter.dtype of '{param.dtype.__name__}' which is not get supported by cast_value()")
+
 
 def match_function(func_name:str, args:List, kwargs:Dict, functions:List[Function]) -> Tuple[Optional[Callable],str]:
    cleaned_args:   List = []

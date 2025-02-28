@@ -29,16 +29,19 @@ class Create_Location_Event(Event):
    loc_id: str
    name: str
    desc: str
+   tell_player: bool
    image_uuid: str = field(default_factory=lambda: uuid.uuid4().hex)
    def player(self, game:Game) -> Optional[str]:
+      if not self.tell_player:
+         return None
       return f"You discover a new location, {self.name}"
    def image_prompt(self) -> Optional[Image_Prompt]:
       return Image_Prompt(self.desc, self.image_uuid)
-def create_location(self:Game, loc_id:str, name:str, desc:str) -> Tuple[bool,str]:
+def create_location(self:Game, loc_id:str, name:str, desc:str, tell_player:bool) -> Tuple[bool,str]:
    for event in self.events:
       if isinstance(event, Create_Location_Event) and event.loc_id.lower() == loc_id.lower():
          return False, f"A location with the ID '{loc_id}' already exists, no need to create another"
-   self.add_event(Create_Location_Event(loc_id, name, desc))
+   self.add_event(Create_Location_Event(loc_id, name, desc, tell_player))
    return True, ""
 Function_Map.funcs.append(
    create_location_func := Function(
@@ -46,6 +49,7 @@ Function_Map.funcs.append(
       Parameter("loc_id", str),
       Parameter("name", str),
       Parameter("desc", str),
+      Parameter("tell_player", bool),
    )
 )
 Create_Location_Event.system = (lambda e: create_location_func.system(e)) # type: ignore
