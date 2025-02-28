@@ -1,15 +1,15 @@
 from __future__ import annotations
 from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
-from game import Game
+from game import Game, Game_Processor
 import events as E
 from process_images import image_to_ascii
 
+import sys, termios, select, tty, os, traceback, threading, json, time
+from typing import List, Union, Tuple, Type, Dict, Optional
 from dataclasses import dataclass
-from typing import List, Union, Tuple, Type, Dict
 from enum import Enum, auto
 from queue import Queue
 import numpy as np
-import sys, termios, select, tty, os, traceback, threading, json
 
 SCREEN_WIDTH  = 240
 SCREEN_HEIGHT = IMAGE_CHARS_TALL + 2
@@ -138,9 +138,11 @@ class Screen_Buffer:
    bold: np.ndarray
    dirty_rows: List[bool]
 
-   img_rows: List[str]
    img_x_start: int
    img_x_end: int
+   img_cache: Dict[str,List[str]]
+   img_rows: List[str]
+   void_rows: List[str]
    img_uuid: str = ""
 
    cursor_pos: Pos
@@ -155,9 +157,13 @@ class Screen_Buffer:
       self.bold = np.zeros((height,width), np.bool_)
       self.dirty_rows = [False for _ in range(height)]
 
-      self.img_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
       self.img_x_start = width - IMAGE_CHARS_WIDE - 1
       self.img_x_end   = width - 1
+      self.void_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
+      not_found = "Image not found"
+      self.void_rows[0] = not_found + " "*(IMAGE_CHARS_WIDE-len(not_found))
+      self.img_rows = self.void_rows
+      self.img_cache = { }
 
       self.cursor_pos = Pos(0, 0)
       self.dirty_cursor = False
@@ -190,6 +196,13 @@ class Screen_Buffer:
       self.cursor_pos.x = x
       self.cursor_pos.y = y
       self.dirty_cursor = True
+
+   def set_image(self, uuid:str) -> None:
+      if self.img_uuid == uuid:
+         return
+      self.img_rows = self.img_cache.get(uuid, self.void_rows)
+      for y in range(1, self.height - 1):
+         self.dirty_rows[y] = True
 
    def clear_text(self, rect:Rect) -> None:
       for y in range(rect.h):
@@ -239,7 +252,7 @@ class Input_Data:
 class Text_Box:
    SEPERATOR = " > "
    rect: Rect = INPUT_SPACE
-   accepting_input: bool = True
+   accepting_input: bool = False
 
    screen_buffer: Screen_Buffer
    kill_event: threading.Event
@@ -297,27 +310,17 @@ class Text_Box:
             line, text = text[:self.rect.w], text[self.rect.w:]
             line += " "*(self.rect.w - len(line))
             self.screen_buffer.put_text_in(self.rect, 0, y, line)
-      
+
       # Handle images
       if len(self.datas) > 0:
          image_uuid = self.datas[self.index].image_uuid
-         if self.screen_buffer.img_uuid != image_uuid:
-            image_folder = Save_Data.get_and_make("images", image_uuid)
-            lines_filepath = os.path.join(image_folder, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json")
-            if not os.path.exists(lines_filepath):
-               image_filepath = os.path.join(image_folder, "image.png")
-               if not os.path.exists(image_filepath):
-                  logger.error(f"Could not find input image file, searched for {image_filepath}")
-                  return
-               lines = image_to_ascii(image_filepath, IMAGE_CHARS_WIDE)
-               with open(lines_filepath, "w") as f:
-                  json.dump(lines, f)
-            else:
+         if image_uuid not in self.screen_buffer.img_cache:
+            lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
+            if os.path.exists(lines_filepath):
                with open(lines_filepath) as f:
                   lines = json.load(f)
-            self.screen_buffer.img_rows = lines
-            for y in range(self.screen_buffer.height):
-               self.screen_buffer.dirty_rows[y] = True
+               self.screen_buffer.img_cache[image_uuid] = lines
+         self.screen_buffer.set_image(image_uuid)
 
    def write_cursor_pos(self) -> None:
       if not self.accepting_input:
@@ -416,12 +419,12 @@ class Events_Display:
    event_page_index: int = 0
    event_lines: List[str]
 
-   def __init__(self, screen_buffer:Screen_Buffer, game:Game, kill_event:threading.Event, input_complete_callback):
+   def __init__(self, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
       self.title = "Actions"
       self.text_box = Text_Box(screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
-      self.visualize_game(game)
-   
+      self.event_lines = [""]
+
    def __move_index(self, amount:int) -> None:
       self.event_page_index = max(0, min(len(self.event_lines)-1, self.event_page_index + amount))
       self.write_to_buffer()
@@ -467,32 +470,39 @@ class Events_Display:
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
 
 
-class Screen_Handler:
+class Screen_Handler(Game_Processor):
    POLL_INTERVAL_SEC = 0.01
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
    kill_event: threading.Event
    game: Game
-   user_input_queue: Queue[Game]
    screen_buffer: Screen_Buffer
    events_display: Events_Display
+   done_processing: bool = False
 
-   def __init__(self, kill_event:threading.Event, game:Game, user_input_queue:Queue[Game]):
+   def __init__(self, kill_event:threading.Event):
       self.kill_event = kill_event
-      self.game = game
-      self.user_input_queue = user_input_queue
       self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
-      self.events_display = Events_Display(self.screen_buffer, game, kill_event, self.__user_input_complete)
+      self.events_display = Events_Display(self.screen_buffer, kill_event, self.__user_input_complete)
       self.fd = sys.stdin.fileno()
+      threading.Thread(target=self.run).start()
 
-   def visualize_game(self, game:Game) -> None:
+   def process_game(self, game:Game, other_proc:Game_Processor) -> Optional[Game]:
+      self.done_processing = False
+      self.events_display.text_box.accepting_input = True
+      self.peek_game(game)
+      self.game = game.reset_event_count()
+
+      while not self.kill_event.is_set():
+         if self.done_processing:
+            return self.game
+         time.sleep(0.01)
+
+      return None
+
+   def peek_game(self, game:Game) -> None:
       self.events_display.visualize_game(game)
       self.screen_buffer.draw()
-
-   def accept_input(self, game:Game) -> None:
-      self.events_display.text_box.accepting_input = True
-      self.events_display.text_box.draw()
-      self.game = game.reset_event_count()
 
    def __user_input_complete(self, data:Input_Data) -> None:
       go_again = data.text.endswith("&")
@@ -507,9 +517,9 @@ class Screen_Handler:
          raise RuntimeError(f"{self.__class__.__name__} does not support processing user input from event type {data.event.__name__}")
 
       self.events_display.text_box.clear_input(accept_input=go_again)
-      self.visualize_game(self.game)
+      self.peek_game(self.game)
       if not go_again:
-         self.user_input_queue.put(self.game)
+         self.done_processing = True
 
    def __read_bytes(self) -> bytes:
       while not self.kill_event.is_set():
@@ -557,8 +567,9 @@ class Screen_Handler:
 
             self.events_display.process_input(inp)
 
-      except Exception:
+      except Exception as ex:
          logger.error(f"Screen Hanlder ran into error in run")
          for line in traceback.format_exc().split("\n"):
             logger.error(line)
          self.kill_event.set()
+         raise ex from ex

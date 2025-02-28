@@ -10,6 +10,8 @@ The following is the API you will have access to:
 ```
 {api_definition}
 ```
+
+No variables should ever be an empty string. This means all NPCs need both a first and last name.
 """.strip()
 
 FINAL_USER_MESSAGE = """

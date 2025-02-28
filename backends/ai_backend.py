@@ -4,11 +4,11 @@ from prompts import SYSTEM_MESSAGE, FINAL_USER_MESSAGE
 from functions import Function_Map, parse_function, match_function
 from process_images import image_to_ascii
 
-from .image import Image_Backend, Tinyapi_Image
-from .text import Text_Backend, Tinyapi_Text
+from backends.image import Image_Backend, Tinyapi_Image
+from backends.text import Text_Backend, Tinyapi_Text
 
 from typing import List, Dict, Optional, Set
-import threading, time, json, os
+import threading, time, json, os, traceback
 from queue import Queue
 
 
@@ -53,7 +53,9 @@ class AI_Backend(Game_Processor):
             self.convert_queue.put(prompt.uuid)
 
       except Exception as ex:
-         logger.error(f"Error in __process_convert_queue() thread: {ex}")
+         logger.error(f"Error in __process_generate_queue() thread")
+         for line in traceback.format_exc().split("\n"):
+            logger.error(line)
          self.kill_event.set()
          raise ex from ex
 
@@ -73,7 +75,9 @@ class AI_Backend(Game_Processor):
             self.processed_uuids.add(uuid)
 
       except Exception as ex:
-         logger.error(f"Error in __process_convert_queue() thread: {ex}")
+         logger.error(f"Error in __process_convert_queue() thread")
+         for line in traceback.format_exc().split("\n"):
+            logger.error(line)
          self.kill_event.set()
          raise ex from ex
 
@@ -149,8 +153,9 @@ class AI_Backend(Game_Processor):
 
    def __wait_for_uuid(self, uuid:str):
       while not self.kill_event.is_set():
-         if uuid not in self.processed_uuids:
-            time.sleep(0.05)
+         if uuid in self.processed_uuids:
+            return
+         time.sleep(0.05)
 
    def process_game(self, game:Game, other_proc:Game_Processor) -> Optional[Game]:
       next_update_time = time.time() + UPDATE_TIME_DELTA
@@ -161,8 +166,8 @@ class AI_Backend(Game_Processor):
 
       # Save the decision log
       self.decision_logs.append(decision_log)
-      with open(Save_Data.get_and_make(Save_Data.logs_dirpath, "decisions.json"), "w") as f:
-         json.dump(self.decision_logs, f)
+      with open(Save_Data.get_and_make(Save_Data.logs_dirpath, "decisions.json", is_file=True), "w") as f:
+         json.dump(self.decision_logs, f, indent="\t")
 
       if ai_game is None or self.kill_event.is_set():
          return None

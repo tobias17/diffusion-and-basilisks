@@ -1,11 +1,11 @@
 #!/bin/bash
 while true; do
-   LATEST=$(ls -t logs/game/*/debug.log | head -n1)
+   LATEST=$(ls -t saves/demo/logs/*/debug.log | head -n1)
    tail -f "$LATEST" -n 1024 & 
    TAIL_PID=$!
    
    # Watch for new files
-   while [ "$LATEST" = "$(ls -t logs/game/*/debug.log | head -n1)" ]; do
+   while [ "$LATEST" = "$(ls -t saves/demo/logs/*/debug.log | head -n1)" ]; do
       sleep 1
    done
    

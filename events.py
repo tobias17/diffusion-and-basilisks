@@ -84,6 +84,12 @@ class Create_Npc_Event(Event):
    def image_prompt(self) -> Optional[Image_Prompt]:
       return Image_Prompt(self.desc, self.image_uuid)
 def create_npc(self:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
+   first_name = first_name.strip()
+   if not first_name:
+      return False, "first_name cannot be empty"
+   last_name = last_name.strip()
+   if not last_name:
+      return False, "last_name cannot be empty"
    for event in self.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id.lower() == npc_id.lower():
          return False, f"A character with the ID '{npc_id}' already exists"

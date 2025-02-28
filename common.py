@@ -18,8 +18,8 @@ class Save_Data:
    @staticmethod
    def config(root:str):
       Save_Data.root = root
-      Save_Data.logs_dirpath = os.path.join(root, "logs", datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
-      Save_Data.images_dirpath = os.path.join(root, "images")
+      Save_Data.logs_dirpath = os.path.join("logs", datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))
+      Save_Data.images_dirpath = "images"
 
    @staticmethod
    def get_and_make(*path:str, is_file:bool=False) -> str:
