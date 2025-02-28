@@ -50,10 +50,6 @@ class Peek_Terminal_Input:
       termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
 
-def coord(x:int, y:int) -> str:
-   return f"\033[{y+1};{x+1}H"
-
-
 class Special_Keys(Enum):
    CTRL_C = auto()
    ENTER = auto()
@@ -130,44 +126,36 @@ def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
 
 
 class Screen_Buffer:
-   height: int
    width: int
+   height: int
+   x_offset: int
+   y_offset: int
    mutex: threading.Lock
 
    data: np.ndarray
    bold: np.ndarray
    dirty_rows: List[bool]
 
-   img_x_start: int
-   img_x_end: int
-   img_cache: Dict[str,List[str]]
-   img_rows: List[str]
-   void_rows: List[str]
-   img_uuid: str = ""
-
    cursor_pos: Pos
    dirty_cursor: bool
 
-   def __init__(self, width:int, height:int):
+   def __init__(self, width:int, height:int, x_offset:int=0, y_offset:int=0):
       self.height = height
       self.width = width
+      self.x_offset = x_offset
+      self.y_offset = y_offset
       self.mutex = threading.Lock()
 
       self.data = np.full((height,width), " ", np.character)
       self.bold = np.zeros((height,width), np.bool_)
       self.dirty_rows = [False for _ in range(height)]
 
-      self.img_x_start = width - IMAGE_CHARS_WIDE - 1
-      self.img_x_end   = width - 1
-      self.void_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
-      not_found = "Image not found"
-      self.void_rows[0] = not_found + " "*(IMAGE_CHARS_WIDE-len(not_found))
-      self.img_rows = self.void_rows
-      self.img_cache = { }
-
       self.cursor_pos = Pos(0, 0)
       self.dirty_cursor = False
-   
+
+   def coord(self, x:int, y:int) -> str:
+      return f"\033[{self.y_offset+y+1};{self.x_offset+x+1}H"
+
    def __assert_shape(self, rect:Rect, x:int, y:int, dx:int, dy:int) -> None:
       assert rect.x1 >= 0 and rect.x2 <= self.width and rect.y1 >= 0 and rect.y2 <= self.height
       assert 0 <= y <= rect.h, f"Expected 0 <= {y} < {rect.h}"
@@ -197,13 +185,6 @@ class Screen_Buffer:
       self.cursor_pos.y = y
       self.dirty_cursor = True
 
-   def set_image(self, uuid:str) -> None:
-      if self.img_uuid == uuid:
-         return
-      self.img_rows = self.img_cache.get(uuid, self.void_rows)
-      for y in range(1, self.height - 1):
-         self.dirty_rows[y] = True
-
    def clear_text(self, rect:Rect) -> None:
       for y in range(rect.h):
          self.put_text_in(rect, 0, y, " "*rect.w)
@@ -217,23 +198,72 @@ class Screen_Buffer:
          curr_style = ""
          for y in range(self.height):
             if self.dirty_rows[y] or (not only_dirty):
-               text += coord(1, y+1)
+               text += self.coord(1, y+1)
+               for x in range(self.width):
+                  code = BOLD_ON_CODE if self.bold[y,x] else BOLD_OFF_CODE
+                  target_style = f"\033[{code}m"
+                  if curr_style != target_style:
+                     text += target_style
+                     curr_style = target_style
+                  text += self.data[y,x].decode()
+               self.dirty_rows[y] = False
+         if self.dirty_cursor or len(text) > 0:
+            text += self.coord(self.cursor_pos.x + 1, self.cursor_pos.y + 1)
+            self.dirty_cursor = False
+         if len(text) > 0:
+            print(text, end='')
+            sys.stdout.flush()
+
+
+class Image_Screen_Buffer(Screen_Buffer):
+   img_x_start: int
+   img_x_end: int
+   img_cache: Dict[str,List[str]]
+   img_rows: List[str]
+   void_rows: List[str]
+   img_uuid: str = ""
+
+   def __init__(self, width:int, height:int):
+      super().__init__(width, height)
+      self.img_x_start = width - IMAGE_CHARS_WIDE - 1
+      self.img_x_end   = width - 1
+      self.void_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
+      not_found = "Image not found"
+      self.void_rows[0] = not_found + " "*(IMAGE_CHARS_WIDE-len(not_found))
+      self.img_rows = self.void_rows
+      self.img_cache = { }
+
+   def set_image(self, uuid:str) -> None:
+      if self.img_uuid == uuid:
+         return
+      self.img_rows = self.img_cache.get(uuid, self.void_rows)
+      for y in range(1, self.height - 1):
+         self.dirty_rows[y] = True
+
+   def draw(self, only_dirty:bool=True) -> None:
+      BOLD_ON_CODE  = "1"
+      BOLD_OFF_CODE = "22"
+
+      with self.mutex:
+         text = "" if only_dirty else "\033[2J"
+         curr_style = ""
+         for y in range(self.height):
+            if self.dirty_rows[y] or (not only_dirty):
+               text += self.coord(1, y+1)
                for x in range(self.width):
                   if y >= 1 and y < self.height - 1 and x >= self.img_x_start and x < self.img_x_end:
                      if x == self.img_x_start:
                         text += self.img_rows[y-1]
                   else:
-                     codes = [
-                        BOLD_ON_CODE if self.bold[y,x] else BOLD_OFF_CODE,
-                     ]
-                     target_style = f"\033[" + ";".join(codes) + "m"
+                     code = BOLD_ON_CODE if self.bold[y,x] else BOLD_OFF_CODE
+                     target_style = f"\033[{code}m"
                      if curr_style != target_style:
                         text += target_style
                         curr_style = target_style
                      text += self.data[y,x].decode()
                self.dirty_rows[y] = False
          if self.dirty_cursor or len(text) > 0:
-            text += coord(self.cursor_pos.x + 1, self.cursor_pos.y + 1)
+            text += self.coord(self.cursor_pos.x + 1, self.cursor_pos.y + 1)
             self.dirty_cursor = False
          if len(text) > 0:
             print(text, end='')
@@ -249,12 +279,13 @@ class Input_Data:
    pointer: int = 0
    text: str = ""
 
+
 class Text_Box:
    SEPERATOR = " > "
    rect: Rect = INPUT_SPACE
    accepting_input: bool = False
 
-   screen_buffer: Screen_Buffer
+   screen_buffer: Image_Screen_Buffer
    kill_event: threading.Event
    datas: List[Input_Data]
    index: int = 0
@@ -262,7 +293,7 @@ class Text_Box:
    actions_bold: List[Tuple[int,int]]
    waiting_line = "Awaiting model response..."
 
-   def __init__(self, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
+   def __init__(self, screen_buffer:Image_Screen_Buffer, kill_event:threading.Event, input_complete_callback):
       self.screen_buffer = screen_buffer
       self.kill_event = kill_event
       self.input_complete_callback = input_complete_callback
@@ -415,11 +446,11 @@ class Text_Box:
 class Events_Display:
    rect: Rect = EVENT_SPACE
    text_box: Text_Box
-   screen_buffer: Screen_Buffer
+   screen_buffer: Image_Screen_Buffer
    event_page_index: int = 0
    event_lines: List[str]
 
-   def __init__(self, screen_buffer:Screen_Buffer, kill_event:threading.Event, input_complete_callback):
+   def __init__(self, screen_buffer:Image_Screen_Buffer, kill_event:threading.Event, input_complete_callback):
       self.title = "Actions"
       self.text_box = Text_Box(screen_buffer, kill_event, input_complete_callback)
       self.screen_buffer = screen_buffer
@@ -470,19 +501,19 @@ class Events_Display:
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
 
 
-class Screen_Handler(Game_Processor):
+class User_Controller(Game_Processor):
    POLL_INTERVAL_SEC = 0.01
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
    kill_event: threading.Event
    game: Game
-   screen_buffer: Screen_Buffer
+   screen_buffer: Image_Screen_Buffer
    events_display: Events_Display
    done_processing: bool = False
 
    def __init__(self, kill_event:threading.Event):
       self.kill_event = kill_event
-      self.screen_buffer = Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+      self.screen_buffer = Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)
       self.events_display = Events_Display(self.screen_buffer, kill_event, self.__user_input_complete)
       self.fd = sys.stdin.fileno()
       threading.Thread(target=self.run).start()

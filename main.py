@@ -1,7 +1,7 @@
 from common import logger, LOG_FORMAT, Save_Data
 import events as E
 from game import Game
-from screen_handler import Screen_Handler, Peek_Terminal_Input
+from screen_handler import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
 
 import logging, os, json, threading
@@ -21,21 +21,21 @@ def game_loop(init_game:Game, game_dirpath:str):
 
    try:
       ai_backend = AI_Backend(kill_event)
-      screen_handler = Screen_Handler(kill_event)
+      user_controller = User_Controller(kill_event)
 
       # Main game loop
       while not kill_event.is_set():
          logger.info("Requesting user to advance game state")
-         user_game = screen_handler.process_game(init_game, ai_backend)
+         user_game = user_controller.process_game(init_game, ai_backend)
          if kill_event.is_set():
             return
          if user_game is None:
-            logger.error(f"Somehow got back None game from screen_handler")
+            logger.error(f"Somehow got back None game from user_controller")
             kill_event.set()
             return
 
          logger.info("Requesting AI to advance game state")
-         ai_game = ai_backend.process_game(user_game, screen_handler)
+         ai_game = ai_backend.process_game(user_game, user_controller)
          if kill_event.is_set():
             return
          if ai_game is None:
@@ -45,6 +45,7 @@ def game_loop(init_game:Game, game_dirpath:str):
             game_json = ai_game.to_json()
             with open(game_dirpath, "w") as f:
                json.dump(game_json, f, indent="\t")
+
    except Exception as ex:
       logger.fatal(f"Got exception in game_loop(): {ex}")
       kill_event.set()
