@@ -135,11 +135,12 @@ class Screen_Buffer:
    data: np.ndarray
    bold: np.ndarray
    dirty_rows: List[bool]
+   can_clear: bool
 
    cursor_pos: Pos
    dirty_cursor: bool
 
-   def __init__(self, width:int, height:int, x_offset:int=0, y_offset:int=0, draw_borders:bool=True):
+   def __init__(self, width:int, height:int, x_offset:int=0, y_offset:int=0, draw_borders:bool=True, can_clear:bool=True):
       self.height = height
       self.width = width
       self.x_offset = x_offset
@@ -149,6 +150,7 @@ class Screen_Buffer:
       self.data = np.full((height,width), " ", np.character)
       self.bold = np.zeros((height,width), np.bool_)
       self.dirty_rows = [False for _ in range(height)]
+      self.can_clear = can_clear
 
       self.cursor_pos = Pos(0, 0)
       self.dirty_cursor = False
@@ -158,7 +160,6 @@ class Screen_Buffer:
          self.put_text_in(init_rect, 0, 0, "+" + "-"*(width-2) + "+")
          for y in range(1, height-1):
             self.put_text_in(init_rect, 0, y, "|")
-            self.put_text_in(init_rect, width-IMAGE_CHARS_WIDE-2, y, "|")
             self.put_text_in(init_rect, width-1, y, "|")
          self.put_text_in(init_rect, 0, height-1, "+" + "-"*(width-2) + "+")
 
@@ -203,7 +204,7 @@ class Screen_Buffer:
       BOLD_OFF_CODE = "22"
 
       with self.mutex:
-         text = "" if only_dirty else "\033[2J"
+         text = "" if only_dirty or (not self.can_clear) else "\033[2J"
          curr_style = ""
          for y in range(self.height):
             if self.dirty_rows[y] or (not only_dirty):
@@ -468,7 +469,7 @@ class Text_Box:
 class Game_Window(ABC):
    NAME: str
    screen_buffer: Screen_Buffer
-   accepting_input: bool
+   accepting_input: bool = False
 
    def accept_input(self) -> None:
       self.accepting_input = False
@@ -485,6 +486,18 @@ class Game_Window(ABC):
       pass
 
    @abstractmethod
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
+
+
+class Empty_Window(Game_Window):
+   NAME = "Empty"
+   def __init__(self, screen_buffer:Screen_Buffer):
+      self.screen_buffer = screen_buffer
+   def visualize_game(self, game:Game) -> None:
+      pass
+   def write_to_buffer(self) -> None:
+      pass
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
       pass
 
@@ -560,20 +573,30 @@ class User_Controller(Game_Processor):
    kill_event: threading.Event
    game: Game
 
-   pause_screen: Screen_Buffer
    game_windows: List[Game_Window]
-   window_index: int
+   window_index: int = 0
+
+   pause_screen: Screen_Buffer
+   pause_rect: Rect
+   pause_index: int = 0
+   is_paused: bool = False
 
    done_processing: bool = False
-
-
 
    def __init__(self, kill_event:threading.Event):
       self.kill_event = kill_event
       self.game_windows = [
-         Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete)
+         Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete),
+         Empty_Window(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
       ]
-      self.window_index = 0
+
+      pause_width  = 9 + max(len(window.NAME) for window in self.game_windows)
+      pause_height = 3 + 2*len(self.game_windows)
+      pause_x1 = (self.rect.w - pause_width) // 2
+      pause_y1 = (self.rect.h - pause_height) // 2
+      self.pause_screen = Screen_Buffer(pause_width, pause_height, pause_x1, pause_y1, can_clear=False)
+      self.pause_rect = Rect(0, 0, pause_width, pause_height)
+
       self.fd = sys.stdin.fileno()
       threading.Thread(target=self.run).start()
 
@@ -594,6 +617,7 @@ class User_Controller(Game_Processor):
    def peek_game(self, game:Game) -> None:
       self.game_windows[self.window_index].visualize_game(game)
       self.game_windows[self.window_index].screen_buffer.draw()
+      self.game = game
 
    def __user_input_complete(self, data:Input_Data) -> None:
       go_again = data.text.endswith("&")
@@ -620,6 +644,12 @@ class User_Controller(Game_Processor):
 
    def run(self) -> None:
       try:
+         # Prepare the pause screen
+         for i, window in enumerate(self.game_windows):
+            self.pause_screen.put_text_in(self.pause_rect, 6, 2 + 2*i, window.NAME)
+         self.pause_screen.put_text_in(self.pause_rect, 4, 2, ">")
+         self.pause_screen.move_cursor(3, 2)
+
          # Events and Input
          window = self.game_windows[self.window_index]
          window.write_to_buffer()
@@ -643,8 +673,34 @@ class User_Controller(Game_Processor):
                elif inp == Special_Keys.CTRL_R:
                   logger.info("Redrawing entire screen buffer")
                   self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+                  continue
+               elif inp == Special_Keys.ESCAPE:
+                  self.is_paused = not self.is_paused
+                  self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+                  if self.is_paused:
+                     self.pause_screen.draw(only_dirty=False)
+                  continue
+               elif self.is_paused:
+                  if inp in (Special_Keys.DOWN, Special_Keys.UP):
+                     self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, " ")
+                     amnt = -1 if inp == Special_Keys.DOWN else 1
+                     self.pause_index += amnt
+                     if self.pause_index < 0:
+                        self.pause_index += len(self.game_windows)
+                     elif self.pause_index >= len(self.game_windows):
+                        self.pause_index -= len(self.game_windows)
+                     self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, ">")
+                     self.pause_screen.move_cursor(3, 2 + 2*self.pause_index)
+                     self.pause_screen.draw(only_dirty=True)
+                  elif inp == Special_Keys.ENTER:
+                     self.window_index = self.pause_index
+                     self.is_paused = False
+                     self.game_windows[self.window_index].visualize_game(self.game)
+                     self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+                  continue
 
-            self.game_windows[self.window_index].process_input(inp)
+            if not self.is_paused:
+               self.game_windows[self.window_index].process_input(inp)
 
       except Exception as ex:
          logger.error(f"Screen Hanlder ran into error in run")
