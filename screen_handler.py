@@ -502,6 +502,46 @@ class Empty_Window(Game_Window):
       pass
 
 
+def trim_text(text:str, max_width:int) -> List[str]:
+   lines = []
+   while text < max_width:
+      lines.append(text[:max_width])
+      text = text[max_width:]
+   lines.append(text)
+   return lines
+
+
+class Quests_Display(Game_Window):
+   NAME = "Quests"
+   lines: List[str]
+   index: int = 0
+   rect: Rect
+   def __init__(self, screen_buffer:Screen_Buffer):
+      self.screen_buffer = screen_buffer
+      self.rect = Rect(2, 2, self.screen_buffer.width - 4, self.screen_buffer.height - 4)
+      self.lines = []
+   def visualize_game(self, game:Game) -> None:
+      self.lines = []
+      finished_quests = set()
+      for event in reversed(game.events):
+         if isinstance(event, E.End_Quest_Event):
+            finished_quests.add(event.quest_id)
+         elif isinstance(event, E.Start_Quest_Event):
+            event_lines = [""] + trim_text(f"{event.name}: {event.desc}", self.rect.w)
+            for l in reversed(event_lines):
+               self.lines.insert(0, l)
+      self.write_to_buffer()
+   def write_to_buffer(self) -> None:
+      for i in range(self.rect.h):
+         if i + self.index >= len(self.lines):
+            line = ""
+         else:
+            line = self.lines[-(i+self.index+1)]
+         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
+
+
 class Events_Display(Game_Window):
    NAME = "Events"
    rect: Rect = EVENT_SPACE
@@ -535,9 +575,9 @@ class Events_Display(Game_Window):
          elif inp == Special_Keys.DOWN:
             self.__move_index(-1)
          elif inp == Special_Keys.PAGE_UP:
-            self.__move_index(+self.rect.h)
+            self.__move_index(+self.rect.h//2)
          elif inp == Special_Keys.PAGE_DOWN:
-            self.__move_index(-self.rect.h)
+            self.__move_index(-self.rect.h//2)
          else:
             self.text_box.process_input(inp)
 
@@ -587,6 +627,7 @@ class User_Controller(Game_Processor):
       self.kill_event = kill_event
       self.game_windows = [
          Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete),
+         Quests_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
          Empty_Window(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
       ]
 
@@ -683,7 +724,7 @@ class User_Controller(Game_Processor):
                elif self.is_paused:
                   if inp in (Special_Keys.DOWN, Special_Keys.UP):
                      self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, " ")
-                     amnt = -1 if inp == Special_Keys.DOWN else 1
+                     amnt = 1 if inp == Special_Keys.DOWN else -1
                      self.pause_index += amnt
                      if self.pause_index < 0:
                         self.pause_index += len(self.game_windows)
