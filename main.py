@@ -1,7 +1,7 @@
 from common import logger, LOG_FORMAT, Save_Data
 import events as E
 from game import Game
-from screen_handler import User_Controller, Peek_Terminal_Input
+from user_controller import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
 
 import logging, os, json, threading
@@ -9,7 +9,6 @@ import shutil
 
 # TODO
 # - Make action list scroll as to not crash the game
-# - Make images not change when awaiting response and snap to latest action
 # - Add inventory events and prompting
 # - Add events for NPCs to move around
 # - Add AI query events

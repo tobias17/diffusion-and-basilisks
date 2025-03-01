@@ -293,6 +293,50 @@ class Image_Screen_Buffer(Screen_Buffer):
             sys.stdout.flush()
 
 
+def trim_text(text:str, max_width:int) -> List[str]:
+   lines = []
+   while len(text) > max_width:
+      lines.append(text[:max_width])
+      text = text[max_width:]
+   lines.append(text)
+   return lines
+
+
+class Game_Window(ABC):
+   NAME: str
+   screen_buffer: Screen_Buffer
+
+   def accept_input(self) -> None:
+      pass
+
+   def clear_input(self, accept_input:bool=False) -> None:
+      pass
+
+   @abstractmethod
+   def visualize_game(self, game:Game) -> None:
+      pass
+
+   @abstractmethod
+   def write_to_buffer(self) -> None:
+      pass
+
+   @abstractmethod
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
+
+
+class Empty_Window(Game_Window):
+   NAME = "Empty"
+   def __init__(self, screen_buffer:Screen_Buffer):
+      self.screen_buffer = screen_buffer
+   def visualize_game(self, game:Game) -> None:
+      pass
+   def write_to_buffer(self) -> None:
+      pass
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      pass
+
+
 @dataclass
 class Input_Data:
    name: str
@@ -325,13 +369,24 @@ class Text_Box:
 
    def visualize_game(self, game:Game) -> None:
       curr_loc_id = game.get_curr_loc_id()
+      for i, event in enumerate(reversed(game.events)):
+         if isinstance(event, E.Move_Player_To_Event):
+            curr_loc_id = event.loc_id
+            latest_event = len(game.events) - i - 1
+            self.index = 0
+            break
+      else:
+         raise ValueError(f"Somehow found 0 move to events")
+      logger.info(f"Latest event id: '{curr_loc_id}'")
       self.datas  = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {}, game.get_loc_image_uuid(curr_loc_id))]
 
       all_npc_infos = game.get_npc_infos()
       loc_npc_infos = [i for i in all_npc_infos if i.loc_id == curr_loc_id]
       for info in loc_npc_infos:
+         if info.last_interaction > latest_event:
+            latest_event = info.last_interaction
+            self.index = len(self.datas)
          self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc_Event, {'npc_id':info.npc_id}, info.image_uuid))
-      self.index = 0
 
       self.actions_line = "Press Tab to Cycle:"
       self.actions_bold = []
@@ -345,8 +400,6 @@ class Text_Box:
 
    def clear_input(self, accept_input:bool=False):
       self.accepting_input = accept_input
-      self.datas = []
-      self.index = 0
 
    def write_to_buffer(self) -> None:
       # Normal buffer writing
@@ -365,8 +418,7 @@ class Text_Box:
             line += " "*(self.rect.w - len(line))
             self.screen_buffer.put_text_in(self.rect, 0, y, line)
 
-      # Handle images
-      if len(self.datas) > 0:
+         # Handle images
          image_uuid = self.datas[self.index].image_uuid
          if image_uuid not in self.screen_buffer.img_cache:
             lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
@@ -466,51 +518,6 @@ class Text_Box:
       self.screen_buffer.draw()
 
 
-class Game_Window(ABC):
-   NAME: str
-   screen_buffer: Screen_Buffer
-   accepting_input: bool = False
-
-   def accept_input(self) -> None:
-      self.accepting_input = False
-   
-   def clear_input(self, accept_input:bool=False) -> None:
-      self.accepting_input = accept_input
-
-   @abstractmethod
-   def visualize_game(self, game:Game) -> None:
-      pass
-
-   @abstractmethod
-   def write_to_buffer(self) -> None:
-      pass
-
-   @abstractmethod
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      pass
-
-
-class Empty_Window(Game_Window):
-   NAME = "Empty"
-   def __init__(self, screen_buffer:Screen_Buffer):
-      self.screen_buffer = screen_buffer
-   def visualize_game(self, game:Game) -> None:
-      pass
-   def write_to_buffer(self) -> None:
-      pass
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      pass
-
-
-def trim_text(text:str, max_width:int) -> List[str]:
-   lines = []
-   while text < max_width:
-      lines.append(text[:max_width])
-      text = text[max_width:]
-   lines.append(text)
-   return lines
-
-
 class Quests_Display(Game_Window):
    NAME = "Quests"
    lines: List[str]
@@ -588,12 +595,8 @@ class Events_Display(Game_Window):
          if game.new_events > 0 and len(game.events) - i <= game.new_events:
             text = f"* {text}"
          if text is not None:
-            while len(text) > self.rect.w:
-               self.event_lines.append(text[:self.rect.w])
-               text = text[self.rect.w:]
-            self.event_lines.append(text)
+            self.event_lines += trim_text(text, self.rect.w)
             self.event_lines.append("")
-
       self.write_to_buffer()
       self.text_box.visualize_game(game)
 
@@ -631,12 +634,17 @@ class User_Controller(Game_Processor):
          Empty_Window(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
       ]
 
+         # Prepare the pause screen
       pause_width  = 9 + max(len(window.NAME) for window in self.game_windows)
       pause_height = 3 + 2*len(self.game_windows)
       pause_x1 = (self.rect.w - pause_width) // 2
       pause_y1 = (self.rect.h - pause_height) // 2
       self.pause_screen = Screen_Buffer(pause_width, pause_height, pause_x1, pause_y1, can_clear=False)
       self.pause_rect = Rect(0, 0, pause_width, pause_height)
+      for i, window in enumerate(self.game_windows):
+         self.pause_screen.put_text_in(self.pause_rect, 6, 2 + 2*i, window.NAME)
+      self.pause_screen.put_text_in(self.pause_rect, 4, 2, ">")
+      self.pause_screen.move_cursor(3, 2)
 
       self.fd = sys.stdin.fileno()
       threading.Thread(target=self.run).start()
@@ -656,9 +664,9 @@ class User_Controller(Game_Processor):
       return None
 
    def peek_game(self, game:Game) -> None:
+      self.game = game
       self.game_windows[self.window_index].visualize_game(game)
       self.game_windows[self.window_index].screen_buffer.draw()
-      self.game = game
 
    def __user_input_complete(self, data:Input_Data) -> None:
       go_again = data.text.endswith("&")
@@ -685,12 +693,6 @@ class User_Controller(Game_Processor):
 
    def run(self) -> None:
       try:
-         # Prepare the pause screen
-         for i, window in enumerate(self.game_windows):
-            self.pause_screen.put_text_in(self.pause_rect, 6, 2 + 2*i, window.NAME)
-         self.pause_screen.put_text_in(self.pause_rect, 4, 2, ">")
-         self.pause_screen.move_cursor(3, 2)
-
          # Events and Input
          window = self.game_windows[self.window_index]
          window.write_to_buffer()
@@ -700,6 +702,10 @@ class User_Controller(Game_Processor):
 
          # Start our main read and process loop
          while not self.kill_event.is_set():
+            if not hasattr(self, "game"):
+               time.sleep(0.01)
+               continue
+
             seq = self.__read_bytes()
             if len(seq) == 0:
                continue # normally means our kill_event got set
