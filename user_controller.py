@@ -320,19 +320,6 @@ class Game_Window(ABC):
    def write_to_buffer(self) -> None:
       pass
 
-   @abstractmethod
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      pass
-
-
-class Empty_Window(Game_Window):
-   NAME = "Empty"
-   def __init__(self, screen_buffer:Screen_Buffer):
-      self.screen_buffer = screen_buffer
-   def visualize_game(self, game:Game) -> None:
-      pass
-   def write_to_buffer(self) -> None:
-      pass
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
       pass
 
@@ -517,37 +504,6 @@ class Text_Box:
       self.screen_buffer.draw()
 
 
-class Quests_Display(Game_Window):
-   NAME = "Quests"
-   lines: List[str]
-   index: int = 0
-   rect: Rect
-   def __init__(self, screen_buffer:Screen_Buffer):
-      self.screen_buffer = screen_buffer
-      self.rect = Rect(2, 2, self.screen_buffer.width - 4, self.screen_buffer.height - 4)
-      self.lines = []
-   def visualize_game(self, game:Game) -> None:
-      self.lines = []
-      finished_quests = set()
-      for event in reversed(game.events):
-         if isinstance(event, E.End_Quest_Event):
-            finished_quests.add(event.quest_id)
-         elif isinstance(event, E.Start_Quest_Event) and event.quest_id not in finished_quests:
-            event_lines = [""] + trim_text(f"{event.name}: {event.desc}", self.rect.w)
-            for l in reversed(event_lines):
-               self.lines.insert(0, l)
-      self.write_to_buffer()
-   def write_to_buffer(self) -> None:
-      for i in range(self.rect.h):
-         if i + self.index >= len(self.lines):
-            line = ""
-         else:
-            line = self.lines[-(i+self.index+1)]
-         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
-   def process_input(self, inp:Union[str,Special_Keys]) -> None:
-      pass
-
-
 class Events_Display(Game_Window):
    NAME = "Events"
    rect: Rect = EVENT_SPACE
@@ -591,10 +547,10 @@ class Events_Display(Game_Window):
       self.event_lines = []
       for i, event in enumerate(game.events):
          text = event.player(game)
-         if game.new_events > 0 and len(game.events) - i <= game.new_events:
-            text = f"* {text}"
          if text is not None:
-            self.event_lines += trim_text(text, self.rect.w)
+            if game.new_events > 0 and len(game.events) - i <= game.new_events:
+               text = f"* {text}"
+            self.event_lines += trim_text(text, self.rect.w-2)
             self.event_lines.append("")
       self.write_to_buffer()
       self.text_box.visualize_game(game)
@@ -606,6 +562,53 @@ class Events_Display(Game_Window):
          else:
             line = self.event_lines[-(i+self.event_page_index+1)]
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
+
+
+class State_Display(Game_Window):
+   lines: List[str]
+   index: int = 0
+   rect: Rect
+   def __init__(self, screen_buffer:Screen_Buffer):
+      self.screen_buffer = screen_buffer
+      self.rect = Rect(2, 2, self.screen_buffer.width - 4, self.screen_buffer.height - 4)
+      self.lines = []
+   def write_to_buffer(self) -> None:
+      for i in range(self.rect.h):
+         if i + self.index >= len(self.lines):
+            line = ""
+         else:
+            line = self.lines[-(i+self.index+1)]
+         self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
+
+
+class Quests_Display(State_Display):
+   NAME = "Quests"
+   def visualize_game(self, game:Game) -> None:
+      self.lines = []
+      quests = game.get_active_quests()
+      if len(quests) == 0:
+         self.lines.append("You have no quests.")
+      else:
+         for item in quests:
+            self.lines += trim_text(f"{item.name}: {item.desc}", self.rect.w-2) + [""]
+         self.lines.pop(-1) # remove last newline
+      self.index = 0
+      self.write_to_buffer()
+
+
+class Inventory_Display(State_Display):
+   NAME = "Inventory"
+   def visualize_game(self, game:Game) -> None:
+      self.lines = []
+      items = game.get_inventory_items()
+      if len(items) == 0:
+         self.lines.append("You have no items.")
+      else:
+         for item in items:
+            self.lines += trim_text(f"{item.name}: {item.desc}", self.rect.w-2) + [""]
+         self.lines.pop(-1) # remove last newline
+      self.index = 0
+      self.write_to_buffer()
 
 
 class User_Controller(Game_Processor):
@@ -629,8 +632,8 @@ class User_Controller(Game_Processor):
       self.kill_event = kill_event
       self.game_windows = [
          Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete),
+         Inventory_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
          Quests_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
-         Empty_Window(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
       ]
 
          # Prepare the pause screen
