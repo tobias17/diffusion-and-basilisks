@@ -19,6 +19,10 @@ The following quests are active:
 ```
 {quests}```
 
+The following items are in the player's inventory:
+```
+{items}```
+
 The user has input the following:
 ```
 {content}

@@ -377,7 +377,6 @@ class Text_Box:
             break
       else:
          raise ValueError(f"Somehow found 0 move to events")
-      logger.info(f"Latest event id: '{curr_loc_id}'")
       self.datas  = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {}, game.get_loc_image_uuid(curr_loc_id))]
 
       all_npc_infos = game.get_npc_infos()
@@ -533,7 +532,7 @@ class Quests_Display(Game_Window):
       for event in reversed(game.events):
          if isinstance(event, E.End_Quest_Event):
             finished_quests.add(event.quest_id)
-         elif isinstance(event, E.Start_Quest_Event):
+         elif isinstance(event, E.Start_Quest_Event) and event.quest_id not in finished_quests:
             event_lines = [""] + trim_text(f"{event.name}: {event.desc}", self.rect.w)
             for l in reversed(event_lines):
                self.lines.insert(0, l)

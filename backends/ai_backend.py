@@ -103,7 +103,8 @@ class AI_Backend(Game_Processor):
 
       # Update last message
       quest_str = "".join([f'Quest(quest_id="{q.quest_id}", name="{q.name}", desc="{q.desc}")\n' for q in game.get_active_quests()])
-      messages[-1]["content"] = FINAL_USER_MESSAGE.format(quests=quest_str, content=messages[-1]["content"])
+      items_str = "".join([f'Item(item_id="{i.item_id}", name="{i.name}", desc="{i.desc}")' for i in game.get_inventory_items()])
+      messages[-1]["content"] = FINAL_USER_MESSAGE.format(quests=quest_str, items=items_str, content=messages[-1]["content"])
 
       # Log the messages in a clean way
       spread_messages = []

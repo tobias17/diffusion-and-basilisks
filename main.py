@@ -9,10 +9,11 @@ import shutil
 
 # TODO
 # - Make action list scroll as to not crash the game
-# - Add inventory events and prompting
 # - Add events for NPCs to move around
 # - Add AI query events
 # - Add more user screens to look at game state
+# - Scrollbar in events list (and others) ?
+# - Only let NPCs speak if they are in current location
 
 
 def game_loop(init_game:Game, game_dirpath:str):

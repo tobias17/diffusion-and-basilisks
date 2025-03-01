@@ -109,6 +109,25 @@ class Game:
                   i += 1
       return quests
 
+   def get_item_name(self, item_id:str) -> str:
+      options = []
+      for event in self.events:
+         if isinstance(event, E.Give_Player_Item_Event):
+            if event.item_id == item_id:
+               return event.name
+            options.append(event.item_id)
+      raise ValueError(f"Failed to find Quest with ID '{item_id}', options were {options}")
+
+   def get_inventory_items(self) -> List[E.Give_Player_Item_Event]:
+      inventory_items = []
+      removed_items = set()
+      for event in reversed(self.events):
+         if isinstance(event, E.Remove_Player_Item_Event):
+            removed_items.add(event.item_id)
+         elif isinstance(event, E.Give_Player_Item_Event) and event.item_id not in removed_items:
+            inventory_items.append(event)
+      return inventory_items
+
    def get_curr_loc_id(self) -> str:
       for event in reversed(self.events):
          if isinstance(event, E.Move_Player_To_Event):

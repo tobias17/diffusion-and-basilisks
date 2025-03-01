@@ -249,4 +249,50 @@ Function_Map.funcs.append(
 )
 
 
+@dataclass
+class Give_Player_Item_Event(Event):
+   item_id: str
+   name: str
+   desc: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"You gain a new item, {self.name}: {self.desc}"
+def give_player_item(self:Game, item_id:str, name:str, desc:str) -> Tuple[bool,str]:
+   for event in self.events:
+      if isinstance(event, Give_Player_Item_Event) and item_id == event.item_id:
+         return False, f"An item with ID '{item_id}' already exists"
+   self.add_event(Give_Player_Item_Event(item_id, name, desc))
+   return True, ""
+Function_Map.funcs.append(
+   Function(
+      give_player_item, "GAME.give_player_item",
+      Parameter("item_id", str),
+      Parameter("name", str),
+      Parameter("desc", str),
+   )
+)
+
+
+@dataclass
+class Remove_Player_Item_Event(Event):
+   item_id: str
+   reason: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"You lose an item, {game.get_item_name(self.item_id)}: {self.reason}"
+def remove_player_item(self:Game, item_id:str, reason:str) -> Tuple[bool,str]:
+   for event in reversed(self.events):
+      if isinstance(event, Remove_Player_Item_Event) and item_id == event.item_id:
+         return False, f"The item with ID '{item_id}' has already been removed"
+      elif isinstance(event, Give_Player_Item_Event) and item_id == event.item_id:
+         self.add_event(Remove_Player_Item_Event(item_id, reason))
+         return True, ""
+   return False, f"No item with ID '{item_id}' currently exists"
+Function_Map.funcs.append(
+   Function(
+      remove_player_item, "GAME.remove_player_item",
+      Parameter("item_id", str),
+      Parameter("reason", str),
+   )
+)
+
+
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }
