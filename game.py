@@ -128,6 +128,14 @@ class Game:
             return event.loc_id
       raise RuntimeError(f"Failed to find a player move event")
 
+   def player_knows_about(self, loc_id:str) -> bool:
+      for event in reversed(self.events):
+         if isinstance(event, E.Move_Player_To_Event) and event.loc_id == loc_id:
+            return True
+         elif isinstance(event, E.Create_Location_Event) and event.loc_id == loc_id:
+            return event.tell_player
+      raise RuntimeError(f"Failed to find a creation event for location with ID '{loc_id}'")
+
    def get_npc_infos(self) -> List[Npc_Info]:
       loc_id_to_name: Dict[str,str] = {}
       npc_infos: Dict[str,Npc_Info] = {}

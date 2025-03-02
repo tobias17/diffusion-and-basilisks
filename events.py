@@ -113,6 +113,38 @@ Create_Npc_Event.system = (lambda e: create_npc_func.system(e)) # type: ignore
 
 
 @dataclass
+class Move_Npc_Event(Event):
+   npc_id: str
+   loc_id: str
+   def player(self, game:Game) -> Optional[str]:
+      loc_name = game.get_loc_name(self.loc_id) if game.player_knows_about(self.loc_id) else "UNKNOWN"
+      return f"{game.get_npc_name(self.npc_id)} moves to {loc_name}"
+def move_npc(game:Game, npc_id:str, to_loc_id:str) -> Tuple[bool,str]:
+   found_npc = found_loc = False
+   for event in game.events:
+      if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
+         found_npc = True
+      elif isinstance(event, Create_Location_Event) and event.loc_id == to_loc_id:
+         found_loc = True
+      if found_npc and found_loc:
+         game.add_event(Move_Npc_Event(npc_id, to_loc_id))
+         return True, ""
+   if not found_npc:
+      return False, f"Failed to find NPC with ID '{npc_id}'"
+   if not found_loc:
+      return False, f"Failed to find Location with ID '{to_loc_id}'"
+   raise RuntimeError("Invalid state")
+Function_Map.funcs.append(
+   move_npc_func := Function(
+      move_npc, "GAME.move_npc",
+      Parameter("npc_id", str),
+      Parameter("to_loc_id", str),
+   )
+)
+Move_Npc_Event.system = (lambda e: move_npc_func.system(e)) # type: ignore
+
+
+@dataclass
 class Speak_Player_to_Npc_Event(Event):
    npc_id: str
    text: str
