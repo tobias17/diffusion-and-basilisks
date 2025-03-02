@@ -168,6 +168,7 @@ def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tup
 
    curr_loc_id = self.get_curr_loc_id()
    npc_infos = self.get_npc_infos()
+   found_from = found_to = False
    for npc_info in npc_infos:
       if from_npc_id == npc_info.npc_id:
          if curr_loc_id != npc_info.loc_id:
@@ -180,6 +181,7 @@ def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tup
       if found_from and found_to:
          self.add_event(Speak_Npc_to_Npc_Event(from_npc_id, to_npc_id, text))
          return True, ""
+
    if not found_from:
       return False, f"Failed to find a NPC with the ID '{from_npc_id}'"
    if not found_to:

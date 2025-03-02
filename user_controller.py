@@ -356,10 +356,13 @@ class Text_Box:
 
    def visualize_game(self, game:Game) -> None:
       curr_loc_id = game.get_curr_loc_id()
+      latest_event = 0
       for i, event in enumerate(reversed(game.events)):
-         if isinstance(event, E.Move_Player_To_Event):
+         if isinstance(event, E.Player_Request_Action_Event):
+            latest_event = max(latest_event, len(game.events) - i - 1)
+         elif isinstance(event, E.Move_Player_To_Event):
             curr_loc_id = event.loc_id
-            latest_event = len(game.events) - i - 1
+            latest_event = max(latest_event, len(game.events) - i - 1)
             self.index = 0
             break
       else:

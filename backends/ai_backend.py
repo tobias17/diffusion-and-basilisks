@@ -13,7 +13,7 @@ from queue import Queue
 
 
 URL = "http://192.168.1.200:7776/v1"
-UPDATE_TIME_DELTA = 1.0
+UPDATE_TIME_DELTA = 2.0
 
 
 class AI_Backend(Game_Processor):
@@ -159,7 +159,7 @@ class AI_Backend(Game_Processor):
          time.sleep(0.05)
 
    def process_game(self, game:Game, other_proc:Game_Processor) -> Optional[Game]:
-      next_update_time = time.time() + UPDATE_TIME_DELTA
+      next_update_time = time.time() + UPDATE_TIME_DELTA/2
 
       # Get the next game state from the AI
       decision_log: List[Dict] = []
@@ -185,8 +185,7 @@ class AI_Backend(Game_Processor):
       while len(delta_events) > 0:
          if self.kill_event.is_set():
             return None
-         curr_time = time.time()
-         if curr_time > next_update_time:
+         if time.time() > next_update_time:
             next_event = delta_events.pop(0)
             prompt = next_event.image_prompt()
             if prompt is not None:
@@ -195,7 +194,7 @@ class AI_Backend(Game_Processor):
                   return None
             delta_game.add_event(next_event)
             other_proc.peek_game(delta_game)
-            next_update_time = curr_time + UPDATE_TIME_DELTA
+            next_update_time = time.time() + UPDATE_TIME_DELTA # intentionally call time.time() again
          else:
             time.sleep(0.05)
 
