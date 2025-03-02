@@ -12,7 +12,6 @@ import shutil
 # - Add events for NPCs to move around
 # - Add AI query events
 # - Scrollbar in events list (and others) ?
-# - Only let NPCs speak if they are in current location
 
 
 def game_loop(init_game:Game, game_dirpath:str):

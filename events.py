@@ -127,7 +127,7 @@ def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
          self.add_event(Speak_Player_to_Npc_Event(npc_id, text))
          return True, ""
-   return False, f"Failed to find a Character with the ID '{npc_id}'"
+   return False, f"Failed to find a NPC with the ID '{npc_id}'"
 
 
 @dataclass
@@ -137,11 +137,14 @@ class Speak_Npc_to_player(Event):
    def player(self, game:Game) -> Optional[str]:
       return f'{game.get_npc_name(self.npc_id)} tells You: "{self.text}"'
 def speak_npc_to_player(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
-   for event in self.events:
-      if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
-         self.add_event(Speak_Npc_to_player(npc_id, text))
+   curr_loc_id = self.get_curr_loc_id()
+   npc_infos = self.get_npc_infos()
+   for npc_info in npc_infos:
+      if npc_id == npc_info.npc_id:
+         if curr_loc_id != npc_info.loc_id:
+            return False, f"NPC with ID '{npc_id}' not in current location '{curr_loc_id}', is instead in '{npc_info.loc_id}'"
          return True, ""
-   return False, f"Failed to find a Character with the ID '{npc_id}'"
+   return False, f"Failed to find a NPC with the ID '{npc_id}'"
 Function_Map.funcs.append(
    speak_npc_to_player_func := Function(
       speak_npc_to_player, "NPC.speak_to_player",
@@ -162,20 +165,25 @@ class Speak_Npc_to_Npc_Event(Event):
 def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tuple[bool,str]:
    if from_npc_id == to_npc_id:
       return False, "An NPC cannot talk to themselves"
-   found_from = found_to = False
-   for event in self.events:
-      if isinstance(event, Create_Npc_Event):
-         if event.npc_id == from_npc_id:
-            found_from = True
-         elif event.npc_id == to_npc_id:
-            found_to = True
-         if found_from and found_to:
-            self.add_event(Speak_Npc_to_Npc_Event(from_npc_id, to_npc_id, text))
-            return True, ""
+
+   curr_loc_id = self.get_curr_loc_id()
+   npc_infos = self.get_npc_infos()
+   for npc_info in npc_infos:
+      if from_npc_id == npc_info.npc_id:
+         if curr_loc_id != npc_info.loc_id:
+            return False, f"NPC with ID '{from_npc_id}' not in current location '{curr_loc_id}', is instead in '{npc_info.loc_id}'"
+         found_from = True
+      elif to_npc_id == npc_info.npc_id:
+         if curr_loc_id != npc_info.loc_id:
+            return False, f"NPC with ID '{to_npc_id}' not in current location '{curr_loc_id}', is instead in '{npc_info.loc_id}'"
+         found_to = True
+      if found_from and found_to:
+         self.add_event(Speak_Npc_to_Npc_Event(from_npc_id, to_npc_id, text))
+         return True, ""
    if not found_from:
-      return False, f"Failed to find a Character with the ID '{from_npc_id}'"
+      return False, f"Failed to find a NPC with the ID '{from_npc_id}'"
    if not found_to:
-      return False, f"Failed to find a Character with the ID '{to_npc_id}'"
+      return False, f"Failed to find a NPC with the ID '{to_npc_id}'"
    raise RuntimeError("Invalid state")
 Function_Map.funcs.append(
    speak_npc_to_npc_func := Function(
