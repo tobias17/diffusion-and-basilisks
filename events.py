@@ -19,8 +19,8 @@ class Player_Request_Action_Event(Event):
       return f'PLAYER.request_action(text="{self.text}")'
    def is_player_provided(self) -> bool:
       return True
-def player_request_action(self:Game, text:str) -> Tuple[bool,str]:
-   self.add_event(Player_Request_Action_Event(text))
+def player_request_action(game:Game, text:str) -> Tuple[bool,str]:
+   game.add_event(Player_Request_Action_Event(text))
    return True, ""
 
 
@@ -37,11 +37,11 @@ class Create_Location_Event(Event):
       return f"You discover a new location, {self.name}"
    def image_prompt(self) -> Optional[Image_Prompt]:
       return Image_Prompt(self.desc, self.image_uuid)
-def create_location(self:Game, loc_id:str, name:str, desc:str, tell_player:bool) -> Tuple[bool,str]:
-   for event in self.events:
+def create_location(game:Game, loc_id:str, name:str, desc:str, tell_player:bool) -> Tuple[bool,str]:
+   for event in game.events:
       if isinstance(event, Create_Location_Event) and event.loc_id.lower() == loc_id.lower():
          return False, f"A location with the ID '{loc_id}' already exists, no need to create another"
-   self.add_event(Create_Location_Event(loc_id, name, desc, tell_player))
+   game.add_event(Create_Location_Event(loc_id, name, desc, tell_player))
    return True, ""
 Function_Map.funcs.append(
    create_location_func := Function(
@@ -60,10 +60,10 @@ class Move_Player_To_Event(Event):
    loc_id: str
    def player(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
-def move_player_to(self:Game, loc_id:str) -> Tuple[bool,str]:
-   for event in self.events:
+def move_player_to(game:Game, loc_id:str) -> Tuple[bool,str]:
+   for event in game.events:
       if isinstance(event, Create_Location_Event) and event.loc_id == loc_id:
-         self.add_event(Move_Player_To_Event(loc_id))
+         game.add_event(Move_Player_To_Event(loc_id))
          return True, ""
    return False, f"Could not find a location with the ID '{loc_id}'"
 Function_Map.funcs.append(
@@ -87,17 +87,17 @@ class Create_Npc_Event(Event):
       return f"You meet a new character, {self.first_name} {self.last_name}"
    def image_prompt(self) -> Optional[Image_Prompt]:
       return Image_Prompt(self.desc, self.image_uuid)
-def create_npc(self:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
+def create_npc(game:Game, npc_id:str, start_loc_id:str, first_name:str, last_name:str, desc:str) -> Tuple[bool,str]:
    first_name = first_name.strip()
    if not first_name:
       return False, "first_name cannot be empty"
    last_name = last_name.strip()
    if not last_name:
       return False, "last_name cannot be empty"
-   for event in self.events:
+   for event in game.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id.lower() == npc_id.lower():
          return False, f"A character with the ID '{npc_id}' already exists"
-   self.add_event(Create_Npc_Event(npc_id, start_loc_id, first_name, last_name, desc))
+   game.add_event(Create_Npc_Event(npc_id, start_loc_id, first_name, last_name, desc))
    return True, ""
 Function_Map.funcs.append(
    create_npc_func := Function(
@@ -122,10 +122,10 @@ class Speak_Player_to_Npc_Event(Event):
       return f'You tell {game.get_npc_name(self.npc_id)}: "{self.text}"'
    def is_player_provided(self) -> bool:
       return True
-def speak_player_to_npc(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
-   for event in self.events:
+def speak_player_to_npc(game:Game, npc_id:str, text:str) -> Tuple[bool,str]:
+   for event in game.events:
       if isinstance(event, Create_Npc_Event) and event.npc_id == npc_id:
-         self.add_event(Speak_Player_to_Npc_Event(npc_id, text))
+         game.add_event(Speak_Player_to_Npc_Event(npc_id, text))
          return True, ""
    return False, f"Failed to find a NPC with the ID '{npc_id}'"
 
@@ -136,9 +136,9 @@ class Speak_Npc_to_player(Event):
    text: str
    def player(self, game:Game) -> Optional[str]:
       return f'{game.get_npc_name(self.npc_id)} tells You: "{self.text}"'
-def speak_npc_to_player(self:Game, npc_id:str, text:str) -> Tuple[bool,str]:
-   curr_loc_id = self.get_curr_loc_id()
-   npc_infos = self.get_npc_infos()
+def speak_npc_to_player(game:Game, npc_id:str, text:str) -> Tuple[bool,str]:
+   curr_loc_id = game.get_curr_loc_id()
+   npc_infos = game.get_npc_infos()
    for npc_info in npc_infos:
       if npc_id == npc_info.npc_id:
          if curr_loc_id != npc_info.loc_id:
@@ -162,12 +162,12 @@ class Speak_Npc_to_Npc_Event(Event):
    text: str
    def player(self, game:Game) -> Optional[str]:
       return f'{game.get_npc_name(self.from_npc_id)} tells {game.get_npc_name(self.to_npc_id)}: "{self.text}"'
-def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tuple[bool,str]:
+def speak_npc_to_npc(game:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tuple[bool,str]:
    if from_npc_id == to_npc_id:
       return False, "An NPC cannot talk to themselves"
 
-   curr_loc_id = self.get_curr_loc_id()
-   npc_infos = self.get_npc_infos()
+   curr_loc_id = game.get_curr_loc_id()
+   npc_infos = game.get_npc_infos()
    found_from = found_to = False
    for npc_info in npc_infos:
       if from_npc_id == npc_info.npc_id:
@@ -179,7 +179,7 @@ def speak_npc_to_npc(self:Game, from_npc_id:str, to_npc_id:str, text:str) -> Tup
             return False, f"NPC with ID '{to_npc_id}' not in current location '{curr_loc_id}', is instead in '{npc_info.loc_id}'"
          found_to = True
       if found_from and found_to:
-         self.add_event(Speak_Npc_to_Npc_Event(from_npc_id, to_npc_id, text))
+         game.add_event(Speak_Npc_to_Npc_Event(from_npc_id, to_npc_id, text))
          return True, ""
 
    if not found_from:
@@ -203,8 +203,8 @@ class Narrate_Event(Event):
    text: str
    def player(self, game:Game) -> Optional[str]:
       return f'Narrator: "{self.text}"'
-def narrate(self:Game, text:str) -> Tuple[bool,str]:
-   self.add_event(Narrate_Event(text))
+def narrate(game:Game, text:str) -> Tuple[bool,str]:
+   game.add_event(Narrate_Event(text))
    return True, ""
 Function_Map.funcs.append(
    narrate_func := Function(
@@ -222,11 +222,11 @@ class Start_Quest_Event(Event):
    desc: str
    def player(self, game:Game) -> Optional[str]:
       return f"You gained a new quest, {self.name}: {self.desc}"
-def start_quest(self:Game, quest_id:str, name:str, desc:str) -> Tuple[bool,str]:
-   for event in self.events:
+def start_quest(game:Game, quest_id:str, name:str, desc:str) -> Tuple[bool,str]:
+   for event in game.events:
       if isinstance(event, Start_Quest_Event) and event.quest_id == quest_id:
          return False, f"A quest with ID '{quest_id}' already exists"
-   self.add_event(Start_Quest_Event(quest_id, name, desc))
+   game.add_event(Start_Quest_Event(quest_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
    Function(
@@ -243,12 +243,12 @@ class End_Quest_Event(Event):
    quest_id: str
    def player(self, game:Game) -> Optional[str]:
       return f"You completed a quest, {game.get_quest_name(self.quest_id)}"
-def end_quest(self:Game, quest_id:str) -> Tuple[bool,str]:
-   for event in reversed(self.events):
+def end_quest(game:Game, quest_id:str) -> Tuple[bool,str]:
+   for event in reversed(game.events):
       if isinstance(event, End_Quest_Event) and event.quest_id == quest_id:
          return False, f"The quest with ID '{quest_id}' has already been completed"
       if isinstance(event, Start_Quest_Event) and event.quest_id == quest_id:
-         self.add_event(End_Quest_Event(quest_id))
+         game.add_event(End_Quest_Event(quest_id))
          return True, ""
    return False, f"Could not find quest with ID '{quest_id}'"
 Function_Map.funcs.append(
@@ -266,11 +266,11 @@ class Give_Player_Item_Event(Event):
    desc: str
    def player(self, game:Game) -> Optional[str]:
       return f"You gain a new item, {self.name}: {self.desc}"
-def give_player_item(self:Game, item_id:str, name:str, desc:str) -> Tuple[bool,str]:
-   for event in self.events:
+def give_player_item(game:Game, item_id:str, name:str, desc:str) -> Tuple[bool,str]:
+   for event in game.events:
       if isinstance(event, Give_Player_Item_Event) and item_id == event.item_id:
          return False, f"An item with ID '{item_id}' already exists"
-   self.add_event(Give_Player_Item_Event(item_id, name, desc))
+   game.add_event(Give_Player_Item_Event(item_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
    Function(
@@ -288,12 +288,12 @@ class Remove_Player_Item_Event(Event):
    reason: str
    def player(self, game:Game) -> Optional[str]:
       return f"You lose an item, {game.get_item_name(self.item_id)}: {self.reason}"
-def remove_player_item(self:Game, item_id:str, reason:str) -> Tuple[bool,str]:
-   for event in reversed(self.events):
+def remove_player_item(game:Game, item_id:str, reason:str) -> Tuple[bool,str]:
+   for event in reversed(game.events):
       if isinstance(event, Remove_Player_Item_Event) and item_id == event.item_id:
          return False, f"The item with ID '{item_id}' has already been removed"
       elif isinstance(event, Give_Player_Item_Event) and item_id == event.item_id:
-         self.add_event(Remove_Player_Item_Event(item_id, reason))
+         game.add_event(Remove_Player_Item_Event(item_id, reason))
          return True, ""
    return False, f"No item with ID '{item_id}' currently exists"
 Function_Map.funcs.append(
