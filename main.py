@@ -9,7 +9,6 @@ import shutil
 
 # TODO
 # - Make action list scroll as to not crash the game
-# - Add events for NPCs to move around
 # - Add AI query events
 # - Scrollbar in events list (and others) ?
 
