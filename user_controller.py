@@ -1,6 +1,6 @@
 from __future__ import annotations
 from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
-from game import Game, Game_Processor
+from game import Game, Game_Processor, Npc_Info
 import events as E
 
 import sys, termios, select, tty, os, traceback, threading, json, time
@@ -36,6 +36,7 @@ IMAGE_HEIGHT = SCREEN_HEIGHT - 2
 
 EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
 INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, INPUT_HEIGHT)
+CHARS_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, SCREEN_HEIGHT - 2)
 
 
 # Context Manager to configure terminal settings, to be set up by the main thread
@@ -253,7 +254,6 @@ class Image_Screen_Buffer(Screen_Buffer):
          self.put_text_in(init_rect, 0, y, "|")
          self.put_text_in(init_rect, width-IMAGE_CHARS_WIDE-2, y, "|")
          self.put_text_in(init_rect, width-1, y, "|")
-      self.put_text_in(init_rect, 0, INPUT_SPACE.y1-1, "+" + "-"*left_dash + "+")
       self.put_text_in(init_rect, 0, height-1, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
 
    def set_image(self, uuid:str) -> None:
@@ -353,6 +353,7 @@ class Text_Box:
       self.input_complete_callback = input_complete_callback
       self.datas = []
       self.actions_bold = []
+      self.screen_buffer.put_text_in(Rect(0, self.rect.y1-1, self.rect.w+3, self.rect.h-1), 0, 0, "+" + "-"*(self.rect.w+1) + "+") # kinda hacky but best with current architecture
 
    def visualize_game(self, game:Game) -> None:
       curr_loc_id = game.get_curr_loc_id()
@@ -567,6 +568,93 @@ class Events_Display(Game_Window):
          self.screen_buffer.put_text_in(self.rect, 0, self.rect.h - i - 1, line + " "*(self.rect.w-len(line)))
 
 
+class Characters_Display(Game_Window):
+   NAME = "Characters"
+   npcs: List[Npc_Info]
+   curr_loc_id: str = ""
+   index: int = 0
+   rect: Rect = CHARS_SPACE
+   screen_buffer: Image_Screen_Buffer
+
+   def __init__(self, screen_buffer:Image_Screen_Buffer):
+      self.screen_buffer = screen_buffer
+      self.rect = Rect(1, 2, self.screen_buffer.width - IMAGE_CHARS_WIDE - 3, self.screen_buffer.height - 4)
+      self.npcs = []
+
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      if len(self.npcs) == 0:
+         return
+      if isinstance(inp, str):
+         return
+      elif inp == Special_Keys.UP:
+         self.index = min(self.index + 1, len(self.npcs) - 1)
+      elif inp == Special_Keys.DOWN:
+         self.index = max(self.index - 1, 0)
+      else:
+         return
+      self.write_to_buffer()
+      self.screen_buffer.draw()
+
+   def visualize_game(self, game:Game) -> None:
+      npc_infos = sorted(game.get_npc_infos(), key=lambda a: a.last_interaction)
+      if len(npc_infos) > 0:
+         self.curr_loc_id = game.get_curr_loc_id()
+         self.npcs = [i for i in npc_infos if i.loc_id == self.curr_loc_id] + [i for i in npc_infos if i.loc_id != self.curr_loc_id]
+         self.index = 0
+      self.write_to_buffer()
+
+   def __to_line(self, info:Npc_Info, is_selected:bool=False) -> List[str]:
+      prefix = "* " if is_selected else ""
+      return [
+         "",
+         prefix + f"Name: {info.npc_name}",
+         prefix + f"Last seen: {info.loc_name}" + (" (Here!)" if info.loc_id == self.curr_loc_id else ""),
+         "",
+      ]
+
+   def write_to_buffer(self) -> None:
+      self.screen_buffer.clear_text(self.rect)
+      if len(self.npcs) == 0:
+         self.screen_buffer.put_text_in(self.rect, 1, self.rect.y2 - 2, "You have not met any NPCs.")
+      else:
+         # Normal buffer writing
+         lines = self.__to_line(self.npcs[self.index], is_selected=True)[::-1]
+         ui = li = self.index
+         break_line = "="*(self.rect.w-2)
+         done = False
+         while not done:
+            ui += 1
+            if ui < len(self.npcs):
+               lines.append(break_line)
+               for line in reversed(self.__to_line(self.npcs[ui])):
+                  lines.append(line)
+                  if len(lines) >= self.rect.h:
+                     done = True
+                     break
+            li -= 1
+            if li >= 0:
+               lines.insert(0, break_line)
+               for line in self.__to_line(self.npcs[li]):
+                  lines.insert(0, line)
+                  if len(lines) >= self.rect.h:
+                     done = True
+                     break
+            if li < 0 and ui >= len(self.npcs):
+               done = True
+         for i, line in enumerate(lines):
+            self.screen_buffer.put_text_in(self.rect, 1, self.rect.h-i, line)
+
+         # Handle images
+         image_uuid = self.npcs[self.index].image_uuid
+         if image_uuid not in self.screen_buffer.img_cache:
+            lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
+            if os.path.exists(lines_filepath):
+               with open(lines_filepath) as f:
+                  lines = json.load(f)
+               self.screen_buffer.img_cache[image_uuid] = lines
+         self.screen_buffer.set_image(image_uuid)
+
+
 class State_Display(Game_Window):
    lines: List[str]
    index: int = 0
@@ -635,11 +723,12 @@ class User_Controller(Game_Processor):
       self.kill_event = kill_event
       self.game_windows = [
          Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete),
+         Characters_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
          Inventory_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
          Quests_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
       ]
 
-         # Prepare the pause screen
+      # Prepare the pause screen
       pause_width  = 9 + max(len(window.NAME) for window in self.game_windows)
       pause_height = 3 + 2*len(self.game_windows)
       pause_x1 = (self.rect.w - pause_width) // 2

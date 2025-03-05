@@ -9,6 +9,7 @@ LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
 
 IMAGE_CHARS_WIDE = 90
 IMAGE_CHARS_TALL = 60
+# IMAGE_CHARS_TALL = 10
 
 class Save_Data:
    root: str

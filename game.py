@@ -143,7 +143,7 @@ class Game:
 
       INTERACT_EVENT_MAP: Dict[Type[Event],List[str]] = {
          E.Speak_Player_to_Npc_Event: ["npc_id"],
-         E.Speak_Npc_to_player: ["npc_id"],
+         E.Speak_Npc_to_Player_Event: ["npc_id"],
          E.Speak_Npc_to_Npc_Event: ["from_npc_id", "to_npc_id"],
       }
 
@@ -157,6 +157,8 @@ class Game:
             loc_name = loc_id_to_name.get(curr_loc_id, None)
             assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
             npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", event.start_loc_id, loc_name, i, event.image_uuid)
+         elif isinstance(event, E.Move_Npc_Event):
+            npc_infos[event.npc_id].loc_id = event.loc_id
          elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
             attrs = INTERACT_EVENT_MAP[type(event)]
             for attr in attrs:

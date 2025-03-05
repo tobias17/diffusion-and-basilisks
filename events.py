@@ -163,7 +163,7 @@ def speak_player_to_npc(game:Game, npc_id:str, text:str) -> Tuple[bool,str]:
 
 
 @dataclass
-class Speak_Npc_to_player(Event):
+class Speak_Npc_to_Player_Event(Event):
    npc_id: str
    text: str
    def player(self, game:Game) -> Optional[str]:
@@ -175,6 +175,7 @@ def speak_npc_to_player(game:Game, npc_id:str, text:str) -> Tuple[bool,str]:
       if npc_id == npc_info.npc_id:
          if curr_loc_id != npc_info.loc_id:
             return False, f"NPC with ID '{npc_id}' not in current location '{curr_loc_id}', is instead in '{npc_info.loc_id}'"
+         game.add_event(Speak_Npc_to_Player_Event(npc_id, text))
          return True, ""
    return False, f"Failed to find a NPC with the ID '{npc_id}'"
 Function_Map.funcs.append(
@@ -184,7 +185,7 @@ Function_Map.funcs.append(
       Parameter("text", str),
    )
 )
-Speak_Npc_to_player.system = (lambda e: speak_npc_to_player_func.system(e)) # type: ignore
+Speak_Npc_to_Player_Event.system = (lambda e: speak_npc_to_player_func.system(e)) # type: ignore
 
 
 @dataclass
