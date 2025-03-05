@@ -407,17 +407,14 @@ class Text_Box:
             pad_rem = actions_width - bold_count
             left_i  = bold_start - (pad_rem // 2)
             right_i = left_i + actions_width
-            logger.info(f"Orig: {left_i=} {right_i=}")
             if left_i < 0:
                left_i  = 0
                right_i = actions_width
             elif right_i >= actions_width:
                right_i = len(actions_line) - 1
                left_i  = right_i - actions_width
-            logger.info(f"Modi: {left_i=} {right_i=}")
             actions_line = actions_line[left_i:right_i]
             if left_i > 0:
-               logger.info(f"{left_i=}")
                actions_line = "..." + actions_line[3:]
             if right_i < orig_size - 1:
                actions_line = actions_line[:-3] + "..."
@@ -641,31 +638,31 @@ class Characters_Display(Game_Window):
          self.screen_buffer.put_text_in(self.rect, 1, self.rect.y2 - 2, "You have not met any NPCs.")
       else:
          # Normal buffer writing
-         lines = self.__to_line(self.npcs[self.index], is_selected=True)[::-1]
-         ui = li = self.index
-         break_line = "="*(self.rect.w-2)
-         done = False
-         while not done:
-            ui += 1
-            if ui < len(self.npcs):
-               lines.append(break_line)
-               for line in reversed(self.__to_line(self.npcs[ui])):
-                  lines.append(line)
-                  if len(lines) >= self.rect.h:
-                     done = True
-                     break
-            li -= 1
-            if li >= 0:
-               lines.insert(0, break_line)
-               for line in self.__to_line(self.npcs[li]):
-                  lines.insert(0, line)
-                  if len(lines) >= self.rect.h:
-                     done = True
-                     break
-            if li < 0 and ui >= len(self.npcs):
-               done = True
-         for i, line in enumerate(lines):
-            self.screen_buffer.put_text_in(self.rect, 1, self.rect.h-i, line)
+         selected_ptr = -1
+         all_lines: List[str] = []
+         for i, info in enumerate(self.npcs):
+            if i == self.index:
+               selected_ptr = len(all_lines) + 2
+            if i > 0:
+               all_lines.append("="*(self.rect.w-2))
+            all_lines += self.__to_line(info, is_selected=(i == self.index))
+         assert selected_ptr != -1, f"selected_ptr was somehow not set..."
+         all_lines.pop(0)
+         all_lines.pop(-1)
+
+         if len(all_lines) > self.rect.h:
+            si = selected_ptr - self.rect.h//2
+            ei = si + self.rect.h
+            if si < 0:
+               si = 0
+               ei = self.rect.h
+            elif ei >= len(all_lines):
+               ei = len(all_lines)
+               si = ei - self.rect.h
+            all_lines = all_lines[si:ei]
+
+         for i, line in enumerate(all_lines):
+            self.screen_buffer.put_text_in(self.rect, 1, self.rect.h-i-1, line)
 
          # Handle images
          image_uuid = self.npcs[self.index].image_uuid
