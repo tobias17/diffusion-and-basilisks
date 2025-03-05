@@ -378,11 +378,11 @@ class Text_Box:
             self.index = len(self.datas)
          self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc_Event, {'npc_id':info.npc_id}, info.image_uuid))
 
-      self.actions_line = "Press Tab to Cycle:"
+      self.actions_line = ""
       self.actions_bold = []
       for data in self.datas:
-         entry = f" [{data.name}]"
-         self.actions_bold.append((len(self.actions_line)+1,len(entry)-1))
+         entry = f"[{data.name}] "
+         self.actions_bold.append((len(self.actions_line),len(entry)-1))
          self.actions_line += entry
 
       self.write_to_buffer()
@@ -398,9 +398,32 @@ class Text_Box:
       if not self.accepting_input:
          self.screen_buffer.put_text_in(self.rect, 0, 0, self.waiting_line)
       else:
-         self.screen_buffer.put_text_in(self.rect, 0, 0, self.actions_line)
+         actions_prefix = "Press Tab to Cycle: "
+         actions_width = self.rect.w - len(actions_prefix) - 2
+         actions_line = self.actions_line
+         orig_size = len(actions_line)
          bold_start, bold_count = self.actions_bold[self.index]
-         self.screen_buffer.set_region_bold(self.rect, bold_start, 0, bold_count, 1, True)
+         if len(actions_line) > actions_width:
+            pad_rem = actions_width - bold_count
+            left_i  = bold_start - (pad_rem // 2)
+            right_i = left_i + actions_width
+            logger.info(f"Orig: {left_i=} {right_i=}")
+            if left_i < 0:
+               left_i  = 0
+               right_i = actions_width
+            elif right_i >= actions_width:
+               right_i = len(actions_line) - 1
+               left_i  = right_i - actions_width
+            logger.info(f"Modi: {left_i=} {right_i=}")
+            actions_line = actions_line[left_i:right_i]
+            if left_i > 0:
+               logger.info(f"{left_i=}")
+               actions_line = "..." + actions_line[3:]
+            if right_i < orig_size - 1:
+               actions_line = actions_line[:-3] + "..."
+            bold_start -= left_i
+         self.screen_buffer.put_text_in(self.rect, 0, 0, actions_prefix+actions_line)
+         self.screen_buffer.set_region_bold(self.rect, bold_start+len(actions_prefix), 0, bold_count, 1, True)
          data = self.datas[self.index]
          text = data.name + self.SEPERATOR + data.text
          for y in range(2, self.rect.h):
@@ -596,7 +619,7 @@ class Characters_Display(Game_Window):
       self.screen_buffer.draw()
 
    def visualize_game(self, game:Game) -> None:
-      npc_infos = sorted(game.get_npc_infos(), key=lambda a: a.last_interaction)
+      npc_infos = sorted(game.get_npc_infos(), key=lambda a: a.last_interaction, reverse=True)
       if len(npc_infos) > 0:
          self.curr_loc_id = game.get_curr_loc_id()
          self.npcs = [i for i in npc_infos if i.loc_id == self.curr_loc_id] + [i for i in npc_infos if i.loc_id != self.curr_loc_id]

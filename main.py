@@ -8,7 +8,6 @@ import logging, os, json, threading
 import shutil
 
 # TODO
-# - Make action list scroll as to not crash the game
 # - Add AI query events
 # - Scrollbar in events list (and others) ?
 
