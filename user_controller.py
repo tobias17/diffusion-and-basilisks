@@ -428,15 +428,15 @@ class Text_Box:
             line += " "*(self.rect.w - len(line))
             self.screen_buffer.put_text_in(self.rect, 0, y, line)
 
-         # Handle images
-         image_uuid = self.datas[self.index].image_uuid
-         if image_uuid not in self.screen_buffer.img_cache:
-            lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
-            if os.path.exists(lines_filepath):
-               with open(lines_filepath) as f:
-                  lines = json.load(f)
-               self.screen_buffer.img_cache[image_uuid] = lines
-         self.screen_buffer.set_image(image_uuid)
+      # Handle images
+      image_uuid = self.datas[self.index].image_uuid
+      if image_uuid not in self.screen_buffer.img_cache:
+         lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
+         if os.path.exists(lines_filepath):
+            with open(lines_filepath) as f:
+               lines = json.load(f)
+            self.screen_buffer.img_cache[image_uuid] = lines
+      self.screen_buffer.set_image(image_uuid)
 
    def write_cursor_pos(self) -> None:
       if not self.accepting_input:

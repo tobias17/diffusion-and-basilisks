@@ -119,6 +119,8 @@ class Move_Npc_Event(Event):
    def player(self, game:Game) -> Optional[str]:
       loc_name = game.get_loc_name(self.loc_id) if game.player_knows_about(self.loc_id) else "UNKNOWN"
       return f"{game.get_npc_name(self.npc_id)} moves to {loc_name}"
+   def system(self) -> Optional[str]:
+      return f'GAME.move_npc(npc_id="{self.npc_id}", to_loc_id="{self.loc_id}")'
 def move_npc(game:Game, npc_id:str, to_loc_id:str) -> Tuple[bool,str]:
    found_npc = found_loc = False
    for event in game.events:
@@ -141,7 +143,6 @@ Function_Map.funcs.append(
       Parameter("to_loc_id", str),
    )
 )
-Move_Npc_Event.system = (lambda e: move_npc_func.system(e)) # type: ignore
 
 
 @dataclass
