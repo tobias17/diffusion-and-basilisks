@@ -359,16 +359,16 @@ class Text_Box:
       curr_loc_id = game.get_curr_loc_id()
       latest_event = 0
       for i, event in enumerate(reversed(game.events)):
-         if isinstance(event, E.Player_Request_Action_Event):
+         if isinstance(event, E.Player_Request_Action):
             latest_event = max(latest_event, len(game.events) - i - 1)
-         elif isinstance(event, E.Move_Player_To_Event):
+         elif isinstance(event, E.Move_Player_To):
             curr_loc_id = event.loc_id
             latest_event = max(latest_event, len(game.events) - i - 1)
             self.index = 0
             break
       else:
          raise ValueError(f"Somehow found 0 move to events")
-      self.datas  = [Input_Data(f"Request Action", E.Player_Request_Action_Event, {}, game.get_loc_image_uuid(curr_loc_id))]
+      self.datas  = [Input_Data(f"Request Action", E.Player_Request_Action, {}, game.get_loc_image_uuid(curr_loc_id))]
 
       all_npc_infos = game.get_npc_infos()
       loc_npc_infos = [i for i in all_npc_infos if i.loc_id == curr_loc_id]
@@ -376,7 +376,7 @@ class Text_Box:
          if info.last_interaction > latest_event:
             latest_event = info.last_interaction
             self.index = len(self.datas)
-         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc_Event, {'npc_id':info.npc_id}, info.image_uuid))
+         self.datas.append(Input_Data(f"Speak to {info.npc_name}", E.Speak_Player_to_Npc, {'npc_id':info.npc_id}, info.image_uuid))
 
       self.actions_line = ""
       self.actions_bold = []
@@ -673,7 +673,7 @@ class Characters_Display(Game_Window):
 
 class Locations_Display(Game_Window):
    NAME = "Locations"
-   locs: List[E.Create_Location_Event]
+   locs: List[E.Create_Location]
    curr_loc_id: str = ""
    index: int = 0
    rect: Rect = CHARS_SPACE
@@ -701,14 +701,14 @@ class Locations_Display(Game_Window):
    def visualize_game(self, game:Game) -> None:
       self.locs = []
       for event in game.events:
-         if isinstance(event, E.Create_Location_Event):
+         if isinstance(event, E.Create_Location):
             self.locs.insert(0, event)
       assert len(self.locs) > 0
       self.curr_loc_id = game.get_curr_loc_id()
       self.index = 0
       self.write_to_buffer()
 
-   def __to_line(self, info:E.Create_Location_Event, is_selected:bool=False) -> List[str]:
+   def __to_line(self, info:E.Create_Location, is_selected:bool=False) -> List[str]:
       prefix = "* " if is_selected else ""
       return [
          "",
@@ -866,10 +866,10 @@ class User_Controller(Game_Processor):
       if go_again:
          data.text = data.text[:-1]
 
-      if data.event is E.Player_Request_Action_Event:
-         self.game.add_event(E.Player_Request_Action_Event(data.text))
-      elif data.event is E.Speak_Player_to_Npc_Event:
-         self.game.add_event(E.Speak_Player_to_Npc_Event(data.data['npc_id'], data.text))
+      if data.event is E.Player_Request_Action:
+         self.game.add_event(E.Player_Request_Action(data.text))
+      elif data.event is E.Speak_Player_to_Npc:
+         self.game.add_event(E.Speak_Player_to_Npc(data.data['npc_id'], data.text))
       else:
          raise RuntimeError(f"{self.__class__.__name__} does not support processing user input from event type {data.event.__name__}")
 

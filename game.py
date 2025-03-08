@@ -60,7 +60,7 @@ class Game:
    def get_npc_name(self, npc_id:str) -> str:
       options = []
       for event in self.events:
-         if isinstance(event, E.Create_Npc_Event):
+         if isinstance(event, E.Create_Npc):
             if event.npc_id == npc_id:
                return f"{event.first_name} {event.last_name}"
             options.append(event.npc_id)
@@ -69,7 +69,7 @@ class Game:
    def get_loc_name(self, loc_id:str) -> str:
       options = []
       for event in self.events:
-         if isinstance(event, E.Create_Location_Event):
+         if isinstance(event, E.Create_Location):
             if event.loc_id == loc_id:
                return event.name
             options.append(event.loc_id)
@@ -78,7 +78,7 @@ class Game:
    def get_loc_image_uuid(self, loc_id:str) -> str:
       options = []
       for event in self.events:
-         if isinstance(event, E.Create_Location_Event):
+         if isinstance(event, E.Create_Location):
             if event.loc_id == loc_id:
                return event.image_uuid
             options.append(event.loc_id)
@@ -87,52 +87,52 @@ class Game:
    def get_quest_name(self, quest_id:str) -> str:
       options = []
       for event in self.events:
-         if isinstance(event, E.Start_Quest_Event):
+         if isinstance(event, E.Start_Quest):
             if event.quest_id == quest_id:
                return event.name
             options.append(event.quest_id)
       raise ValueError(f"Failed to find Quest with ID '{quest_id}', options were {options}")
    
-   def get_active_quests(self) -> List[E.Start_Quest_Event]:
-      quests: List[E.Start_Quest_Event] = []
+   def get_active_quests(self) -> List[E.Start_Quest]:
+      quests: List[E.Start_Quest] = []
       completed = set()
       for event in reversed(self.events):
-         if isinstance(event, E.End_Quest_Event):
+         if isinstance(event, E.End_Quest):
             completed.add(event.quest_id)
-         elif isinstance(event, E.Start_Quest_Event) and event.quest_id not in completed:
+         elif isinstance(event, E.Start_Quest) and event.quest_id not in completed:
             quests.insert(0, event)
       return quests
 
    def get_item_name(self, item_id:str) -> str:
       options = []
       for event in self.events:
-         if isinstance(event, E.Give_Player_Item_Event):
+         if isinstance(event, E.Give_Player_Item):
             if event.item_id == item_id:
                return event.name
             options.append(event.item_id)
       raise ValueError(f"Failed to find Quest with ID '{item_id}', options were {options}")
 
-   def get_inventory_items(self) -> List[E.Give_Player_Item_Event]:
-      inventory_items: List[E.Give_Player_Item_Event] = []
+   def get_inventory_items(self) -> List[E.Give_Player_Item]:
+      inventory_items: List[E.Give_Player_Item] = []
       removed_items = set()
       for event in reversed(self.events):
-         if isinstance(event, E.Remove_Player_Item_Event):
+         if isinstance(event, E.Remove_Player_Item):
             removed_items.add(event.item_id)
-         elif isinstance(event, E.Give_Player_Item_Event) and event.item_id not in removed_items:
+         elif isinstance(event, E.Give_Player_Item) and event.item_id not in removed_items:
             inventory_items.insert(0, event)
       return inventory_items
 
    def get_curr_loc_id(self) -> str:
       for event in reversed(self.events):
-         if isinstance(event, E.Move_Player_To_Event):
+         if isinstance(event, E.Move_Player_To):
             return event.loc_id
       raise RuntimeError(f"Failed to find a player move event")
 
    def player_knows_about(self, loc_id:str) -> bool:
       for event in reversed(self.events):
-         if isinstance(event, E.Move_Player_To_Event) and event.loc_id == loc_id:
+         if isinstance(event, E.Move_Player_To) and event.loc_id == loc_id:
             return True
-         elif isinstance(event, E.Create_Location_Event) and event.loc_id == loc_id:
+         elif isinstance(event, E.Create_Location) and event.loc_id == loc_id:
             return event.tell_player
       raise RuntimeError(f"Failed to find a creation event for location with ID '{loc_id}'")
 
@@ -142,22 +142,22 @@ class Game:
       curr_loc_id = None
 
       INTERACT_EVENT_MAP: Dict[Type[Event],List[str]] = {
-         E.Speak_Player_to_Npc_Event: ["npc_id"],
-         E.Speak_Npc_to_Player_Event: ["npc_id"],
-         E.Speak_Npc_to_Npc_Event: ["from_npc_id", "to_npc_id"],
+         E.Speak_Player_to_Npc: ["npc_id"],
+         E.Speak_Npc_to_Player: ["npc_id"],
+         E.Speak_Npc_to_Npc: ["from_npc_id", "to_npc_id"],
       }
 
       for i, event in enumerate(self.events):
-         if isinstance(event, E.Create_Location_Event):
+         if isinstance(event, E.Create_Location):
             loc_id_to_name[event.loc_id] = event.name
-         elif isinstance(event, E.Move_Player_To_Event):
+         elif isinstance(event, E.Move_Player_To):
             curr_loc_id = event.loc_id
-         elif isinstance(event, E.Create_Npc_Event):
+         elif isinstance(event, E.Create_Npc):
             assert curr_loc_id is not None, f"Found a create NPC event {event} before a location was established"
             loc_name = loc_id_to_name.get(curr_loc_id, None)
             assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
             npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", event.start_loc_id, loc_name, i, event.image_uuid)
-         elif isinstance(event, E.Move_Npc_Event):
+         elif isinstance(event, E.Move_Npc):
             npc_infos[event.npc_id].loc_id = event.loc_id
          elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
             attrs = INTERACT_EVENT_MAP[type(event)]
