@@ -17,6 +17,14 @@ class Npc_Info:
    last_interaction: int
    image_uuid: str
 
+@dataclass
+class Inventory_Item:
+   item_id: str
+   name: str
+   desc: str
+   stackable: bool
+   count: int = -1
+
 class Game:
    events: List[Event]
    new_events: int = 0
@@ -106,21 +114,31 @@ class Game:
    def get_item_name(self, item_id:str) -> str:
       options = []
       for event in self.events:
-         if isinstance(event, E.Give_Player_Item):
+         if isinstance(event, (E.Give_Player_Unique_Item, E.Give_Player_Stackable_Items)):
             if event.item_id == item_id:
                return event.name
             options.append(event.item_id)
       raise ValueError(f"Failed to find Quest with ID '{item_id}', options were {options}")
 
-   def get_inventory_items(self) -> List[E.Give_Player_Item]:
-      inventory_items: List[E.Give_Player_Item] = []
-      removed_items = set()
+   def get_inventory_items(self) -> List[Inventory_Item]:
+      inventory_items: Dict[str,Inventory_Item] = {}
+      seen_items = set()
       for event in reversed(self.events):
-         if isinstance(event, E.Remove_Player_Item):
-            removed_items.add(event.item_id)
-         elif isinstance(event, E.Give_Player_Item) and event.item_id not in removed_items:
-            inventory_items.insert(0, event)
-      return inventory_items
+         if isinstance(event, E.Remove_Player_Unique_Item) and event.item_id not in seen_items:
+            seen_items.add(event.item_id)
+         elif isinstance(event, E.Give_Player_Unique_Item) and event.item_id not in seen_items:
+            inventory_items[event.item_id] = Inventory_Item(event.item_id, event.name, event.desc, False)
+            seen_items.add(event.item_id)
+         elif isinstance(event, E.Give_Player_Stackable_Items):
+            item = inventory_items.get(event.item_id)
+            if item is None:
+               item = Inventory_Item(event.item_id, event.name, event.desc, True, 0)
+               inventory_items[event.item_id] = item
+            item.count += event.count
+            seen_items.add(event.item_id)
+         elif isinstance(event, E.Remove_Player_Stackable_Items):
+            inventory_items[event.item_id].count -= event.item_id
+      return list(inventory_items.values())
 
    def get_curr_loc_id(self) -> str:
       for event in reversed(self.events):

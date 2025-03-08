@@ -7,10 +7,6 @@ from backends.ai_backend import AI_Backend
 import logging, os, json, threading
 import shutil
 
-# TODO
-# - Add AI query events
-# - Scrollbar in events list (and others) ?
-
 
 def game_loop(init_game:Game, game_dirpath:str):
    kill_event = threading.Event()

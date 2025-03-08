@@ -294,49 +294,115 @@ Function_Map.funcs.append(
 
 
 @dataclass
-class Give_Player_Item(Event):
+class Give_Player_Unique_Item(Event):
    item_id: str
    name: str
    desc: str
    def player(self, game:Game) -> Optional[str]:
-      return f"You gain a new item, {self.name}: {self.desc}"
-def give_player_item(game:Game, item_id:str, name:str, desc:str) -> Tuple[bool,str]:
+      return f"You gained a new item, {self.name}: {self.desc}"
+def give_player_unique_item(game:Game, item_id:str, name:str, desc:str) -> Tuple[bool,str]:
    for event in game.events:
-      if isinstance(event, Give_Player_Item) and item_id == event.item_id:
-         return False, f"An item with ID '{item_id}' already exists"
-   game.add_event(Give_Player_Item(item_id, name, desc))
+      if isinstance(event, Give_Player_Stackable_Items) and event.item_id == item_id:
+         return False, f"A Stackable item with ID '{item_id}' already exists"
+   for event in reversed(game.events):
+      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
+         return False, f"The player already has an item with ID '{item_id}'"
+      if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
+         break
+   game.add_event(Give_Player_Unique_Item(item_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   Function(
-      give_player_item, "GAME.give_player_item",
+   give_player_unique_item_func := Function(
+      give_player_unique_item, "GAME.give_player_unique_item",
       Parameter("item_id", str),
       Parameter("name", str),
       Parameter("desc", str),
    )
 )
+Give_Player_Unique_Item.system = (lambda e: give_player_unique_item_func.system(e)) # type: ignore
 
 
 @dataclass
-class Remove_Player_Item(Event):
+class Remove_Player_Unique_Item(Event):
    item_id: str
    reason: str
    def player(self, game:Game) -> Optional[str]:
-      return f"You lose an item, {game.get_item_name(self.item_id)}: {self.reason}"
-def remove_player_item(game:Game, item_id:str, reason:str) -> Tuple[bool,str]:
+      return f"You lost an item, {game.get_item_name(self.item_id)}: {self.reason}"
+def remove_player_unique_item(game:Game, item_id:str, reason:str) -> Tuple[bool,str]:
    for event in reversed(game.events):
-      if isinstance(event, Remove_Player_Item) and item_id == event.item_id:
-         return False, f"The item with ID '{item_id}' has already been removed"
-      elif isinstance(event, Give_Player_Item) and item_id == event.item_id:
-         game.add_event(Remove_Player_Item(item_id, reason))
+      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
+         return False, f"The player already has an item with ID '{item_id}'"
+      if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
+         break
+   for event in reversed(game.events):
+      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
+         game.add_event(Give_Player_Unique_Item(item_id, reason))
          return True, ""
-   return False, f"No item with ID '{item_id}' currently exists"
+      if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
+         break
+   return False, f"The player does not have an item with ID '{item_id}'"
 Function_Map.funcs.append(
-   Function(
-      remove_player_item, "GAME.remove_player_item",
+   remove_player_unique_item_func := Function(
+      remove_player_unique_item, "GAME.remove_player_unique_item",
       Parameter("item_id", str),
       Parameter("reason", str),
    )
 )
+Remove_Player_Unique_Item.system = (lambda e: remove_player_unique_item_func.system(e)) # type: ignore
+
+
+@dataclass
+class Give_Player_Stackable_Items(Event):
+   item_id: str
+   name: str
+   count: int
+   desc: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"You gained {self.count} {self.name}: {self.desc}"
+def give_player_stackable_items(game:Game, item_id:str, name:str, desc:str, count:int) -> Tuple[bool,str]:
+   if count <= 0:
+      return False, f"Cannot give non-positive amount {count} of items to player"
+   game.add_event(Give_Player_Stackable_Items(item_id, name, count, desc))
+   return True, ""
+Function_Map.funcs.append(
+   give_player_stackable_items_func := Function(
+      give_player_stackable_items, "GAME.give_player_stackable_items",
+      Parameter("item_id", str),
+      Parameter("name", str),
+      Parameter("desc", str),
+      Parameter("count", int),
+   )
+)
+Give_Player_Stackable_Items.system = (lambda e: give_player_stackable_items_func.system(e)) # type: ignore
+
+
+@dataclass
+class Remove_Player_Stackable_Items(Event):
+   item_id: str
+   count: int
+   reason: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"You lost an item, {game.get_item_name(self.item_id)}: {self.reason}"
+def remove_player_stackable_items(game:Game, item_id:str, count:int, reason:str) -> Tuple[bool,str]:
+   current = 0
+   for event in game.events:
+      if isinstance(event, Give_Player_Stackable_Items) and event.item_id == item_id:
+         current += event.count
+      if isinstance(event, Remove_Player_Stackable_Items) and event.item_id == item_id:
+         current -= event.count
+   if current < count:
+      return False, f"The player only has {current} items with ID '{item_id}', cannot remove {count}"
+   game.add_event(Give_Player_Stackable_Items(item_id, count, reason))
+   return True, ""
+Function_Map.funcs.append(
+   remove_player_stackable_items_func := Function(
+      remove_player_stackable_items, "GAME.remove_player_stackable_items",
+      Parameter("item_id", str),
+      Parameter("count", int),
+      Parameter("reason", str),
+   )
+)
+Remove_Player_Stackable_Items.system = (lambda e: remove_player_stackable_items_func.system(e)) # type: ignore
 
 
 event_dictionary = { n:E for n,E in locals().items() if isinstance(E, type) and issubclass(E, Event) }
