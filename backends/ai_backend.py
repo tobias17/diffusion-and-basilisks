@@ -129,7 +129,7 @@ class AI_Backend(Game_Processor):
          if len(lines) == 0:
             decision_log.append({"output":output.split("\n"), "event":"ERROR: Got back 0 lines from the model"})
          else:
-            delta_game = game.copy()
+            delta_game = game.copy(reset_event_count=True)
             for line in lines:
                call_data, msg = parse_function(line) # type: ignore
                if call_data is None:
@@ -172,7 +172,7 @@ class AI_Backend(Game_Processor):
 
       if ai_game is None or self.kill_event.is_set():
          return None
-      delta_game = game.copy()
+      delta_game = game.copy(reset_event_count=True)
       delta_events = ai_game.events[len(game.events):]
 
       # Queue up all images required

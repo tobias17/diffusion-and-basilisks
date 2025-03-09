@@ -793,7 +793,7 @@ class Inventory_Display(State_Display):
       if len(items) == 0:
          self.lines.append("You have no items.")
       else:
-         for item in items:
+         for item in reversed(items):
             self.lines += trim_text((f"{item.count} " if item.stackable else "") + f"{item.name}: {item.desc}", self.rect.w-2) + [""]
          self.lines.pop(-1) # remove last newline
       self.index = 0

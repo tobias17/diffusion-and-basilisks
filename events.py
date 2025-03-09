@@ -65,9 +65,16 @@ class Move_Player_To(Event):
    def player(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
 def move_player_to(game:Game, loc_id:str) -> Tuple[bool,str]:
-   for event in game.events:
+   seen_move = False
+   for event in reversed(game.events):
+      if isinstance(event, Move_Player_To):
+         if event.loc_id == loc_id:
+            return True, "" # The player was last moved here, no action needed
+         seen_move = True
       if isinstance(event, Create_Location) and event.loc_id == loc_id:
-         game.add_event(Move_Player_To(loc_id))
+         if seen_move or not event.automove_player_to:
+            # Only requires action if we have either moved since this was created or we werent automoved
+            game.add_event(Move_Player_To(loc_id))
          return True, ""
    return False, f"Could not find a location with the ID '{loc_id}'"
 Function_Map.funcs.append(
@@ -126,10 +133,16 @@ class Move_Npc(Event):
    def system(self) -> Optional[str]:
       return f'GAME.move_npc(npc_id="{self.npc_id}", to_loc_id="{self.loc_id}")'
 def move_npc(game:Game, npc_id:str, to_loc_id:str) -> Tuple[bool,str]:
-   found_npc = found_loc = False
-   for event in game.events:
+   found_npc = found_loc = found_move = False
+   for event in reversed(game.events):
       if isinstance(event, Create_Npc) and event.npc_id == npc_id:
+         if event.start_loc_id == to_loc_id and not found_move:
+            return True, "" # The NPC got created here and has not moved since, no action needed
          found_npc = True
+      elif isinstance(event, Move_Npc) and not found_move:
+         if event.loc_id == to_loc_id:
+            return True, "" # The NPC was last moved here, no action needed
+         found_move = True
       elif isinstance(event, Create_Location) and event.loc_id == to_loc_id:
          found_loc = True
       if found_npc and found_loc:

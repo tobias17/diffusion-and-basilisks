@@ -33,8 +33,8 @@ class Game:
       self.events = [] if events is None else events
       self.new_events = new_events
 
-   def copy(self) -> 'Game':
-      return Game(self.events.copy(), self.new_events)
+   def copy(self, reset_event_count:bool=False) -> 'Game':
+      return Game(self.events.copy(), 0 if reset_event_count else self.new_events)
 
    def to_json(self) -> List[Dict[str,Any]]:
       data: List[Dict[str,Any]] = []
