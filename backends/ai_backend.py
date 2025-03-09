@@ -6,8 +6,8 @@ from prompts import SYSTEM_MESSAGE, STARTING_USER_MESSAGE, GENERIC_USER_MESSAGE,
 from functions import Function_Map, parse_function, match_function
 from process_images import image_to_ascii
 
-from backends.image import Image_Backend, Tinyapi_Image
-from backends.text import Text_Backend, Tinyapi_Text
+from backends.image import Image_Backend, Image_Registry
+from backends.text  import Text_Backend,  Text_Registry
 
 from typing import List, Dict, Optional, Set
 import threading, time, json, os, traceback
@@ -28,12 +28,24 @@ class AI_Backend(Game_Processor):
    convert_queue:   Queue[str]
    processed_uuids: Set[str]
 
-   def __init__(self, kill_event:threading.Event):
+   def __init__(self, kill_event:threading.Event, config:Dict):
       self.kill_event = kill_event
-      self.image_backend = Tinyapi_Image(URL)
-      self.text_backend  = Tinyapi_Text(URL)
-      self.decision_logs = []
 
+      # Load the text backend from the config
+      text_config = config.get("text")
+      assert text_config is not None, f"Config backend section did not have a text entry, required"
+      text_name = text_config.pop("name")
+      assert text_name is not None, f"Config backend text section did not have name entry, required"
+      self.text_backend = Text_Registry.get(text_name)(**text_config)
+
+      # Load the image backend from the config
+      image_config = config.get("image")
+      assert image_config is not None, f"Config backend section did not have a image entry, required"
+      image_name = image_config.pop("name")
+      assert image_name is not None, f"Config backend image section did not have name entry, required"
+      self.image_backend = Image_Registry.get(image_name)(**image_config)
+
+      self.decision_logs = []
       self.generate_queue = Queue()
       self.convert_queue = Queue()
       self.processed_uuids = set()

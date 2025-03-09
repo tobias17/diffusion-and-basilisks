@@ -1,6 +1,6 @@
 from common import logger
 
-from . import Text_Backend
+from . import Text_Backend, Text_Registry
 
 from typing import List, Dict
 import requests, json # type: ignore
@@ -30,3 +30,5 @@ class Tinyapi_Text(Text_Backend):
       else:
          logger.info(f"Got back: {resp.text}")
          raise RuntimeError(f"Endpoint returned non-200 status code {resp.status_code}")
+
+Text_Registry.add("tinyapi", Tinyapi_Text)

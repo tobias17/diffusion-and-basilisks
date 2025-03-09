@@ -1,6 +1,6 @@
 from common import logger
 
-from . import Image_Backend
+from . import Image_Backend, Image_Registry
 
 import requests, json, base64 # type: ignore
 from io import BytesIO
@@ -34,3 +34,5 @@ class Tinyapi_Image(Image_Backend):
          for line in response.text.split("\n"):
             logger.error(line)
          raise RuntimeError("Got back non-200 code from image API")
+
+Image_Registry.add("tinyapi", Tinyapi_Image)
