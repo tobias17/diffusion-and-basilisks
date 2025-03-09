@@ -361,7 +361,7 @@ class Text_Box:
       for i, event in enumerate(reversed(game.events)):
          if isinstance(event, E.Player_Request_Action):
             latest_event = max(latest_event, len(game.events) - i - 1)
-         elif isinstance(event, E.Move_Player_To):
+         elif isinstance(event, E.Move_Player_To) or (isinstance(event, E.Create_Location) and event.automove_player_to):
             curr_loc_id = event.loc_id
             latest_event = max(latest_event, len(game.events) - i - 1)
             self.index = 0

@@ -29,11 +29,12 @@ class Game:
    events: List[Event]
    new_events: int = 0
 
-   def __init__(self, events:Optional[List[Event]]=None):
+   def __init__(self, events:Optional[List[Event]]=None, new_events:int=0):
       self.events = [] if events is None else events
+      self.new_events = new_events
 
    def copy(self) -> 'Game':
-      return Game(self.events.copy())
+      return Game(self.events.copy(), self.new_events)
 
    def to_json(self) -> List[Dict[str,Any]]:
       data: List[Dict[str,Any]] = []
@@ -144,6 +145,8 @@ class Game:
       for event in reversed(self.events):
          if isinstance(event, E.Move_Player_To):
             return event.loc_id
+         if isinstance(event, E.Create_Location) and event.automove_player_to:
+            return event.loc_id
       raise RuntimeError(f"Failed to find a player move event")
 
    def player_knows_about(self, loc_id:str) -> bool:
@@ -151,7 +154,7 @@ class Game:
          if isinstance(event, E.Move_Player_To) and event.loc_id == loc_id:
             return True
          elif isinstance(event, E.Create_Location) and event.loc_id == loc_id:
-            return event.tell_player
+            return event.tell_player or event.automove_player_to
       raise RuntimeError(f"Failed to find a creation event for location with ID '{loc_id}'")
 
    def get_npc_infos(self) -> List[Npc_Info]:
@@ -168,6 +171,8 @@ class Game:
       for i, event in enumerate(self.events):
          if isinstance(event, E.Create_Location):
             loc_id_to_name[event.loc_id] = event.name
+            if event.automove_player_to:
+               curr_loc_id = event.loc_id
          elif isinstance(event, E.Move_Player_To):
             curr_loc_id = event.loc_id
          elif isinstance(event, E.Create_Npc):

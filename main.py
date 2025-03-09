@@ -18,7 +18,7 @@ def game_loop(init_game:Game, game_dirpath:str):
       # Main game loop
       while not kill_event.is_set():
          logger.info("Requesting user to advance game state")
-         user_game = user_controller.process_game(init_game, ai_backend)
+         user_game = user_controller.process_game(init_game.copy(), ai_backend)
          if kill_event.is_set():
             return
          if user_game is None:
