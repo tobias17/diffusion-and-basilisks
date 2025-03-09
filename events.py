@@ -124,6 +124,28 @@ Create_Npc.system = (lambda e: create_npc_func.system(e)) # type: ignore
 
 
 @dataclass
+class Kill_Npc(Event):
+   npc_id: str
+   def player(self, game:Game) -> Optional[str]:
+      return f"{game.get_npc_name(self.npc_id)} dies"
+def kill_npc(game:Game, npc_id:str) -> Tuple[bool,str]:
+   for event in reversed(game.events):
+      if isinstance(event, Kill_Npc) and event.npc_id == npc_id:
+         return True, "" # Npc is already dead, no action to perform
+      if isinstance(event, Create_Npc) and event.npc_id == npc_id:
+         game.add_event(Kill_Npc(npc_id))
+         return True, ""
+   return False, f"Could not find an NPC with ID '{npc_id}'"
+Function_Map.funcs.append(
+   kill_npc_func := Function(
+      kill_npc, "GAME.kill_npc",
+      Parameter("npc_id", str),
+   )
+)
+Create_Npc.system = (lambda e: kill_npc_func.system(e)) # type: ignore
+
+
+@dataclass
 class Move_Npc(Event):
    npc_id: str
    loc_id: str
@@ -353,7 +375,7 @@ def remove_player_unique_item(game:Game, item_id:str, reason:str) -> Tuple[bool,
          break
    for event in reversed(game.events):
       if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
-         game.add_event(Give_Player_Unique_Item(item_id, reason))
+         game.add_event(Remove_Player_Unique_Item(item_id, reason))
          return True, ""
       if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
          break
@@ -376,7 +398,7 @@ class Give_Player_Stackable_Items(Event):
    desc: str
    def player(self, game:Game) -> Optional[str]:
       return f"You gained {self.count} {self.name}: {self.desc}"
-def give_player_stackable_items(game:Game, item_id:str, name:str, desc:str, count:int) -> Tuple[bool,str]:
+def give_player_stackable_items(game:Game, item_id:str, name:str, count:int, desc:str) -> Tuple[bool,str]:
    if count <= 0:
       return False, f"Cannot give non-positive amount {count} of items to player"
    game.add_event(Give_Player_Stackable_Items(item_id, name, count, desc))
@@ -386,8 +408,8 @@ Function_Map.funcs.append(
       give_player_stackable_items, "GAME.give_player_stackable_items",
       Parameter("item_id", str),
       Parameter("name", str),
-      Parameter("desc", str),
       Parameter("count", int),
+      Parameter("desc", str),
    )
 )
 Give_Player_Stackable_Items.system = (lambda e: give_player_stackable_items_func.system(e)) # type: ignore
@@ -409,7 +431,7 @@ def remove_player_stackable_items(game:Game, item_id:str, count:int, reason:str)
          current -= event.count
    if current < count:
       return False, f"The player only has {current} items with ID '{item_id}', cannot remove {count}"
-   game.add_event(Give_Player_Stackable_Items(item_id, count, reason))
+   game.add_event(Remove_Player_Stackable_Items(item_id, count, reason))
    return True, ""
 Function_Map.funcs.append(
    remove_player_stackable_items_func := Function(

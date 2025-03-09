@@ -103,7 +103,10 @@ class AI_Backend(Game_Processor):
 
       # Update last message
       quest_str = "".join([f'Quest(quest_id="{q.quest_id}", name="{q.name}", desc="{q.desc}")\n' for q in game.get_active_quests()])
-      items_str = "".join([f'Item(item_id="{i.item_id}", name="{i.name}", desc="{i.desc}")' for i in game.get_inventory_items()])
+      items_str = ""
+      for i in game.get_inventory_items():
+         if i.stackable: items_str += f'StackableItem(item_id="{i.item_id}", name="{i.name}", count={i.count}, desc="{i.desc}")\n'
+         else:           items_str += f'UniqueItem(item_id="{i.item_id}", name="{i.name}", desc="{i.desc}")\n'
       messages[-1]["content"] = FINAL_USER_MESSAGE.format(quests=quest_str, items=items_str, content=messages[-1]["content"])
 
       # Log the messages in a clean way

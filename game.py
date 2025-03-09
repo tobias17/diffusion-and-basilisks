@@ -138,8 +138,8 @@ class Game:
             item.count += event.count
             seen_items.add(event.item_id)
          elif isinstance(event, E.Remove_Player_Stackable_Items):
-            inventory_items[event.item_id].count -= event.item_id
-      return list(inventory_items.values())
+            inventory_items[event.item_id].count -= event.count
+      return list(reversed(inventory_items.values()))
 
    def get_curr_loc_id(self) -> str:
       for event in reversed(self.events):
@@ -189,6 +189,8 @@ class Game:
                npc_info = npc_infos.get(npc_id, None)
                assert npc_info is not None, f"Failed to find npc_info with npc_id '{npc_id}' referenced by {event}"
                npc_info.last_interaction = i
+         elif isinstance(event, E.Kill_Npc):
+            npc_infos.pop(event.npc_id)
 
       return list(npc_infos.values())
 
