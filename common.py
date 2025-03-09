@@ -4,7 +4,7 @@ import os, sys, datetime
 
 import logging
 logger = logging.getLogger("Diff_and_Bas")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.CRITICAL)
 LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
 
 IMAGE_CHARS_WIDE = 90

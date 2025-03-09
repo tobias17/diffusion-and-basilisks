@@ -836,6 +836,11 @@ class Main_Menu:
       self.write_to_buffer()
 
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      if isinstance(inp, Special_Keys) and inp == Special_Keys.CTRL_R:
+         self.write_to_buffer()
+         self.screen_buffer.draw(only_dirty=False)
+         return
+
       if self.making_new_game:
          if isinstance(inp, str):
             self.new_game_name += inp
@@ -887,6 +892,7 @@ class Main_Menu:
             x_offset = (self.rect.w - len(line)) // 2
             assert x_offset >= 0
             self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+         self.screen_buffer.move_cursor(self.rect.x1 + ((self.rect.w - len(self.new_game_name)) // 2) + len(self.new_game_name), self.rect.y1 + y_offset + 1)
       else:
          y_offset = (self.rect.h - len(self.lines)) // 2
          assert y_offset >= 0

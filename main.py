@@ -10,6 +10,7 @@ from typing import Dict
 
 def configure_game_root(game_root:str):
    Save_Data.config(game_root)
+   logger.setLevel(logging.DEBUG)
    file = logging.FileHandler(Save_Data.get_and_make(Save_Data.logs_dirpath, "debug.log", is_file=True))
    file.setLevel(logging.DEBUG)
    file.setFormatter(LOG_FORMAT)

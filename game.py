@@ -2,7 +2,7 @@ from __future__ import annotations
 from common import Event
 import events as E
 
-from typing import List, Optional, Dict, Any, List, Callable, Type, TypeVar, Tuple
+from typing import List, Optional, Dict, Any, List, Type, TypeVar
 from dataclasses import dataclass, asdict
 from abc import ABC, abstractmethod
 
