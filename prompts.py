@@ -14,6 +14,14 @@ The following is the API you will have access to:
 No variables should ever be an empty string. This means all NPCs need both a first and last name.
 """.strip()
 
+STARTING_USER_MESSAGE = """
+The game is initialized with the following actions:
+```
+{starting_events}```
+
+Please create a new town location, automove the player there, and then give them a narration to introduce them to the world.
+""".strip()
+
 FINAL_USER_MESSAGE = """
 The following quests are active:
 ```

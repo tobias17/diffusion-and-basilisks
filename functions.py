@@ -13,7 +13,7 @@ import re
 class Parameter:
    name: str
    dtype: Type
-   default: Optional[str] = None
+   default: Optional[Any] = None
    def render(self) -> str:
       return f"{self.name}:{self.dtype.__name__}" + (f"={self.default}" if self.default is not None else "")
 

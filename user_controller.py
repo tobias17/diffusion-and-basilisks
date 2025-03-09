@@ -1,7 +1,7 @@
 from __future__ import annotations
 from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
-from game import Game, Game_Processor, Npc_Info
 import events as E
+from game import Game, Game_Processor, Npc_Info
 
 import sys, termios, select, tty, os, traceback, threading, json, time
 from typing import List, Union, Tuple, Type, Dict, Optional

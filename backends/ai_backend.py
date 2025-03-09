@@ -1,6 +1,8 @@
+from __future__ import annotations
 from common import Save_Data, logger, Image_Prompt, IMAGE_CHARS_TALL, IMAGE_CHARS_WIDE
+import events as E
 from game import Game, Game_Processor
-from prompts import SYSTEM_MESSAGE, FINAL_USER_MESSAGE
+from prompts import SYSTEM_MESSAGE, STARTING_USER_MESSAGE, FINAL_USER_MESSAGE
 from functions import Function_Map, parse_function, match_function
 from process_images import image_to_ascii
 
@@ -81,23 +83,32 @@ class AI_Backend(Game_Processor):
          self.kill_event.set()
          raise ex from ex
 
-   def __get_next_game_state(self, game:Game, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
-      # Create the message JSON object to perform request with
+   def __get_messages_from_game(self, game:Game) -> List[Dict[str,str]]:
       messages = [
          {"role":"system", "content":SYSTEM_MESSAGE.format(api_definition=Function_Map.api_definition())}
       ]
+      start_seq = 0
       lines: List[str] = []
       for event in game.events:
-         if event.is_player_provided():
-            if len(lines) > 0:
-               messages.append({"role":"assistant", "content":"\n".join(lines)})
-               lines = []
-            text = event.system()
-            assert text
-            messages.append({"role":"user", "content":text})
-         else:
-            line = event.system()
-            if line: lines.append(line)
+         if start_seq == 0:
+            if isinstance(event, (E.Give_Player_Stackable_Items, E.Give_Player_Unique_Item)):
+               text = event.system()
+               assert text
+               lines.append(text)
+            else:
+               messages.append({"role":"user", "content":STARTING_USER_MESSAGE.format(starting_events="\n".join(lines))})
+               start_seq += 1
+         if start_seq == 1: # intentional fall-through
+            if event.is_player_provided():
+               if len(lines) > 0:
+                  messages.append({"role":"assistant", "content":"\n".join(lines)})
+                  lines = []
+               text = event.system()
+               assert text
+               messages.append({"role":"user", "content":text})
+            else:
+               line = event.system()
+               if line: lines.append(line)
       if len(lines) > 0:
          logger.warning(f"Got assistant events at the end of the game when requesting AI response, skipping")
 
@@ -108,6 +119,12 @@ class AI_Backend(Game_Processor):
          if i.stackable: items_str += f'StackableItem(item_id="{i.item_id}", name="{i.name}", count={i.count}, desc="{i.desc}")\n'
          else:           items_str += f'UniqueItem(item_id="{i.item_id}", name="{i.name}", desc="{i.desc}")\n'
       messages[-1]["content"] = FINAL_USER_MESSAGE.format(quests=quest_str, items=items_str, content=messages[-1]["content"])
+
+      return messages
+
+   def __get_next_game_state(self, game:Game, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
+      # Create the message JSON object to perform request with
+      messages = self.__get_messages_from_game(game)
 
       # Log the messages in a clean way
       spread_messages = []

@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 from dataclasses import dataclass
 import os, sys, datetime
 

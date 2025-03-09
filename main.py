@@ -1,5 +1,5 @@
 from common import logger, LOG_FORMAT, Save_Data
-import events as E
+import events # intentionally unused, for import ordering
 from game import Game
 from user_controller import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
