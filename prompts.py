@@ -22,6 +22,13 @@ The game is initialized with the following actions:
 Please create a new town location, automove the player there, and then give them a narration to introduce them to the world.
 """.strip()
 
+GENERIC_USER_MESSAGE = """
+The player performed:
+```
+{content}
+```
+""".strip()
+
 FINAL_USER_MESSAGE = """
 The following quests are active:
 ```
@@ -31,7 +38,7 @@ The following items are in the player's inventory:
 ```
 {items}```
 
-The user has input the following:
+The player performed:
 ```
 {content}
 ```

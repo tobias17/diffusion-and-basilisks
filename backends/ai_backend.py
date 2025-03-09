@@ -1,8 +1,8 @@
 from __future__ import annotations
-from common import Save_Data, logger, Image_Prompt, IMAGE_CHARS_TALL, IMAGE_CHARS_WIDE
+from common import Event, Save_Data, logger, Image_Prompt, IMAGE_CHARS_TALL, IMAGE_CHARS_WIDE
 import events as E
 from game import Game, Game_Processor
-from prompts import SYSTEM_MESSAGE, STARTING_USER_MESSAGE, FINAL_USER_MESSAGE
+from prompts import SYSTEM_MESSAGE, STARTING_USER_MESSAGE, GENERIC_USER_MESSAGE, FINAL_USER_MESSAGE
 from functions import Function_Map, parse_function, match_function
 from process_images import image_to_ascii
 
@@ -84,43 +84,61 @@ class AI_Backend(Game_Processor):
          raise ex from ex
 
    def __get_messages_from_game(self, game:Game) -> List[Dict[str,str]]:
-      messages = [
-         {"role":"system", "content":SYSTEM_MESSAGE.format(api_definition=Function_Map.api_definition())}
-      ]
-      start_seq = 0
-      lines: List[str] = []
+      class Message_Queue:
+         messages: List[Dict[str,str]]
+         lines: List[str]
+         index: int = 0
+         is_user: bool = True
+
+         def __init__(self):
+            self.messages = [
+               {"role":"system", "content":SYSTEM_MESSAGE.format(api_definition=Function_Map.api_definition())}
+            ]
+            self.lines = []
+
+         def step(self, event:Event) -> None:
+            if self.index == 0 and isinstance(event, (E.Give_Player_Unique_Item, E.Give_Player_Stackable_Items)):
+               text = event.system()
+               assert text
+               self.lines.append(text + "\n")
+               return
+
+            if event.is_player_provided() != self.is_user:
+               self.accumulate()
+            text = event.system()
+            if self.is_user:
+               assert text
+            if text:
+               self.lines.append(text)
+
+         def accumulate(self) -> None:
+            if self.index == 0:
+               assert self.is_user
+               self.messages.append({"role":"user", "content":STARTING_USER_MESSAGE.format(starting_events="".join(self.lines))})
+            else:
+               if self.is_user:
+                  self.messages.append({"role":"user", "content":GENERIC_USER_MESSAGE.format(content="\n".join(self.lines))})
+               else:
+                  self.messages.append({"role":"assistant", "content":"\n".join(self.lines)})
+
+            self.is_user = not self.is_user
+            self.lines = []
+            self.index += 1
+
+         def finalize(self, g:Game) -> List[Dict[str,str]]:
+            assert self.is_user
+            quest_str = "".join([f'Quest(quest_id="{q.quest_id}", name="{q.name}", desc="{q.desc}")\n' for q in g.get_active_quests()])
+            items_str = ""
+            for i in g.get_inventory_items():
+               if i.stackable: items_str += f'StackableItem(item_id="{i.item_id}", name="{i.name}", count={i.count}, desc="{i.desc}")\n'
+               else:           items_str += f'UniqueItem(item_id="{i.item_id}", name="{i.name}", desc="{i.desc}")\n'
+            self.messages.append({"role":"user", "content":FINAL_USER_MESSAGE.format(quests=quest_str, items=items_str, content="\n".join(self.lines))})
+            return self.messages
+
+      q = Message_Queue()
       for event in game.events:
-         if start_seq == 0:
-            if isinstance(event, (E.Give_Player_Stackable_Items, E.Give_Player_Unique_Item)):
-               text = event.system()
-               assert text
-               lines.append(text)
-            else:
-               messages.append({"role":"user", "content":STARTING_USER_MESSAGE.format(starting_events="\n".join(lines))})
-               start_seq += 1
-         if start_seq == 1: # intentional fall-through
-            if event.is_player_provided():
-               if len(lines) > 0:
-                  messages.append({"role":"assistant", "content":"\n".join(lines)})
-                  lines = []
-               text = event.system()
-               assert text
-               messages.append({"role":"user", "content":text})
-            else:
-               line = event.system()
-               if line: lines.append(line)
-      if len(lines) > 0:
-         logger.warning(f"Got assistant events at the end of the game when requesting AI response, skipping")
-
-      # Update last message
-      quest_str = "".join([f'Quest(quest_id="{q.quest_id}", name="{q.name}", desc="{q.desc}")\n' for q in game.get_active_quests()])
-      items_str = ""
-      for i in game.get_inventory_items():
-         if i.stackable: items_str += f'StackableItem(item_id="{i.item_id}", name="{i.name}", count={i.count}, desc="{i.desc}")\n'
-         else:           items_str += f'UniqueItem(item_id="{i.item_id}", name="{i.name}", desc="{i.desc}")\n'
-      messages[-1]["content"] = FINAL_USER_MESSAGE.format(quests=quest_str, items=items_str, content=messages[-1]["content"])
-
-      return messages
+         q.step(event)
+      return q.finalize(game)
 
    def __get_next_game_state(self, game:Game, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
       # Create the message JSON object to perform request with
