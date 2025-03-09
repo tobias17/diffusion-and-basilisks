@@ -808,6 +808,7 @@ class User_Controller(Game_Processor):
    game: Game
 
    game_windows: List[Game_Window]
+   has_updated: List[bool]
    window_index: int = 0
 
    pause_screen: Screen_Buffer
@@ -826,6 +827,7 @@ class User_Controller(Game_Processor):
          Inventory_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
          Quests_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
       ]
+      self.has_updated = [False]*len(self.game_windows)
 
       # Prepare the pause screen
       pause_width  = 9 + max(len(window.NAME) for window in self.game_windows)
@@ -860,6 +862,8 @@ class User_Controller(Game_Processor):
       self.game = game
       self.game_windows[self.window_index].visualize_game(game)
       self.game_windows[self.window_index].screen_buffer.draw()
+      for i in range(len(self.game_windows)):
+         self.has_updated[i] = (i == self.window_index)
 
    def __user_input_complete(self, data:Input_Data) -> None:
       go_again = data.text.endswith("&")
@@ -935,7 +939,9 @@ class User_Controller(Game_Processor):
                   elif inp == Special_Keys.ENTER:
                      self.window_index = self.pause_index
                      self.is_paused = False
-                     self.game_windows[self.window_index].visualize_game(self.game)
+                     if not self.has_updated[self.window_index]:
+                        self.game_windows[self.window_index].visualize_game(self.game)
+                        self.has_updated[self.window_index] = True
                      self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
                   continue
 

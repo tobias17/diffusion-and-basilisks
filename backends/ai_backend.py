@@ -14,7 +14,6 @@ import threading, time, json, os, traceback
 from queue import Queue
 
 
-URL = "http://192.168.1.200:7776/v1"
 UPDATE_TIME_DELTA = 2.0
 
 
