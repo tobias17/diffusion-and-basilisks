@@ -35,6 +35,7 @@ class AI_Backend(Game_Processor):
       assert text_config is not None, f"Config backend section did not have a text entry, required"
       text_name = text_config.pop("name")
       assert text_name is not None, f"Config backend text section did not have name entry, required"
+      print(f"Initializing '{text_name}' text backend")
       self.text_backend = Text_Registry.get(text_name)(**text_config)
 
       # Load the image backend from the config
@@ -42,6 +43,7 @@ class AI_Backend(Game_Processor):
       assert image_config is not None, f"Config backend section did not have a image entry, required"
       image_name = image_config.pop("name")
       assert image_name is not None, f"Config backend image section did not have name entry, required"
+      print(f"Initializing '{image_name}' image backend")
       self.image_backend = Image_Registry.get(image_name)(**image_config)
 
       self.decision_logs = []
@@ -204,7 +206,7 @@ class AI_Backend(Game_Processor):
 
       return None
 
-   def __wait_for_uuid(self, uuid:str):
+   def wait_for_uuid(self, uuid:str):
       while not self.kill_event.is_set():
          if uuid in self.processed_uuids:
             return
@@ -241,7 +243,7 @@ class AI_Backend(Game_Processor):
             next_event = delta_events.pop(0)
             prompt = next_event.image_prompt()
             if prompt is not None:
-               self.__wait_for_uuid(prompt.uuid)
+               self.wait_for_uuid(prompt.uuid)
                if self.kill_event.is_set():
                   return None
             delta_game.add_event(next_event)

@@ -1,23 +1,60 @@
 from common import logger, LOG_FORMAT, Save_Data
-import events as _ # intentionally unused, for import ordering
+import events as E
 from game import Game
 from user_controller import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
 
-import logging, os, json, threading, traceback, shutil, argparse
-from typing import Dict
+import logging, os, json, threading, traceback, argparse
+from typing import Dict, Optional
 
 
-def game_loop(init_game:Game, game_dirpath:str, config:Dict):
+def configure_game_root(game_root:str):
+   Save_Data.config(game_root)
+   file = logging.FileHandler(Save_Data.get_and_make(Save_Data.logs_dirpath, "debug.log", is_file=True))
+   file.setLevel(logging.DEBUG)
+   file.setFormatter(LOG_FORMAT)
+   logger.addHandler(file)
+
+
+def game_loop(config:Dict, save_root:str):
    kill_event = threading.Event()
-   
+
    backend_config = config.get("backend")
    assert backend_config is not None, f"Config file did not contain a backend entry, required"
    ai_backend = AI_Backend(kill_event, backend_config)
-   user_controller = User_Controller(kill_event)
+
+   if not os.path.exists(save_root):
+      os.makedirs(save_root)
+   saves = os.listdir(save_root)
 
    with Peek_Terminal_Input():
       try:
+         user_controller = User_Controller(kill_event, saves)
+         game_name, new_game = user_controller.wait_for_save_selection()
+         if kill_event.is_set():
+            return
+         configure_game_root(os.path.join(save_root, game_name))
+         game_dirpath = Save_Data.get_and_make("game.json", is_file=True)
+
+         # Either create a new game or load an existing one
+         if new_game:
+            init_game = Game()
+            init_game.add_event(E.Give_Player_Unique_Item("steel_sword", "Steel Sword", "a long and heft sword made of steel, great for hitting things with"))
+            init_game.add_event(E.Give_Player_Stackable_Items("gold_coins", "Gold Coins", 50, "coins made of gold, perhaps they could be traded for goods and services"))
+            init_game.add_event(E.Create_Location("iosla_town_square", "Iosla Town Square", "a charming seaside town, centered around an ancient gnarled oak tree, massive spreading branches, town square", True, True))
+            init_game.add_event(E.Narrate("You arrive at the town of Iosla, a charming seaside town featuring a prominent ancient gnarled oak tree. You currently stand in the town square in front of the tree."))
+            for event in init_game.events:
+               prompt = event.image_prompt()
+               if prompt:
+                  ai_backend.generate_queue.put(prompt)
+                  ai_backend.wait_for_uuid(prompt.uuid)
+            game_json = init_game.to_json()
+            with open(game_dirpath, "w") as f:
+               json.dump(game_json, f, indent="\t")
+         else:
+            with open(game_dirpath) as f:
+               init_game = Game.from_json(json.load(f))
+
          # Main game loop
          while not kill_event.is_set():
             logger.info("Requesting user to advance game state")
@@ -59,19 +96,7 @@ if __name__ == "__main__":
    with open(config_filepath) as f:
       config_data = json.load(f)
 
-   Save_Data.config("saves/demo")
-   if not os.path.exists(Save_Data.root):
-      shutil.copytree("saves/template", Save_Data.root)
-
-   file = logging.FileHandler(Save_Data.get_and_make(Save_Data.logs_dirpath, "debug.log", is_file=True))
-   file.setLevel(logging.DEBUG)
-   file.setFormatter(LOG_FORMAT)
-   logger.addHandler(file)
-
-   game_path = Save_Data.get_and_make("game.json", is_file=True)
-   with open(game_path) as f:
-      game = Game.from_json(json.load(f))
-
-   game_loop(game.reset_event_count(), game_path, config_data)
+   saves_root = os.path.join(os.path.dirname(__file__), "saves")
+   game_loop(config_data, saves_root)
 
    logger.info("Game exited cleanly")

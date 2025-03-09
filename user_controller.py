@@ -800,12 +800,102 @@ class Inventory_Display(State_Display):
       self.write_to_buffer()
 
 
+class Main_Menu:
+   screen_buffer: Screen_Buffer
+   rect: Rect
+   lines: List[str]
+   line_offset: int
+   index: int = 0
+   selections: List[str]
+
+   making_new_game: bool = False
+   new_game_name: str = ""
+
+   selected_save: Optional[str] = None
+
+   def __init__(self, screen_buffer:Screen_Buffer, saves:List[str]):
+      self.screen_buffer = screen_buffer
+      self.rect = Rect(1, 1, screen_buffer.width-2, screen_buffer.height-2)
+      self.lines = [
+         "Diffusion and Basilisks",
+         "Created by: tobi",
+         "",
+         "Ingame Controls",
+         "        Ctrl+C | Stop the game           ",
+         "        Ctrl+R | Reload the screen       ",
+         "        Escape | Brings up the menu items",
+         "Up/Down Arrows | Scroll the page up/down ",
+         "  Page Up/Down | Scroll the page up/down ",
+         "",
+         "Select a Save",
+      ]
+      self.line_offset = len(self.lines)
+      self.selections = saves + ["New Game"]
+      self.lines += self.selections
+      self.write_to_buffer()
+
+   def process_input(self, inp:Union[str,Special_Keys]) -> None:
+      if self.making_new_game:
+         if isinstance(inp, str):
+            self.new_game_name += inp
+         else:
+            if inp == Special_Keys.BACKSPACE:
+               if len(self.new_game_name) > 0:
+                  self.new_game_name = self.new_game_name[:-1]
+            elif inp == Special_Keys.ENTER:
+               save_name = self.new_game_name.strip()
+               if save_name and save_name not in self.selections:
+                  self.selected_save = save_name
+            else:
+               return
+      else:
+         if isinstance(inp, str):
+            return
+         if inp in (Special_Keys.UP, Special_Keys.DOWN):
+            self.index += -1 if inp == Special_Keys.UP else 1
+            if self.index < 0:
+               self.index += len(self.selections)
+            if self.index >= len(self.selections):
+               self.index -= len(self.selections)
+         elif inp == Special_Keys.ENTER:
+            if self.index == len(self.selections) - 1:
+               self.making_new_game = True
+            else:
+               self.selected_save = self.selections[self.index]
+         else:
+            return
+      self.write_to_buffer()
+      self.screen_buffer.draw()
+
+   def write_to_buffer(self) -> None:
+      self.screen_buffer.clear_text(self.rect)
+      if self.making_new_game:
+         lines = ["Enter Game Name:", self.new_game_name]
+         if self.selected_save is not None:
+            lines += ["", "Generating start"]
+         y_offset = (self.rect.h - len(lines)) // 2
+         for i, line in enumerate(lines):
+            x_offset = (self.rect.w - len(line)) // 2
+            assert x_offset >= 0
+            self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+      else:
+         y_offset = (self.rect.h - len(self.lines)) // 2
+         assert y_offset >= 0
+         for i, line in enumerate(self.lines):
+            if i - self.line_offset == self.index:
+               line = f">>> {line} <<<"
+            x_offset = (self.rect.w - len(line)) // 2
+            assert x_offset >= 0
+            self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+
+
 class User_Controller(Game_Processor):
    POLL_INTERVAL_SEC = 0.01
    rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
-   kill_event: threading.Event
    game: Game
+   kill_event: threading.Event
+   main_menu: Main_Menu
 
    game_windows: List[Game_Window]
    has_updated: List[bool]
@@ -818,8 +908,10 @@ class User_Controller(Game_Processor):
 
    done_processing: bool = False
 
-   def __init__(self, kill_event:threading.Event):
+   def __init__(self, kill_event:threading.Event, saves:List[str]):
       self.kill_event = kill_event
+      self.main_menu = Main_Menu(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), saves)
+
       self.game_windows = [
          Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete),
          Locations_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
@@ -843,6 +935,15 @@ class User_Controller(Game_Processor):
 
       self.fd = sys.stdin.fileno()
       threading.Thread(target=self.run).start()
+
+   def wait_for_save_selection(self) -> Tuple[str,bool]:
+      self.main_menu.screen_buffer.draw(only_dirty=False)
+      while True:
+         if self.kill_event.is_set():
+            return "", False
+         if self.main_menu.selected_save is not None:
+            return self.main_menu.selected_save, self.main_menu.making_new_game
+         time.sleep(0.01)
 
    def process_game(self, game:Game, other_proc:Game_Processor) -> Optional[Game]:
       self.done_processing = False
@@ -894,15 +995,8 @@ class User_Controller(Game_Processor):
          window = self.game_windows[self.window_index]
          window.write_to_buffer()
 
-         # Draw the whole screen
-         window.screen_buffer.draw(only_dirty=False)
-
          # Start our main read and process loop
          while not self.kill_event.is_set():
-            if not hasattr(self, "game"):
-               time.sleep(0.01)
-               continue
-
             seq = self.__read_bytes()
             if len(seq) == 0:
                continue # normally means our kill_event got set
@@ -910,43 +1004,51 @@ class User_Controller(Game_Processor):
             if inp is None:
                continue # normally means it's a special key we do not handle
 
-            if isinstance(inp, Special_Keys):
-               if inp == Special_Keys.CTRL_C:
-                  logger.info("Detected ctrl+c, setting kill event")
-                  self.kill_event.set()
-               elif inp == Special_Keys.CTRL_R:
-                  logger.info("Redrawing entire screen buffer")
-                  self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
-                  continue
-               elif inp == Special_Keys.ESCAPE:
-                  self.is_paused = not self.is_paused
-                  self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
-                  if self.is_paused:
-                     self.pause_screen.draw(only_dirty=False)
-                  continue
-               elif self.is_paused:
-                  if inp in (Special_Keys.DOWN, Special_Keys.UP):
-                     self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, " ")
-                     amnt = 1 if inp == Special_Keys.DOWN else -1
-                     self.pause_index += amnt
-                     if self.pause_index < 0:
-                        self.pause_index += len(self.game_windows)
-                     elif self.pause_index >= len(self.game_windows):
-                        self.pause_index -= len(self.game_windows)
-                     self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, ">")
-                     self.pause_screen.move_cursor(3, 2 + 2*self.pause_index)
-                     self.pause_screen.draw(only_dirty=True)
-                  elif inp == Special_Keys.ENTER:
-                     self.window_index = self.pause_index
-                     self.is_paused = False
-                     if not self.has_updated[self.window_index]:
-                        self.game_windows[self.window_index].visualize_game(self.game)
-                        self.has_updated[self.window_index] = True
-                     self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+            if isinstance(inp, Special_Keys) and inp == Special_Keys.CTRL_C:
+               logger.info("Detected ctrl+c, setting kill event")
+               self.kill_event.set()
+
+            if self.main_menu.selected_save is None:
+               self.main_menu.process_input(inp)
+            else:
+               if not hasattr(self, "game"):
+                  time.sleep(0.01)
                   continue
 
-            if not self.is_paused:
-               self.game_windows[self.window_index].process_input(inp)
+               if isinstance(inp, Special_Keys):
+                  if inp == Special_Keys.CTRL_R:
+                     logger.info("Redrawing entire screen buffer")
+                     self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+                     continue
+                  elif inp == Special_Keys.ESCAPE:
+                     self.is_paused = not self.is_paused
+                     self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+                     if self.is_paused:
+                        self.pause_screen.draw(only_dirty=False)
+                     continue
+                  elif self.is_paused:
+                     if inp in (Special_Keys.DOWN, Special_Keys.UP):
+                        self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, " ")
+                        amnt = 1 if inp == Special_Keys.DOWN else -1
+                        self.pause_index += amnt
+                        if self.pause_index < 0:
+                           self.pause_index += len(self.game_windows)
+                        elif self.pause_index >= len(self.game_windows):
+                           self.pause_index -= len(self.game_windows)
+                        self.pause_screen.put_text_in(self.pause_rect, 4, 2 + 2*self.pause_index, ">")
+                        self.pause_screen.move_cursor(3, 2 + 2*self.pause_index)
+                        self.pause_screen.draw(only_dirty=True)
+                     elif inp == Special_Keys.ENTER:
+                        self.window_index = self.pause_index
+                        self.is_paused = False
+                        if not self.has_updated[self.window_index]:
+                           self.game_windows[self.window_index].visualize_game(self.game)
+                           self.has_updated[self.window_index] = True
+                        self.game_windows[self.window_index].screen_buffer.draw(only_dirty=False)
+                     continue
+
+               if not self.is_paused:
+                  self.game_windows[self.window_index].process_input(inp)
 
       except Exception as ex:
          logger.error(f"Screen Hanlder ran into error in run")
