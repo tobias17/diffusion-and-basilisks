@@ -185,8 +185,11 @@ class AI_Backend(Game_Processor):
                   decision_log.append({"output":output.split("\n"), "event":"ERROR: Got Back Not-OK Calling Function", "message":msg, "on_line":line})
                   break
             else:
-               decision_log.append({"output":output.split("\n"), "event":"Fully processed output and advanced game state"})
-               return delta_game
+               if delta_game.new_events == 0:
+                  decision_log.append({"output":output.split("\n"), "event":"ERROR: Response produced 0 new events in game state"})
+               else:
+                  decision_log.append({"output":output.split("\n"), "event":"Fully processed output and advanced game state"})
+                  return delta_game
 
       return None
 

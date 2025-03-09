@@ -4,8 +4,7 @@ from game import Game
 from user_controller import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
 
-import logging, os, json, threading
-import shutil
+import logging, os, json, threading, traceback, shutil
 
 
 def game_loop(init_game:Game, game_dirpath:str):
@@ -40,6 +39,8 @@ def game_loop(init_game:Game, game_dirpath:str):
 
    except Exception as ex:
       logger.fatal(f"Got exception in game_loop(): {ex}")
+      for line in traceback.format_exc().split("\n"):
+         logger.error(line)
       kill_event.set()
       raise
 

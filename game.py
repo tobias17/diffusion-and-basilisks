@@ -22,6 +22,7 @@ class Inventory_Item:
    item_id: str
    name: str
    desc: str
+   last_seen: int
    stackable: bool
    count: int = -1
 
@@ -124,22 +125,25 @@ class Game:
    def get_inventory_items(self) -> List[Inventory_Item]:
       inventory_items: Dict[str,Inventory_Item] = {}
       seen_items = set()
-      for event in reversed(self.events):
+
+      for i, event in enumerate(reversed(self.events)):
          if isinstance(event, E.Remove_Player_Unique_Item) and event.item_id not in seen_items:
             seen_items.add(event.item_id)
          elif isinstance(event, E.Give_Player_Unique_Item) and event.item_id not in seen_items:
-            inventory_items[event.item_id] = Inventory_Item(event.item_id, event.name, event.desc, False)
+            inventory_items[event.item_id] = Inventory_Item(event.item_id, event.name, event.desc, len(self.events)-i-1, False)
             seen_items.add(event.item_id)
-         elif isinstance(event, E.Give_Player_Stackable_Items):
+      
+      for i, event in enumerate(self.events):
+         if isinstance(event, E.Give_Player_Stackable_Items):
             item = inventory_items.get(event.item_id)
             if item is None:
-               item = Inventory_Item(event.item_id, event.name, event.desc, True, 0)
+               item = Inventory_Item(event.item_id, event.name, event.desc, i, True, 0)
                inventory_items[event.item_id] = item
             item.count += event.count
-            seen_items.add(event.item_id)
          elif isinstance(event, E.Remove_Player_Stackable_Items):
             inventory_items[event.item_id].count -= event.count
-      return list(reversed(inventory_items.values()))
+
+      return sorted(list(inventory_items.values()), key=lambda a: a.last_seen, reverse=True)
 
    def get_curr_loc_id(self) -> str:
       for event in reversed(self.events):

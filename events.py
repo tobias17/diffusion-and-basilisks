@@ -421,7 +421,7 @@ class Remove_Player_Stackable_Items(Event):
    count: int
    reason: str
    def player(self, game:Game) -> Optional[str]:
-      return f"You lost an item, {game.get_item_name(self.item_id)}: {self.reason}"
+      return f"You lose {self.count} {game.get_item_name(self.item_id)}: {self.reason}"
 def remove_player_stackable_items(game:Game, item_id:str, count:int, reason:str) -> Tuple[bool,str]:
    current = 0
    for event in game.events:
