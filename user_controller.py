@@ -812,6 +812,7 @@ class Main_Menu:
    new_game_name: str = ""
 
    selected_save: Optional[str] = None
+   status: Optional[str] = None
 
    def __init__(self, screen_buffer:Screen_Buffer, saves:List[str]):
       self.screen_buffer = screen_buffer
@@ -844,7 +845,14 @@ class Main_Menu:
                   self.new_game_name = self.new_game_name[:-1]
             elif inp == Special_Keys.ENTER:
                save_name = self.new_game_name.strip()
-               if save_name and save_name not in self.selections:
+               if not save_name:
+                  self.status = "Must provide input"
+               elif save_name in self.selections:
+                  self.status = "A save with that name already exists"
+               elif len(save_name) > 16:
+                  self.status = "Name too long"
+               else:
+                  self.status = "Generating start"
                   self.selected_save = save_name
             else:
                return
@@ -866,13 +874,14 @@ class Main_Menu:
             return
       self.write_to_buffer()
       self.screen_buffer.draw()
+      self.status = None
 
    def write_to_buffer(self) -> None:
       self.screen_buffer.clear_text(self.rect)
       if self.making_new_game:
          lines = ["Enter Game Name:", self.new_game_name]
-         if self.selected_save is not None:
-            lines += ["", "Generating start"]
+         if self.status is not None:
+            lines += ["", self.status]
          y_offset = (self.rect.h - len(lines)) // 2
          for i, line in enumerate(lines):
             x_offset = (self.rect.w - len(line)) // 2

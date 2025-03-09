@@ -5,7 +5,7 @@ from user_controller import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
 
 import logging, os, json, threading, traceback, argparse
-from typing import Dict, Optional
+from typing import Dict
 
 
 def configure_game_root(game_root:str):
@@ -41,8 +41,8 @@ def game_loop(config:Dict, save_root:str):
             init_game = Game()
             init_game.add_event(E.Give_Player_Unique_Item("steel_sword", "Steel Sword", "a long and heft sword made of steel, great for hitting things with"))
             init_game.add_event(E.Give_Player_Stackable_Items("gold_coins", "Gold Coins", 50, "coins made of gold, perhaps they could be traded for goods and services"))
-            init_game.add_event(E.Create_Location("iosla_town_square", "Iosla Town Square", "a charming seaside town, centered around an ancient gnarled oak tree, massive spreading branches, town square", True, True))
-            init_game.add_event(E.Narrate("You arrive at the town of Iosla, a charming seaside town featuring a prominent ancient gnarled oak tree. You currently stand in the town square in front of the tree."))
+            init_game.add_event(E.Create_Location("iosla_town_square", "Iosla Town Square", "gigantic oak tree, golden leaves, ancient, gnarled, massive spreading branches, in a country town square", True, True))
+            init_game.add_event(E.Narrate("You arrive at the town of Iosla, a charming country farming town featuring a prominent ancient gnarled oak tree with golden leaves. You currently stand in the town square in front of the tree."))
             for event in init_game.events:
                prompt = event.image_prompt()
                if prompt:
