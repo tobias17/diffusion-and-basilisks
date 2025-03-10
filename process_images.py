@@ -1,7 +1,6 @@
 from sklearn.cluster import KMeans
-from scipy import stats
 import numpy as np
-import cv2, sys
+import cv2
 from typing import Optional, List
 
 QUANTIZE_COUNT = 16
@@ -14,94 +13,8 @@ CHAR_ASPECT_RATIO = float(CHAR_HEIGHT) / float(CHAR_WIDTH)
 
 SCALE = [180.0, 255.0, 255.0]
 
-def color(text:str, r:int, g:int, b:int) -> str:
-   return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
-
 def hsv_to_bgr(mat):
    return cv2.cvtColor((mat * SCALE).astype(np.uint8), cv2.COLOR_HSV2BGR)
-
-def diff_of_gaus(gray, sigma1=1.6, sigma2=1.2, threshold=0.05, kernel_size:int=2):
-   blur1 = cv2.GaussianBlur(gray, (0,0), sigmaX=sigma1)
-   blur2 = cv2.GaussianBlur(gray, (0,0), sigmaX=sigma2)
-   dog = blur1 - blur2
-   dog_norm = cv2.normalize(np.abs(dog), None, 0, 255, cv2.NORM_MINMAX) # type: ignore
-
-   keypoints = dog_norm > (255 * threshold)
-
-   result = np.zeros_like(gray)
-   result[keypoints] = 255
-
-   kernel = np.ones((kernel_size, kernel_size), np.uint8)
-   eroded = cv2.erode(result, kernel, iterations=2)
-   return eroded
-
-class DirData:
-   amnt: float
-   def __init__(self, char, in_mat):
-      self.char = char
-      self.in_mat = in_mat
-
-def apply_sobel_filter(img, w:int, h:int, x_step:float, y_step:float, kernel_size=3, debug=False):
-   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-   dog = diff_of_gaus(gray)
-   if debug:
-      cv2.imwrite(f"tmp/gray.png", gray)
-      cv2.imwrite(f"tmp/dog.png", dog)
-
-   x_grad = cv2.Sobel(dog, cv2.CV_32F, 1, 0, ksize=kernel_size)
-   y_grad = cv2.Sobel(dog, cv2.CV_32F, 0, 1, ksize=kernel_size)
-   grad_dir = np.arctan2(y_grad, x_grad) * 180 / np.pi
-   # grad_mag = np.sqrt(np.square(x_grad) + np.square(y_grad))
-   # grad_mag = cv2.normalize(grad_mag, None, 0, 255, cv2.NORM_MINMAX) # type: ignore
-
-   x_grad_save = x_grad / 8 + 128
-   y_grad_save = y_grad / 8 + 128
-
-   if debug:
-      cv2.imwrite("tmp/x_grad.png", x_grad_save.astype(np.uint8))
-      cv2.imwrite("tmp/y_grad.png", y_grad_save.astype(np.uint8))
-      # cv2.imwrite("tmp/grad_mag.png", grad_mag.astype(np.uint8))
-
-   threshold = 10.0
-
-   is_set = np.zeros_like(img)
-
-   amnts = np.zeros((h,w))
-   chars = np.full((h,w), fill_value=' ', dtype='<U1')
-   for y in range(h):
-      for x in range(w):
-         ys, ye = int(y*y_step), int((y+1)*y_step)
-         xs, xe = int(x*x_step), int((x+1)*x_step)
-         patch_mag = dog[ys:ye, xs:xe]
-         patch_dir = grad_dir[ys:ye, xs:xe]
-
-         dir_datas = [
-            DirData('-', ((patch_dir >=  -22.5) & (patch_dir <   22.5)) | ((patch_dir >= 157.5) | (patch_dir < -157.5))),
-            DirData('|', ((patch_dir >= -112.5) & (patch_dir <  -67.5)) | ((patch_dir >=  67.5) & (patch_dir <  112.5))),
-            DirData('/', ((patch_dir >= -157.5) & (patch_dir < -112.5)) | ((patch_dir >=  22.5) & (patch_dir <   67.5))),
-            DirData('/', ((patch_dir >=  -67.5) & (patch_dir <  -22.5)) | ((patch_dir >= 112.5) & (patch_dir <  157.5))),
-         ]
-         size = patch_mag.shape[0] * patch_mag.shape[1]
-         total_amnt = np.sum(patch_mag)
-         for data in dir_datas:
-            # data.amnt = np.sum(patch_mag[data.in_mat]) / size
-            data.amnt = np.sum(patch_mag[data.in_mat])**2 / (total_amnt * size)
-
-         max_amnt, max_char = threshold, ' '
-         for data in dir_datas:
-            if data.amnt > max_amnt:
-               max_amnt = data.amnt
-               max_char = data.char
-         amnts[y,x] = max_amnt
-         chars[y,x] = max_char
-
-         if max_char != ' ':
-            is_set[ys:ye, xs:xe] = 255
-   
-   if debug:
-      cv2.imwrite("tmp/is_set.png", is_set.astype(np.uint8))
-
-   return chars
 
 def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Optional[int]=None, debug:bool=False) -> List[str]:
    bgr_img = cv2.imread(filepath)
@@ -114,8 +27,6 @@ def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Option
          print(f"Computed {target_chars_wide} chars wide (and {target_chars_tall} chars tall)")
    y_step = shp[0] / target_chars_tall
    x_step = shp[1] / target_chars_wide
-
-   # chars = apply_sobel_filter(bgr_img, target_chars_wide, target_chars_tall, x_step, y_step, debug=debug)
 
    orig_hsv_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV) / SCALE
 
@@ -159,7 +70,6 @@ def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Option
 
    hsv_img = orig_hsv_img.copy()
    hsv_img[:,:,:2] = hs_selections[cluster_labels].reshape((*orig_hsv_img.shape[:2],2))
-   # hsv_img[:,:,2] = (hsv_img[:,:,2] * VALUE_COUNT).astype(int) / VALUE_COUNT
    hsv_full = hsv_img.copy()
    hsv_full[:,:,2] = 0.6
 
@@ -198,8 +108,6 @@ def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Option
       pb, pg, pr = None, None, None
       for x in range(target_chars_wide):
          b, g, r = small_patch_bgr[y,x]
-         # c = chars[y,x]
-         # if c == ' ':
          idx = max(0, min(len(ASCII_CODEX)-1, int(small_patch_v[y,x] * len(ASCII_CODEX))))
          c = ASCII_CODEX[idx]
          if c == ' ' or ((pb is not None) and (r == pr) and (g == pg) and (r == pr)):
