@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import os, sys, datetime
 
 import logging
-logger = logging.getLogger("Diff_and_Bas")
+logger = logging.getLogger("Diff_and_Basi")
 logger.setLevel(logging.CRITICAL)
 LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
 

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Optional
 
 class Text_Backend(ABC):
    @abstractmethod
-   def generate_response(self, messages:List[Dict[str,str]]) -> str:
+   def generate_response(self, messages:List[Dict[str,str]], max_tokens:Optional[int]=None) -> str:
       pass
 
 class Text_Registry:

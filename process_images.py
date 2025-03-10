@@ -1,4 +1,4 @@
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans # type: ignore
 import numpy as np
 import cv2
 from typing import Optional, List

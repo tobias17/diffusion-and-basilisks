@@ -967,9 +967,15 @@ class User_Controller(Game_Processor):
       self.peek_game(game)
       self.game = game.reset_event_count()
 
+      other_proc.peek_game(self.game)
+      last_peek_count = self.game.new_events
+
       while not self.kill_event.is_set():
+         new_events = (self.game.new_events > last_peek_count) # compute this first to avoid race condition
          if self.done_processing:
             return self.game
+         elif new_events:
+            other_proc.peek_game(self.game.copy())
          time.sleep(0.01)
 
       return None

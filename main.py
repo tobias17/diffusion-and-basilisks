@@ -31,14 +31,14 @@ def game_loop(config:Dict, save_root:str):
    with Peek_Terminal_Input():
       try:
          user_controller = User_Controller(kill_event, saves)
-         game_name, new_game = user_controller.wait_for_save_selection()
+         game_name, is_new_game = user_controller.wait_for_save_selection()
          if kill_event.is_set():
             return
          configure_game_root(os.path.join(save_root, game_name))
          game_dirpath = Save_Data.get_and_make("game.json", is_file=True)
 
          # Either create a new game or load an existing one
-         if new_game:
+         if is_new_game:
             init_game = Game()
             init_game.add_event(E.Give_Player_Unique_Item("steel_sword", "Steel Sword", "a long and heft sword made of steel, great for hitting things with"))
             init_game.add_event(E.Give_Player_Stackable_Items("gold_coins", "Gold Coins", 50, "coins made of gold, perhaps they could be traded for goods and services"))
@@ -68,7 +68,9 @@ def game_loop(config:Dict, save_root:str):
                return
 
             logger.info("Requesting AI to advance game state")
+            ai_backend.can_peek_text = False
             ai_game = ai_backend.process_game(user_game, user_controller)
+            ai_backend.can_peek_text = True
             if kill_event.is_set():
                return
             if ai_game is None:

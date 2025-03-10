@@ -27,6 +27,9 @@ class AI_Backend(Game_Processor):
    convert_queue:   Queue[str]
    processed_uuids: Set[str]
 
+   can_peek_text: bool = True
+   peek_queue: Queue[Game]
+
    def __init__(self, kill_event:threading.Event, config:Dict):
       self.kill_event = kill_event
 
@@ -50,8 +53,10 @@ class AI_Backend(Game_Processor):
       self.generate_queue = Queue()
       self.convert_queue = Queue()
       self.processed_uuids = set()
+      self.peek_queue = Queue()
       threading.Thread(target=self.__process_generate_queue).start()
       threading.Thread(target=self.__process_convert_queue).start()
+      threading.Thread(target=self.__process_peek_queue).start()
 
    def __get_image_path(self, uuid:str) -> str:
       return Save_Data.get_and_make(Save_Data.images_dirpath, uuid, "image.png", is_file=True)
@@ -96,7 +101,7 @@ class AI_Backend(Game_Processor):
          self.kill_event.set()
          raise ex from ex
 
-   def __get_messages_from_game(self, game:Game) -> List[Dict[str,str]]:
+   def __get_messages_from_game(self, game:Game, from_peek:bool=False) -> List[Dict[str,str]]:
       class Message_Queue:
          messages: List[Dict[str,str]]
          lines: List[str]
@@ -151,6 +156,8 @@ class AI_Backend(Game_Processor):
       q = Message_Queue()
       for event in game.events:
          q.step(event)
+      if from_peek and not q.is_user:
+         q.accumulate()
       return q.finalize(game)
 
    def __get_next_game_state(self, game:Game, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
@@ -253,3 +260,20 @@ class AI_Backend(Game_Processor):
             time.sleep(0.05)
 
       return ai_game
+
+   def __process_peek_queue(self) -> None:
+      while not self.kill_event.is_set():
+         next_game = None
+         while not self.peek_queue.empty():
+            next_game = self.peek_queue.get()
+         
+         if next_game is None:
+            time.sleep(0.05)
+            continue
+      
+         if self.can_peek_text:
+            messages = self.__get_messages_from_game(next_game, from_peek=True)
+            self.text_backend.generate_response(messages, max_tokens=1)
+
+   def peek_game(self, game:Game) -> None:
+      self.peek_queue.put(game)
