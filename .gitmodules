@@ -1,3 +1,0 @@
-[submodule "backends/tinygrad"]
-	path = backends/tinygrad
-	url = https://github.com/tobias17/tinygrad.git
