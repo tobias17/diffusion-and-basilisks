@@ -28,9 +28,11 @@ def game_loop(config:Dict, save_root:str):
    assert backend_config is not None, f"Config file did not contain a backend entry, required"
    ai_backend = AI_Backend(kill_event, backend_config)
 
+   GAME_FILENAME = "game.json"
    if not os.path.exists(save_root):
       os.makedirs(save_root)
-   saves = sorted(os.listdir(save_root), key=lambda p: os.path.getmtime(os.path.join(save_root, p)), reverse=True)
+   filenames = [f for f in os.listdir(save_root) if os.path.exists(os.path.join(save_root, f, GAME_FILENAME))]
+   saves = sorted(filenames, key=lambda p: os.path.getmtime(os.path.join(save_root, p)), reverse=True)
 
    with Peek_Terminal_Input():
       try:
@@ -39,7 +41,7 @@ def game_loop(config:Dict, save_root:str):
          if kill_event.is_set():
             return
          configure_game_root(os.path.join(save_root, game_name))
-         game_dirpath = Save_Data.get_and_make("game.json", is_file=True)
+         game_dirpath = Save_Data.get_and_make(GAME_FILENAME, is_file=True)
 
          # Either create a new game or load an existing one
          if is_new_game:
