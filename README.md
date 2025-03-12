@@ -1,14 +1,46 @@
 # Diffusion and Basilisks
 
-A realtime-generated video game designed to be played on a tinybox through an SSH.
+A fantasy adventure game with realtime-generated content using AI (LLM + SDXL).
 
-Right now this repo is in the initial development phase.
+Currently designed to be run on a tinybox, will add mechanisms to run with other hosting soon.
 
-The basic structure of how this game operates are being fleshed out, but here is the current jist:
-- The game state is modified by an append-only list of Events
-- Game state is interpreted from this list of Events
+## Starting the Server
 
-Most components are designed around being testable at various levels.
-- Functions with very rigid inputs and outputs are unit tested
-- Functions that have subjective inputs and outputs are injection tested with detailed and source controlled outputs
-- Functions subject to LLM interactions have prompt testing where inputs are fed to the LLM multiple times and the results saved off
+First set up a server on your tinybox.
+```
+git clone https://github.com/tobias17/tinyapi.git
+tinyapi/run.sh
+```
+This will take a little while to download the model weights and run a beam search (default BEAM=1).
+
+Don't worry about having an existing tinygrad clone, it will automatically submodule a custom version and set the python path for it.
+
+## Running the Game
+
+Once the server is running, playing is simple.
+```
+https://github.com/tobias17/diffusion-and-basilisks.git
+diffusion-and-basilisks/run.sh
+```
+
+## Controls
+
+| Input | Description |
+| -: | :- |
+| & | End your input with & to enter multiple inputs |
+| Ctrl+C | Stop the game |
+| Ctrl+R | Reload the screen |
+| Escape | Brings up the menu items |
+| Up/Down Arrows | Scroll the page up/down by 1 |
+| Page Up/Down | Scroll the page up/down by 50% |
+
+## Tips
+
+- Make sure to enjoy the game, this part is vital to having a good experience
+
+## Future Plans
+
+- Add alternative backends and tutorials to allow non-tinybox owners to play
+- Add combat events so it doesn't feel hollow
+- The `user_controller.py` file is a mess and needs to be refactored
+- Need to bring back unit tests that mock model responses and test game state transitions
