@@ -42,5 +42,7 @@ diffusion-and-basilisks/run.sh
 
 - Add alternative backends and tutorials to allow non-tinybox owners to play
 - Add combat events so it doesn't feel hollow
+- An actual character creator with more starting location variety
 - The `user_controller.py` file is a mess and needs to be refactored
 - Need to bring back unit tests that mock model responses and test game state transitions
+- Better "model failed" handling, rejecting last user input is kinda hacky
