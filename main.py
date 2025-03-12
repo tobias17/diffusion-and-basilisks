@@ -13,7 +13,6 @@ def configure_game_root(game_root:str):
    Save_Data.config(game_root)
    Save_Data.get_and_make(Save_Data.logs_dirpath)
    Save_Data.get_and_make(Save_Data.images_dirpath)
-   Path(game_root).touch()
    logger.setLevel(logging.DEBUG)
    file = logging.FileHandler(Save_Data.get_and_make(Save_Data.logs_dirpath, "debug.log", is_file=True))
    file.setLevel(logging.DEBUG)
@@ -32,7 +31,7 @@ def game_loop(config:Dict, save_root:str):
    if not os.path.exists(save_root):
       os.makedirs(save_root)
    filenames = [f for f in os.listdir(save_root) if os.path.exists(os.path.join(save_root, f, GAME_FILENAME))]
-   saves = sorted(filenames, key=lambda p: os.path.getmtime(os.path.join(save_root, p)), reverse=True)
+   saves = sorted(filenames, key=lambda p: os.path.getmtime(os.path.join(save_root, p, GAME_FILENAME)), reverse=True)
 
    with Peek_Terminal_Input():
       try:
