@@ -827,6 +827,7 @@ class Main_Menu:
          "        Escape | Brings up the menu items",
          "Up/Down Arrows | Scroll the page up/down ",
          "  Page Up/Down | Scroll the page up/down ",
+         "End input with an & character to input again",
          "",
          "Select a Save",
       ]
