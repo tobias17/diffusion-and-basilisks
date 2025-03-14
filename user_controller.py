@@ -3,7 +3,7 @@ from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
 import events as E
 from game import Game, Game_Processor, Npc_Info
 
-import sys, termios, select, tty, os, traceback, threading, json, time
+import sys, select, os, traceback, threading, json, time
 from typing import List, Union, Tuple, Type, Dict, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -39,15 +39,33 @@ INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, I
 CHARS_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, SCREEN_HEIGHT - 2)
 
 
+assert os.name in ['posix', 'nt']
+
 # Context Manager to configure terminal settings, to be set up by the main thread
 class Peek_Terminal_Input:
    def __enter__(self):
-      self.fd = sys.stdin.fileno()
-      self.old_settings = termios.tcgetattr(self.fd)
-      tty.setraw(self.fd)
+      if os.name == 'nt':
+         import msvcrt as _
+      else:
+         import termios, tty
+         self.fd = sys.stdin.fileno()
+         self.old_settings = termios.tcgetattr(self.fd)
+         tty.setraw(self.fd)
       return self
+
    def __exit__(self, *_):
-      termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+      if os.name != 'nt':
+         import termios
+         termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+
+   def getch(self):
+      """Read a single character without requiring Enter keypress"""
+      if os.name == 'nt':
+         import msvcrt
+         return msvcrt.getch().decode('utf-8', errors='replace')
+      else:
+         return sys.stdin.read(1)
+
 
 
 class Special_Keys(Enum):
@@ -83,44 +101,73 @@ def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
          return Special_Keys.CTRL_R
       if seq[0] == 27:
          return Special_Keys.ESCAPE
-      if seq[0] == 127:
+      if seq[0] in (127, 8):
          return Special_Keys.BACKSPACE
       if seq[0] >= 32 and seq[0] < 126:
          return seq.decode() # ASCII
    else:
-      if seq[0] != 27 and seq[1] != 91:
-         logger.error(f"Got unknown seq {list(seq)} with non-(27,91) start")
-         return None
-      if len(seq) == 2:
-         return Special_Keys.ESCAPE
-      elif len(seq) == 3:
-         if seq[2] == 65:
-            return Special_Keys.UP
-         if seq[2] == 66:
-            return Special_Keys.DOWN
-         if seq[2] == 67:
-            return Special_Keys.RIGHT
-         if seq[2] == 68:
-            return Special_Keys.LEFT
-         if seq[2] == 72:
-            return Special_Keys.HOME
-         if seq[2] == 70:
-            return Special_Keys.END
-         if seq[2] == 90:
-            return Special_Keys.SHIFT_TAB
-      elif len(seq) == 4:
-         if seq[2] == 51 and seq[3] == 126:
-            return Special_Keys.DELETE
-         if seq[2] == 53 and seq[3] == 126:
-            return Special_Keys.PAGE_UP
-         if seq[2] == 54 and seq[3] == 126:
-            return Special_Keys.PAGE_DOWN
-      elif len(seq) == 6:
-         if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
-            if seq[5] == 68:
+      if seq[0] == 0:
+         # Windows-based codes
+         if len(seq) == 2:
+            if seq[1] == 72:
+               return Special_Keys.UP
+            if seq[1] == 80:
+               return Special_Keys.DOWN
+            if seq[1] == 77:
+               return Special_Keys.RIGHT
+            if seq[1] == 75:
+               return Special_Keys.LEFT
+            if seq[1] == 71:
+               return Special_Keys.HOME
+            if seq[1] == 79:
+               return Special_Keys.END
+            if seq[1] == -1:
+               return Special_Keys.SHIFT_TAB # does not work on windows :(
+            if seq[1] == 83:
+               return Special_Keys.DELETE
+            if seq[1] == 73:
+               return Special_Keys.PAGE_UP
+            if seq[1] == 81:
+               return Special_Keys.PAGE_DOWN
+            if seq[1] == 115:
                return Special_Keys.CTRL_LEFT
-            if seq[5] == 67:
+            if seq[1] == 116:
                return Special_Keys.CTRL_RIGHT
+      elif seq[0] == 27 and seq[1] == 91:
+         # Linux-based codes
+         if len(seq) == 2:
+            return Special_Keys.ESCAPE
+         elif len(seq) == 3:
+            if seq[2] == 65:
+               return Special_Keys.UP
+            if seq[2] == 66:
+               return Special_Keys.DOWN
+            if seq[2] == 67:
+               return Special_Keys.RIGHT
+            if seq[2] == 68:
+               return Special_Keys.LEFT
+            if seq[2] == 72:
+               return Special_Keys.HOME
+            if seq[2] == 70:
+               return Special_Keys.END
+            if seq[2] == 90:
+               return Special_Keys.SHIFT_TAB
+         elif len(seq) == 4:
+            if seq[2] == 51 and seq[3] == 126:
+               return Special_Keys.DELETE
+            if seq[2] == 53 and seq[3] == 126:
+               return Special_Keys.PAGE_UP
+            if seq[2] == 54 and seq[3] == 126:
+               return Special_Keys.PAGE_DOWN
+         elif len(seq) == 6:
+            if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
+               if seq[5] == 68:
+                  return Special_Keys.CTRL_LEFT
+               if seq[5] == 67:
+                  return Special_Keys.CTRL_RIGHT
+      else:
+         logger.error(f"Got unknown seq {list(seq)} with non-(27,91)|(0,) start")
+         return None
 
    logger.info(f"Got unknown byte sequence {list(seq)}")
    return None
@@ -1006,9 +1053,19 @@ class User_Controller(Game_Processor):
          self.done_processing = True
 
    def __read_bytes(self) -> bytes:
-      while not self.kill_event.is_set():
-         if select.select([sys.stdin], [], [], self.POLL_INTERVAL_SEC)[0]:
-            return os.read(self.fd, 16)
+      if os.name == 'nt':
+         import msvcrt
+         data = bytes()
+         while not self.kill_event.is_set():
+            while msvcrt.kbhit():
+               data += msvcrt.getch()
+            if len(data) > 0:
+               return data
+            time.sleep(self.POLL_INTERVAL_SEC)
+      else:
+         while not self.kill_event.is_set():
+            if select.select([sys.stdin], [], [], self.POLL_INTERVAL_SEC)[0]:
+               return os.read(self.fd, 16)
       return bytes()
 
    def run(self) -> None:

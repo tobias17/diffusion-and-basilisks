@@ -32,7 +32,6 @@ class OpenAI_Endpoint(Text_Backend):
       completion = self.client.chat.completions.create(
          model=self.model,
          messages=messages,
-         store=True,
       )
       return completion.choices[0].message.content
 

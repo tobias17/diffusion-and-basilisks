@@ -53,10 +53,11 @@ class AI_Backend(Game_Processor):
       self.generate_queue = Queue()
       self.convert_queue = Queue()
       self.processed_uuids = set()
-      self.peek_queue = Queue()
       threading.Thread(target=self.__process_generate_queue).start()
       threading.Thread(target=self.__process_convert_queue).start()
-      threading.Thread(target=self.__process_peek_queue).start()
+      if self.text_backend.SHOULD_PREFILL:
+         self.peek_queue = Queue()
+         threading.Thread(target=self.__process_peek_queue).start()
 
    def __get_image_path(self, uuid:str) -> str:
       return Save_Data.get_and_make(Save_Data.images_dirpath, uuid, "image.png", is_file=True)
@@ -276,4 +277,15 @@ class AI_Backend(Game_Processor):
             self.text_backend.generate_response(messages, max_tokens=1)
 
    def peek_game(self, game:Game) -> None:
-      self.peek_queue.put(game)
+      if self.text_backend.SHOULD_PREFILL:
+         self.peek_queue.put(game)
+
+   def verify_text_model(self) -> str:
+      print("Verifying text model...")
+      return self.text_backend.generate_response([
+         { "role":"user", "content":"This is a test query to ensure the endpoint is working. Please respond with 'I am a teapot' and nothing else." }
+      ])
+
+   def verify_image_model(self, filepath:str) -> None:
+      print("Verifying image model...")
+      self.image_backend.generate_image("a horse size cat eating a bagel", filepath)

@@ -19,3 +19,4 @@ class Image_Registry:
       return value
 
 from . import tinyapi_image as _
+from . import auto1111 as _

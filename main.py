@@ -86,6 +86,8 @@ def game_loop(config:Dict, save_root:str):
                with open(game_dirpath, "w") as f:
                   json.dump(game_json, f, indent="\t")
 
+      except KeyboardInterrupt:
+         kill_event.set()
       except Exception as ex:
          logger.fatal(f"Got exception in game_loop(): {ex}")
          for line in traceback.format_exc().split("\n"):

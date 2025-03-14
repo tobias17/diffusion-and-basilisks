@@ -7,8 +7,9 @@ import requests, json, threading # type: ignore
 
 
 class Tinyapi_Text(Text_Backend):
+   SHOULD_PREFILL: bool = True
    url: str
-   mutext: threading.Lock
+   mutex: threading.Lock
 
    def __init__(self, url:str):
       self.url = url

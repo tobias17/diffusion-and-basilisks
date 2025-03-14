@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Type, Optional
 
 class Text_Backend(ABC):
+   SHOULD_PREFILL: bool = False
    @abstractmethod
    def generate_response(self, messages:List[Dict[str,str]], max_tokens:Optional[int]=None) -> str:
       pass
@@ -15,7 +16,8 @@ class Text_Registry:
    @staticmethod
    def get(name:str) -> Type[Text_Backend]:
       value = Text_Registry.mapping.get(name)
-      assert value is not None, f"Could not find image backend with name '{name}', options are {list(Text_Registry.mapping.values())}"
+      assert value is not None, f"Could not find image backend with name '{name}', options are {list(Text_Registry.mapping.keys())}"
       return value
 
 from . import tinyapi_text as _
+from . import openai_endpoint as _
