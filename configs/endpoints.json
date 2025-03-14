@@ -1,0 +1,12 @@
+{
+   "backend": {
+      "text": {
+         "name": "openai",
+         "model": "gpt-4o-mini"
+      },
+      "image": {
+         "name": "auto1111",
+         "url": "http://127.0.0.1:7860"
+      }
+   }
+}
