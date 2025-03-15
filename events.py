@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import Event, Image_Prompt
+from common import logger, Event, Image_Prompt
 from functions import Function_Map, Function, Parameter
 from game import Game
 
@@ -65,17 +65,21 @@ class Move_Player_To(Event):
    def player(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
 def move_player_to(game:Game, loc_id:str) -> Tuple[bool,str]:
+   logger.debug("Starting to process move_player_to() request")
    seen_move = False
    for event in reversed(game.events):
-      if isinstance(event, Move_Player_To):
+      if isinstance(event, Move_Player_To) and not seen_move:
          if event.loc_id == loc_id:
             return True, "" # The player was last moved here, no action needed
          seen_move = True
-      if isinstance(event, Create_Location) and event.loc_id == loc_id:
-         if seen_move or not event.automove_player_to:
-            # Only requires action if we have either moved since this was created or we werent automoved
-            game.add_event(Move_Player_To(loc_id))
-         return True, ""
+      if isinstance(event, Create_Location):
+         if event.loc_id == loc_id:
+            if seen_move or not event.automove_player_to:
+               # Only requires action if we have either moved since this was created or we werent automoved
+               game.add_event(Move_Player_To(loc_id))
+            return True, ""
+         elif event.automove_player_to:
+            seen_move = True
    return False, f"Could not find a location with the ID '{loc_id}'"
 Function_Map.funcs.append(
    move_player_to_func := Function(

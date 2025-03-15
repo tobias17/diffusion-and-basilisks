@@ -5,6 +5,7 @@
       "ratio": 2.5
    },
    "backend": {
+      "max_attempts": 4,
       "text": {
          "name": "openai",
          "model": "gpt-4o-mini"

@@ -15,6 +15,7 @@ from queue import Queue
 
 
 UPDATE_TIME_DELTA = 2.0
+DEFAULT_MAX_ATTEMPTS = 8
 
 
 class AI_Backend(Game_Processor):
@@ -22,6 +23,7 @@ class AI_Backend(Game_Processor):
    image_backend: Image_Backend
    text_backend: Text_Backend
    decision_logs: List[List[Dict]]
+   max_attempts: int
 
    generate_queue:  Queue[Image_Prompt]
    convert_queue:   Queue[str]
@@ -32,6 +34,7 @@ class AI_Backend(Game_Processor):
 
    def __init__(self, kill_event:threading.Event, config:Dict):
       self.kill_event = kill_event
+      self.max_attempts = config.get("max_attempts", DEFAULT_MAX_ATTEMPTS)
 
       # Load the text backend from the config
       text_config = config.get("text")
@@ -81,27 +84,27 @@ class AI_Backend(Game_Processor):
          raise ex from ex
 
    def __process_convert_queue(self) -> None:
-      try:
+      while not self.kill_event.is_set():
+         width, height = Screen_Config.image_width(), Screen_Config.image_height()
 
-         while not self.kill_event.is_set():
+         try:
             if self.convert_queue.empty():
                time.sleep(0.01)
                continue
             uuid = self.convert_queue.get()
             image_path = self.__get_image_path(uuid)
-            width, height = Screen_Config.image_width(), Screen_Config.image_height()
-            lines = image_to_ascii(image_path, height, width)
             json_path = os.path.join(os.path.dirname(image_path), f"{width}x{height}.json")
-            with open(json_path, "w") as f:
-               json.dump(lines, f)
+            if not os.path.exists(json_path):
+               lines = image_to_ascii(image_path, height, width)
+               with open(json_path, "w") as f:
+                  json.dump(lines, f)
             self.processed_uuids.add(uuid)
 
-      except Exception as ex:
-         logger.error(f"Error in __process_convert_queue() thread")
-         for line in traceback.format_exc().split("\n"):
-            logger.error(line)
-         self.kill_event.set()
-         raise ex from ex
+         except Exception as ex:
+            logger.error(f"Error in __process_convert_queue() thread")
+            for line in traceback.format_exc().split("\n"):
+               logger.error(line)
+            self.processed_uuids.add(uuid)
 
    def __get_messages_from_game(self, game:Game, from_peek:bool=False) -> List[Dict[str,str]]:
       class Message_Queue:
@@ -162,7 +165,7 @@ class AI_Backend(Game_Processor):
          q.accumulate()
       return q.finalize(game)
 
-   def __get_next_game_state(self, game:Game, decision_log:List[Dict], max_attempts:int=8) -> Optional[Game]:
+   def __get_next_game_state(self, game:Game, decision_log:List[Dict]) -> Optional[Game]:
       # Create the message JSON object to perform request with
       messages = self.__get_messages_from_game(game)
 
@@ -173,7 +176,7 @@ class AI_Backend(Game_Processor):
       decision_log.append({"event":"Computed API Messages", "messages":spread_messages})
 
       # Get model response with retry attempts
-      for _ in range(max_attempts):
+      for _ in range(self.max_attempts):
          if self.kill_event.is_set():
             return None
 

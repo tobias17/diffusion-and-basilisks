@@ -59,6 +59,12 @@ def game_loop(config:Dict, save_root:str):
          else:
             with open(game_dirpath) as f:
                init_game = Game.from_json(json.load(f))
+            # convert images that need it
+            for event in init_game.events:
+               p = event.image_prompt()
+               if p is not None:
+                  ai_backend.convert_queue.put(p.uuid)
+                  ai_backend.wait_for_uuid(p.uuid)
 
          # Main game loop
          while not kill_event.is_set():
