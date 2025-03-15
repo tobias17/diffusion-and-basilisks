@@ -1025,6 +1025,7 @@ class User_Controller(Game_Processor):
             return self.game
          elif new_events:
             other_proc.peek_game(self.game.copy())
+            last_peek_count = self.game.new_events
          time.sleep(0.01)
 
       return None
