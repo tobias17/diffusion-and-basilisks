@@ -23,6 +23,8 @@ def main():
          print(f"Text model response: {resp}")
       
       if args.which != "text":
+         if not os.path.exists("tmp"):
+            os.mkdir("tmp")
          img_filepath = "tmp/generated.png"
          ai_backend.verify_image_model(img_filepath)
          print(f"Image model generated: {img_filepath}")
