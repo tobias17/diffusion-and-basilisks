@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import Event, Save_Data, logger, Image_Prompt, IMAGE_CHARS_TALL, IMAGE_CHARS_WIDE
+from common import Event, Save_Data, logger, Image_Prompt, Screen_Config
 import events as E
 from game import Game, Game_Processor
 from prompts import SYSTEM_MESSAGE, STARTING_USER_MESSAGE, GENERIC_USER_MESSAGE, FINAL_USER_MESSAGE
@@ -89,8 +89,9 @@ class AI_Backend(Game_Processor):
                continue
             uuid = self.convert_queue.get()
             image_path = self.__get_image_path(uuid)
-            lines = image_to_ascii(image_path, IMAGE_CHARS_TALL, IMAGE_CHARS_WIDE)
-            json_path = os.path.join(os.path.dirname(image_path), f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json")
+            width, height = Screen_Config.image_width(), Screen_Config.image_height()
+            lines = image_to_ascii(image_path, height, width)
+            json_path = os.path.join(os.path.dirname(image_path), f"{width}x{height}.json")
             with open(json_path, "w") as f:
                json.dump(lines, f)
             self.processed_uuids.add(uuid)

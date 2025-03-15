@@ -1,4 +1,9 @@
 {
+   "screen": {
+      "width": 120,
+      "height": 60,
+      "ratio": 2.5
+   },
    "backend": {
       "text": {
          "name": "openai",

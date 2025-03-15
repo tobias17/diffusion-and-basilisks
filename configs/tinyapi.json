@@ -1,4 +1,9 @@
 {
+   "screen": {
+      "width": 240,
+      "height": 60,
+      "ratio": 2.0
+   },
    "backend": {
       "text": {
          "name": "tinyapi",

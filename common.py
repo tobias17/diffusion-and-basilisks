@@ -7,8 +7,20 @@ logger = logging.getLogger("Diff_and_Basi")
 logger.setLevel(logging.CRITICAL)
 LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
 
-IMAGE_CHARS_WIDE = 90
-IMAGE_CHARS_TALL = 60
+class Screen_Config:
+   WIDTH:  int   = 240
+   HEIGHT: int   = 64
+   RATIO:  float = 2.0
+
+   @staticmethod
+   def image_height() -> int:
+      return Screen_Config.HEIGHT - 2
+
+   @staticmethod
+   def image_width() -> int:
+      img_height = 1024
+      img_width  = 768
+      return int(Screen_Config.image_height() * (img_width / img_height) * Screen_Config.RATIO)
 
 class Save_Data:
    root: str
