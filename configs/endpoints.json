@@ -1,8 +1,8 @@
 {
    "screen": {
       "width": 280,
-      "height": 64,
-      "ratio": 2.5
+      "height": 70,
+      "ratio": 2.0
    },
    "backend": {
       "max_attempts": 4,

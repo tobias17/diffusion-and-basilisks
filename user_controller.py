@@ -3,7 +3,7 @@ from common import logger, Event, Save_Data, Screen_Config
 import events as E
 from game import Game, Game_Processor, Npc_Info
 
-import sys, select, os, traceback, threading, json, time
+import sys, select, os, traceback, threading, json, time, ctypes
 from typing import List, Union, Tuple, Type, Dict, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -37,6 +37,13 @@ class Peek_Terminal_Input:
    def __enter__(self):
       if os.name == 'nt':
          import msvcrt as _
+         self.handle = ctypes.windll.kernel32.GetStdHandle(-11)
+         self.orig_mode = ctypes.c_ulong()
+         ctypes.windll.kernel32.GetConsoleMode(self.handle, ctypes.byref(self.orig_mode))
+         ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+         new_mode = ctypes.c_ulong()
+         new_mode.value = self.orig_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+         ctypes.windll.kernel32.SetConsoleMode(self.handle, new_mode)
       else:
          import termios, tty
          self.fd = sys.stdin.fileno()
@@ -45,7 +52,9 @@ class Peek_Terminal_Input:
       return self
 
    def __exit__(self, *_):
-      if os.name != 'nt':
+      if os.name == 'nt':
+         ctypes.windll.kernel32.SetConsoleMode(self.handle, self.orig_mode)
+      else:
          import termios
          termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
@@ -97,7 +106,7 @@ def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
       if seq[0] >= 32 and seq[0] < 126:
          return seq.decode() # ASCII
    else:
-      if seq[0] == 0:
+      if seq[0] in (0, 224):
          # Windows-based codes
          if len(seq) == 2:
             if seq[1] == 72:
@@ -157,7 +166,7 @@ def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
                if seq[5] == 67:
                   return Special_Keys.CTRL_RIGHT
       else:
-         logger.error(f"Got unknown seq {list(seq)} with non-(27,91)|(0,) start")
+         logger.error(f"Got unknown seq {list(seq)} with non-(27,91)|(0,)|(224,) start")
          return None
 
    logger.info(f"Got unknown byte sequence {list(seq)}")
