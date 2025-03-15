@@ -1,9 +1,8 @@
-from common import logger, LOG_FORMAT, Save_Data
+from common import logger, LOG_FORMAT, Save_Data, Screen_Config
 import events as E
 from game import Game
 from user_controller import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
-from pathlib import Path
 
 import logging, os, json, threading, traceback, argparse
 from typing import Dict
@@ -60,6 +59,12 @@ def game_loop(config:Dict, save_root:str):
          else:
             with open(game_dirpath) as f:
                init_game = Game.from_json(json.load(f))
+            # convert images that need it
+            for event in init_game.events:
+               p = event.image_prompt()
+               if p is not None:
+                  ai_backend.convert_queue.put(p.uuid)
+                  ai_backend.wait_for_uuid(p.uuid)
 
          # Main game loop
          while not kill_event.is_set():
@@ -86,6 +91,8 @@ def game_loop(config:Dict, save_root:str):
                with open(game_dirpath, "w") as f:
                   json.dump(game_json, f, indent="\t")
 
+      except KeyboardInterrupt:
+         kill_event.set()
       except Exception as ex:
          logger.fatal(f"Got exception in game_loop(): {ex}")
          for line in traceback.format_exc().split("\n"):
@@ -102,7 +109,16 @@ if __name__ == "__main__":
    config_filepath = os.path.abspath(args.config)
    assert os.path.exists(config_filepath), f"Could not find config file, searched for {config_filepath}"
    with open(config_filepath) as f:
-      config_data = json.load(f)
+      config_data: Dict = json.load(f)
+
+   screen_data = config_data.get("screen")
+   if screen_data is not None:
+      width  = screen_data.get("width")
+      height = screen_data.get("height")
+      ratio  = screen_data.get("ratio")
+      if width  is not None: Screen_Config.WIDTH  = width
+      if height is not None: Screen_Config.HEIGHT = height
+      if ratio  is not None: Screen_Config.RATIO  = ratio
 
    saves_root = os.path.join(os.path.dirname(__file__), "saves")
    game_loop(config_data, saves_root)

@@ -1,0 +1,18 @@
+{
+   "screen": {
+      "width": 280,
+      "height": 70,
+      "ratio": 2.0
+   },
+   "backend": {
+      "max_attempts": 4,
+      "text": {
+         "name": "openai",
+         "model": "gpt-4o-mini"
+      },
+      "image": {
+         "name": "auto1111",
+         "url": "http://127.0.0.1:7860"
+      }
+   }
+}

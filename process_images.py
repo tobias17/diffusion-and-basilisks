@@ -16,13 +16,13 @@ SCALE = [180.0, 255.0, 255.0]
 def hsv_to_bgr(mat):
    return cv2.cvtColor((mat * SCALE).astype(np.uint8), cv2.COLOR_HSV2BGR)
 
-def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Optional[int]=None, debug:bool=False) -> List[str]:
+def image_to_ascii(filepath:str, target_chars_tall:int, target_chars_wide:Optional[int]=None, ratio:float=CHAR_ASPECT_RATIO, debug:bool=False) -> List[str]:
    bgr_img = cv2.imread(filepath)
    assert bgr_img is not None, f"Could not find input image, searched for {filepath}"
    shp = bgr_img.shape
 
    if target_chars_wide is None:
-      target_chars_wide = int(target_chars_tall * (shp[1] / shp[0]) * CHAR_ASPECT_RATIO)
+      target_chars_wide = int(target_chars_tall * (shp[1] / shp[0]) * ratio)
       if debug:
          print(f"Computed {target_chars_wide} chars wide (and {target_chars_tall} chars tall)")
    y_step = shp[0] / target_chars_tall

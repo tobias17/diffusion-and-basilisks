@@ -67,15 +67,18 @@ class Move_Player_To(Event):
 def move_player_to(game:Game, loc_id:str) -> Tuple[bool,str]:
    seen_move = False
    for event in reversed(game.events):
-      if isinstance(event, Move_Player_To):
+      if isinstance(event, Move_Player_To) and not seen_move:
          if event.loc_id == loc_id:
             return True, "" # The player was last moved here, no action needed
          seen_move = True
-      if isinstance(event, Create_Location) and event.loc_id == loc_id:
-         if seen_move or not event.automove_player_to:
-            # Only requires action if we have either moved since this was created or we werent automoved
-            game.add_event(Move_Player_To(loc_id))
-         return True, ""
+      if isinstance(event, Create_Location):
+         if event.loc_id == loc_id:
+            if seen_move or not event.automove_player_to:
+               # Only requires action if we have either moved since this was created or we werent automoved
+               game.add_event(Move_Player_To(loc_id))
+            return True, ""
+         elif event.automove_player_to:
+            seen_move = True
    return False, f"Could not find a location with the ID '{loc_id}'"
 Function_Map.funcs.append(
    move_player_to_func := Function(

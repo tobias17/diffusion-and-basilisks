@@ -1,17 +1,16 @@
 from __future__ import annotations
-from common import logger, Event, Save_Data, IMAGE_CHARS_WIDE, IMAGE_CHARS_TALL
+from common import logger, Event, Save_Data, Screen_Config
 import events as E
 from game import Game, Game_Processor, Npc_Info
 
-import sys, termios, select, tty, os, traceback, threading, json, time
+import sys, select, os, traceback, threading, json, time, ctypes
 from typing import List, Union, Tuple, Type, Dict, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 import numpy as np
 
-SCREEN_WIDTH  = 240
-SCREEN_HEIGHT = IMAGE_CHARS_TALL + 2
+INPUT_HEIGHT = 6
 
 @dataclass
 class Pos:
@@ -31,23 +30,33 @@ class Rect:
    @property
    def y2(self) -> int: return self.y1 + self.h
 
-INPUT_HEIGHT = 6
-IMAGE_HEIGHT = SCREEN_HEIGHT - 2
-
-EVENT_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, SCREEN_HEIGHT - INPUT_HEIGHT - 3)
-INPUT_SPACE = Rect(2, EVENT_SPACE.y2 + 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, INPUT_HEIGHT)
-CHARS_SPACE = Rect(2, 1, SCREEN_WIDTH - 4 - IMAGE_CHARS_WIDE, SCREEN_HEIGHT - 2)
-
+assert os.name in ['posix', 'nt']
 
 # Context Manager to configure terminal settings, to be set up by the main thread
 class Peek_Terminal_Input:
    def __enter__(self):
-      self.fd = sys.stdin.fileno()
-      self.old_settings = termios.tcgetattr(self.fd)
-      tty.setraw(self.fd)
+      if os.name == 'nt':
+         import msvcrt as _
+         self.handle = ctypes.windll.kernel32.GetStdHandle(-11)
+         self.orig_mode = ctypes.c_ulong()
+         ctypes.windll.kernel32.GetConsoleMode(self.handle, ctypes.byref(self.orig_mode))
+         ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+         new_mode = ctypes.c_ulong()
+         new_mode.value = self.orig_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+         ctypes.windll.kernel32.SetConsoleMode(self.handle, new_mode)
+      else:
+         import termios, tty
+         self.fd = sys.stdin.fileno()
+         self.old_settings = termios.tcgetattr(self.fd)
+         tty.setraw(self.fd)
       return self
+
    def __exit__(self, *_):
-      termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
+      if os.name == 'nt':
+         ctypes.windll.kernel32.SetConsoleMode(self.handle, self.orig_mode)
+      else:
+         import termios
+         termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
 
 class Special_Keys(Enum):
@@ -83,44 +92,73 @@ def interpret_bytes(seq:bytes) -> Union[None,str,Special_Keys]:
          return Special_Keys.CTRL_R
       if seq[0] == 27:
          return Special_Keys.ESCAPE
-      if seq[0] == 127:
+      if seq[0] in (127, 8):
          return Special_Keys.BACKSPACE
       if seq[0] >= 32 and seq[0] < 126:
          return seq.decode() # ASCII
    else:
-      if seq[0] != 27 and seq[1] != 91:
-         logger.error(f"Got unknown seq {list(seq)} with non-(27,91) start")
-         return None
-      if len(seq) == 2:
-         return Special_Keys.ESCAPE
-      elif len(seq) == 3:
-         if seq[2] == 65:
-            return Special_Keys.UP
-         if seq[2] == 66:
-            return Special_Keys.DOWN
-         if seq[2] == 67:
-            return Special_Keys.RIGHT
-         if seq[2] == 68:
-            return Special_Keys.LEFT
-         if seq[2] == 72:
-            return Special_Keys.HOME
-         if seq[2] == 70:
-            return Special_Keys.END
-         if seq[2] == 90:
-            return Special_Keys.SHIFT_TAB
-      elif len(seq) == 4:
-         if seq[2] == 51 and seq[3] == 126:
-            return Special_Keys.DELETE
-         if seq[2] == 53 and seq[3] == 126:
-            return Special_Keys.PAGE_UP
-         if seq[2] == 54 and seq[3] == 126:
-            return Special_Keys.PAGE_DOWN
-      elif len(seq) == 6:
-         if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
-            if seq[5] == 68:
+      if seq[0] in (0, 224):
+         # Windows-based codes
+         if len(seq) == 2:
+            if seq[1] == 72:
+               return Special_Keys.UP
+            if seq[1] == 80:
+               return Special_Keys.DOWN
+            if seq[1] == 77:
+               return Special_Keys.RIGHT
+            if seq[1] == 75:
+               return Special_Keys.LEFT
+            if seq[1] == 71:
+               return Special_Keys.HOME
+            if seq[1] == 79:
+               return Special_Keys.END
+            if seq[1] == -1:
+               return Special_Keys.SHIFT_TAB # does not work on windows :(
+            if seq[1] == 83:
+               return Special_Keys.DELETE
+            if seq[1] == 73:
+               return Special_Keys.PAGE_UP
+            if seq[1] == 81:
+               return Special_Keys.PAGE_DOWN
+            if seq[1] == 115:
                return Special_Keys.CTRL_LEFT
-            if seq[5] == 67:
+            if seq[1] == 116:
                return Special_Keys.CTRL_RIGHT
+      elif seq[0] == 27 and seq[1] == 91:
+         # Linux-based codes
+         if len(seq) == 2:
+            return Special_Keys.ESCAPE
+         elif len(seq) == 3:
+            if seq[2] == 65:
+               return Special_Keys.UP
+            if seq[2] == 66:
+               return Special_Keys.DOWN
+            if seq[2] == 67:
+               return Special_Keys.RIGHT
+            if seq[2] == 68:
+               return Special_Keys.LEFT
+            if seq[2] == 72:
+               return Special_Keys.HOME
+            if seq[2] == 70:
+               return Special_Keys.END
+            if seq[2] == 90:
+               return Special_Keys.SHIFT_TAB
+         elif len(seq) == 4:
+            if seq[2] == 51 and seq[3] == 126:
+               return Special_Keys.DELETE
+            if seq[2] == 53 and seq[3] == 126:
+               return Special_Keys.PAGE_UP
+            if seq[2] == 54 and seq[3] == 126:
+               return Special_Keys.PAGE_DOWN
+         elif len(seq) == 6:
+            if seq[2] == 49 and seq[3] == 59 and seq[4] == 53:
+               if seq[5] == 68:
+                  return Special_Keys.CTRL_LEFT
+               if seq[5] == 67:
+                  return Special_Keys.CTRL_RIGHT
+      else:
+         logger.error(f"Got unknown seq {list(seq)} with non-(27,91)|(0,)|(224,) start")
+         return None
 
    logger.info(f"Got unknown byte sequence {list(seq)}")
    return None
@@ -237,22 +275,22 @@ class Image_Screen_Buffer(Screen_Buffer):
    def __init__(self, width:int, height:int):
       super().__init__(width, height, draw_borders=False)
 
-      self.img_x_start = width - IMAGE_CHARS_WIDE - 1
+      self.img_x_start = width - Screen_Config.image_width() - 1
       self.img_x_end   = width - 1
-      self.void_rows = [" "*IMAGE_CHARS_WIDE for _ in range(height-2)]
+      self.void_rows = [" "*Screen_Config.image_width() for _ in range(height-2)]
       not_found = "Image not found"
-      self.void_rows[0] = not_found + " "*(IMAGE_CHARS_WIDE-len(not_found))
+      self.void_rows[0] = not_found + " "*(Screen_Config.image_width()-len(not_found))
       self.img_rows = self.void_rows
       self.img_cache = { }
 
       # Draw initial borders
       init_rect = Rect(0, 0, width, height)
-      left_dash  = width - 3 - IMAGE_CHARS_WIDE
+      left_dash  = width - 3 - Screen_Config.image_width()
       right_dash = width - 3 - left_dash
       self.put_text_in(init_rect, 0, 0, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
       for y in range(1, height-1):
          self.put_text_in(init_rect, 0, y, "|")
-         self.put_text_in(init_rect, width-IMAGE_CHARS_WIDE-2, y, "|")
+         self.put_text_in(init_rect, width-Screen_Config.image_width()-2, y, "|")
          self.put_text_in(init_rect, width-1, y, "|")
       self.put_text_in(init_rect, 0, height-1, "+" + "-"*left_dash + "+" + "-"*right_dash + "+")
 
@@ -336,7 +374,7 @@ class Input_Data:
 
 class Text_Box:
    SEPERATOR = " > "
-   rect: Rect = INPUT_SPACE
+   rect: Rect
    accepting_input: bool = False
 
    screen_buffer: Image_Screen_Buffer
@@ -347,7 +385,8 @@ class Text_Box:
    actions_bold: List[Tuple[int,int]]
    waiting_line = "Awaiting model response..."
 
-   def __init__(self, screen_buffer:Image_Screen_Buffer, kill_event:threading.Event, input_complete_callback):
+   def __init__(self, screen_buffer:Image_Screen_Buffer, kill_event:threading.Event, rect:Rect, input_complete_callback):
+      self.rect = rect
       self.screen_buffer = screen_buffer
       self.kill_event = kill_event
       self.input_complete_callback = input_complete_callback
@@ -431,7 +470,7 @@ class Text_Box:
       # Handle images
       image_uuid = self.datas[self.index].image_uuid
       if image_uuid not in self.screen_buffer.img_cache:
-         lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
+         lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{Screen_Config.image_width()}x{Screen_Config.image_height()}.json", is_file=True)
          if os.path.exists(lines_filepath):
             with open(lines_filepath) as f:
                lines = json.load(f)
@@ -530,14 +569,16 @@ class Text_Box:
 
 class Events_Display(Game_Window):
    NAME = "Events"
-   rect: Rect = EVENT_SPACE
+   rect: Rect
    text_box: Text_Box
    screen_buffer: Image_Screen_Buffer
    event_page_index: int = 0
    event_lines: List[str]
 
    def __init__(self, screen_buffer:Image_Screen_Buffer, kill_event:threading.Event, input_complete_callback):
-      self.text_box = Text_Box(screen_buffer, kill_event, input_complete_callback)
+      self.rect = Rect(2, 1, Screen_Config.WIDTH - 4 - Screen_Config.image_width(), Screen_Config.HEIGHT - INPUT_HEIGHT - 3)
+      tb_rect = Rect(2, self.rect.y2 + 1, Screen_Config.WIDTH - 4 - Screen_Config.image_width(), INPUT_HEIGHT)
+      self.text_box = Text_Box(screen_buffer, kill_event, tb_rect, input_complete_callback)
       self.screen_buffer = screen_buffer
       self.event_lines = [""]
 
@@ -593,12 +634,12 @@ class Characters_Display(Game_Window):
    npcs: List[Npc_Info]
    curr_loc_id: str = ""
    index: int = 0
-   rect: Rect = CHARS_SPACE
+   rect: Rect
    screen_buffer: Image_Screen_Buffer
 
    def __init__(self, screen_buffer:Image_Screen_Buffer):
       self.screen_buffer = screen_buffer
-      self.rect = Rect(1, 2, self.screen_buffer.width - IMAGE_CHARS_WIDE - 3, self.screen_buffer.height - 4)
+      self.rect = Rect(1, 2, self.screen_buffer.width - Screen_Config.image_width() - 3, self.screen_buffer.height - 4)
       self.npcs = []
 
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
@@ -663,7 +704,7 @@ class Characters_Display(Game_Window):
          # Handle images
          image_uuid = self.npcs[self.index].image_uuid
          if image_uuid not in self.screen_buffer.img_cache:
-            lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
+            lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{Screen_Config.image_width()}x{Screen_Config.image_height()}.json", is_file=True)
             if os.path.exists(lines_filepath):
                with open(lines_filepath) as f:
                   lines = json.load(f)
@@ -676,12 +717,12 @@ class Locations_Display(Game_Window):
    locs: List[E.Create_Location]
    curr_loc_id: str = ""
    index: int = 0
-   rect: Rect = CHARS_SPACE
+   rect: Rect
    screen_buffer: Image_Screen_Buffer
 
    def __init__(self, screen_buffer:Image_Screen_Buffer):
       self.screen_buffer = screen_buffer
-      self.rect = Rect(1, 2, self.screen_buffer.width - IMAGE_CHARS_WIDE - 3, self.screen_buffer.height - 4)
+      self.rect = Rect(1, 2, self.screen_buffer.width - Screen_Config.image_width() - 3, self.screen_buffer.height - 4)
       self.locs = []
 
    def process_input(self, inp:Union[str,Special_Keys]) -> None:
@@ -745,7 +786,7 @@ class Locations_Display(Game_Window):
       # Handle images
       image_uuid = self.locs[self.index].image_uuid
       if image_uuid not in self.screen_buffer.img_cache:
-         lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{IMAGE_CHARS_WIDE}x{IMAGE_CHARS_TALL}.json", is_file=True)
+         lines_filepath = Save_Data.get_and_make("images", image_uuid, f"{Screen_Config.image_width()}x{Screen_Config.image_height()}.json", is_file=True)
          if os.path.exists(lines_filepath):
             with open(lines_filepath) as f:
                lines = json.load(f)
@@ -884,30 +925,37 @@ class Main_Menu:
 
    def write_to_buffer(self) -> None:
       self.screen_buffer.clear_text(self.rect)
-      if self.making_new_game:
-         lines = ["Enter Game Name:", self.new_game_name]
-         if self.status is not None:
-            lines += ["", self.status]
-         y_offset = (self.rect.h - len(lines)) // 2
-         for i, line in enumerate(lines):
-            x_offset = (self.rect.w - len(line)) // 2
-            assert x_offset >= 0
-            self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
-         self.screen_buffer.move_cursor(self.rect.x1 + ((self.rect.w - len(self.new_game_name)) // 2) + len(self.new_game_name), self.rect.y1 + y_offset + 1)
+      if self.selected_save:
+         y_offset = (self.rect.h - 1) // 2
+         line = "Loading game..."
+         x_offset = (self.rect.w - len(line)) // 2
+         assert x_offset >= 0
+         self.screen_buffer.put_text_in(self.rect, x_offset, y_offset, line)
       else:
-         y_offset = (self.rect.h - len(self.lines)) // 2
-         assert y_offset >= 0
-         for i, line in enumerate(self.lines):
-            if i - self.line_offset == self.index:
-               line = f">>> {line} <<<"
-            x_offset = (self.rect.w - len(line)) // 2
-            assert x_offset >= 0
-            self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+         if self.making_new_game:
+            lines = ["Enter Game Name:", self.new_game_name]
+            if self.status is not None:
+               lines += ["", self.status]
+            y_offset = (self.rect.h - len(lines)) // 2
+            for i, line in enumerate(lines):
+               x_offset = (self.rect.w - len(line)) // 2
+               assert x_offset >= 0
+               self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+            self.screen_buffer.move_cursor(self.rect.x1 + ((self.rect.w - len(self.new_game_name)) // 2) + len(self.new_game_name), self.rect.y1 + y_offset + 1)
+         else:
+            y_offset = (self.rect.h - len(self.lines)) // 2
+            assert y_offset >= 0
+            for i, line in enumerate(self.lines):
+               if i - self.line_offset == self.index:
+                  line = f">>> {line} <<<"
+               x_offset = (self.rect.w - len(line)) // 2
+               assert x_offset >= 0
+               self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
 
 
 class User_Controller(Game_Processor):
    POLL_INTERVAL_SEC = 0.01
-   rect: Rect = Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+   rect: Rect = Rect(0, 0, Screen_Config.WIDTH, Screen_Config.HEIGHT)
 
    game: Game
    kill_event: threading.Event
@@ -926,14 +974,14 @@ class User_Controller(Game_Processor):
 
    def __init__(self, kill_event:threading.Event, saves:List[str]):
       self.kill_event = kill_event
-      self.main_menu = Main_Menu(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), saves)
+      self.main_menu = Main_Menu(Screen_Buffer(Screen_Config.WIDTH, Screen_Config.HEIGHT), saves)
 
       self.game_windows = [
-         Events_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT), kill_event, self.__user_input_complete),
-         Locations_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
-         Characters_Display(Image_Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
-         Inventory_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
-         Quests_Display(Screen_Buffer(SCREEN_WIDTH, SCREEN_HEIGHT)),
+         Events_Display(Image_Screen_Buffer(Screen_Config.WIDTH, Screen_Config.HEIGHT), kill_event, self.__user_input_complete),
+         Locations_Display(Image_Screen_Buffer(Screen_Config.WIDTH, Screen_Config.HEIGHT)),
+         Characters_Display(Image_Screen_Buffer(Screen_Config.WIDTH, Screen_Config.HEIGHT)),
+         Inventory_Display(Screen_Buffer(Screen_Config.WIDTH, Screen_Config.HEIGHT)),
+         Quests_Display(Screen_Buffer(Screen_Config.WIDTH, Screen_Config.HEIGHT)),
       ]
       self.has_updated = [False]*len(self.game_windows)
 
@@ -977,6 +1025,7 @@ class User_Controller(Game_Processor):
             return self.game
          elif new_events:
             other_proc.peek_game(self.game.copy())
+            last_peek_count = self.game.new_events
          time.sleep(0.01)
 
       return None
@@ -1006,9 +1055,19 @@ class User_Controller(Game_Processor):
          self.done_processing = True
 
    def __read_bytes(self) -> bytes:
-      while not self.kill_event.is_set():
-         if select.select([sys.stdin], [], [], self.POLL_INTERVAL_SEC)[0]:
-            return os.read(self.fd, 16)
+      if os.name == 'nt':
+         import msvcrt
+         data = bytes()
+         while not self.kill_event.is_set():
+            while msvcrt.kbhit():
+               data += msvcrt.getch()
+            if len(data) > 0:
+               return data
+            time.sleep(self.POLL_INTERVAL_SEC)
+      else:
+         while not self.kill_event.is_set():
+            if select.select([sys.stdin], [], [], self.POLL_INTERVAL_SEC)[0]:
+               return os.read(self.fd, 16)
       return bytes()
 
    def run(self) -> None:

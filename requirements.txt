@@ -1,0 +1,6 @@
+requests
+pillow
+openai
+numpy
+scikit-learn
+opencv-python

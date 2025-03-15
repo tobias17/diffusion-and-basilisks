@@ -1,6 +1,7 @@
 # project specific folders
 saves/
 logs/
+tmp/
 
 # general filetypes
 *.pyc
@@ -8,3 +9,6 @@ logs/
 # package/editor files/folders
 .mypy_cache
 .vscode
+
+# secrets (shhhhh)
+.env
