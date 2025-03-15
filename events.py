@@ -1,5 +1,5 @@
 from __future__ import annotations
-from common import logger, Event, Image_Prompt
+from common import Event, Image_Prompt
 from functions import Function_Map, Function, Parameter
 from game import Game
 
@@ -65,7 +65,6 @@ class Move_Player_To(Event):
    def player(self, game:Game) -> Optional[str]:
       return f"You arrive at {game.get_loc_name(self.loc_id)}"
 def move_player_to(game:Game, loc_id:str) -> Tuple[bool,str]:
-   logger.debug("Starting to process move_player_to() request")
    seen_move = False
    for event in reversed(game.events):
       if isinstance(event, Move_Player_To) and not seen_move:
