@@ -58,15 +58,6 @@ class Peek_Terminal_Input:
          import termios
          termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old_settings)
 
-   def getch(self):
-      """Read a single character without requiring Enter keypress"""
-      if os.name == 'nt':
-         import msvcrt
-         return msvcrt.getch().decode('utf-8', errors='replace')
-      else:
-         return sys.stdin.read(1)
-
-
 
 class Special_Keys(Enum):
    CTRL_C = auto()
