@@ -1,4 +1,4 @@
-from common import logger, LOG_FORMAT, Save_Data
+from common import logger, LOG_FORMAT, Save_Data, Screen_Config
 import events as E
 from game import Game
 from user_controller import User_Controller, Peek_Terminal_Input
@@ -103,7 +103,16 @@ if __name__ == "__main__":
    config_filepath = os.path.abspath(args.config)
    assert os.path.exists(config_filepath), f"Could not find config file, searched for {config_filepath}"
    with open(config_filepath) as f:
-      config_data = json.load(f)
+      config_data: Dict = json.load(f)
+
+   screen_data = config_data.get("screen")
+   if screen_data is not None:
+      width  = screen_data.get("width")
+      height = screen_data.get("height")
+      ratio  = screen_data.get("ratio")
+      if width  is not None: Screen_Config.WIDTH  = width
+      if height is not None: Screen_Config.HEIGHT = height
+      if ratio  is not None: Screen_Config.RATIO  = ratio
 
    saves_root = os.path.join(os.path.dirname(__file__), "saves")
    game_loop(config_data, saves_root)

@@ -1,7 +1,7 @@
 {
    "screen": {
-      "width": 120,
-      "height": 60,
+      "width": 280,
+      "height": 64,
       "ratio": 2.5
    },
    "backend": {
