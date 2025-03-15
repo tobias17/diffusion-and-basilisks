@@ -934,25 +934,32 @@ class Main_Menu:
 
    def write_to_buffer(self) -> None:
       self.screen_buffer.clear_text(self.rect)
-      if self.making_new_game:
-         lines = ["Enter Game Name:", self.new_game_name]
-         if self.status is not None:
-            lines += ["", self.status]
-         y_offset = (self.rect.h - len(lines)) // 2
-         for i, line in enumerate(lines):
-            x_offset = (self.rect.w - len(line)) // 2
-            assert x_offset >= 0
-            self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
-         self.screen_buffer.move_cursor(self.rect.x1 + ((self.rect.w - len(self.new_game_name)) // 2) + len(self.new_game_name), self.rect.y1 + y_offset + 1)
+      if self.selected_save:
+         y_offset = (self.rect.h - 1) // 2
+         line = "Loading game..."
+         x_offset = (self.rect.w - len(line)) // 2
+         assert x_offset >= 0
+         self.screen_buffer.put_text_in(self.rect, x_offset, y_offset, line)
       else:
-         y_offset = (self.rect.h - len(self.lines)) // 2
-         assert y_offset >= 0
-         for i, line in enumerate(self.lines):
-            if i - self.line_offset == self.index:
-               line = f">>> {line} <<<"
-            x_offset = (self.rect.w - len(line)) // 2
-            assert x_offset >= 0
-            self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+         if self.making_new_game:
+            lines = ["Enter Game Name:", self.new_game_name]
+            if self.status is not None:
+               lines += ["", self.status]
+            y_offset = (self.rect.h - len(lines)) // 2
+            for i, line in enumerate(lines):
+               x_offset = (self.rect.w - len(line)) // 2
+               assert x_offset >= 0
+               self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
+            self.screen_buffer.move_cursor(self.rect.x1 + ((self.rect.w - len(self.new_game_name)) // 2) + len(self.new_game_name), self.rect.y1 + y_offset + 1)
+         else:
+            y_offset = (self.rect.h - len(self.lines)) // 2
+            assert y_offset >= 0
+            for i, line in enumerate(self.lines):
+               if i - self.line_offset == self.index:
+                  line = f">>> {line} <<<"
+               x_offset = (self.rect.w - len(line)) // 2
+               assert x_offset >= 0
+               self.screen_buffer.put_text_in(self.rect, x_offset, y_offset + i, line)
 
 
 class User_Controller(Game_Processor):
@@ -1027,6 +1034,7 @@ class User_Controller(Game_Processor):
             return self.game
          elif new_events:
             other_proc.peek_game(self.game.copy())
+            last_peek_count = self.game.new_events
          time.sleep(0.01)
 
       return None

@@ -4,7 +4,7 @@ A fantasy adventure game with realtime-generated content using AI (LLM + SDXL).
 
 Currently designed to be run on a tinybox, will add mechanisms to run with other hosting soon.
 
-## Starting the Server
+## For Tinybox Users
 
 First set up a server on your tinybox.
 ```
@@ -15,13 +15,17 @@ This will take a little while to download the model weights and run a beam searc
 
 Don't worry about having an existing tinygrad clone, it will automatically submodule a custom version and set the python path for it.
 
-## Running the Game
-
 Once the server is running, playing is simple.
 ```
 https://github.com/tobias17/diffusion-and-basilisks.git
 diffusion-and-basilisks/run.sh
 ```
+
+## For Other Users
+
+We now support alternative backends using OpenAI endpoints and Automatic1111 webui API.
+
+See the [Endpoints Setup Page](docs/endpoints_setup.md) for instructions to set this up.
 
 ## Controls
 
@@ -40,7 +44,6 @@ diffusion-and-basilisks/run.sh
 
 ## Future Plans
 
-- Add alternative backends and tutorials to allow non-tinybox owners to play
 - Add combat events so it doesn't feel hollow
 - An actual character creator with more starting location variety
 - The `user_controller.py` file is a mess and needs to be refactored
