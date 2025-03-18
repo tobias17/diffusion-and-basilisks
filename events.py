@@ -167,7 +167,7 @@ def move_npc(game:Game, npc_id:str, to_loc_id:str) -> Tuple[bool,str]:
          if event.start_loc_id == to_loc_id and not found_move:
             return True, "" # The NPC got created here and has not moved since, no action needed
          found_npc = True
-      elif isinstance(event, Move_Npc) and not found_move:
+      elif isinstance(event, Move_Npc) and not found_move and event.npc_id == npc_id:
          if event.loc_id == to_loc_id:
             return True, "" # The NPC was last moved here, no action needed
          found_move = True
