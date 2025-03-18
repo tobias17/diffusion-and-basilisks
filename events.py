@@ -111,8 +111,11 @@ def create_npc(game:Game, npc_id:str, start_loc_id:str, first_name:str, last_nam
    for event in game.events:
       if isinstance(event, Create_Npc) and event.npc_id.lower() == npc_id.lower():
          return False, f"A character with the ID '{npc_id}' already exists"
-   game.add_event(Create_Npc(npc_id, start_loc_id, first_name, last_name, desc))
-   return True, ""
+   for event in game.events:
+      if isinstance(event, Create_Location) and event.loc_id == start_loc_id:
+         game.add_event(Create_Npc(npc_id, start_loc_id, first_name, last_name, desc))
+         return True, ""
+   return False, f"The starting location ID '{start_loc_id}' does not exist"
 Function_Map.funcs.append(
    create_npc_func := Function(
       create_npc, "GAME.create_npc",

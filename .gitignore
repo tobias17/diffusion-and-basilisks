@@ -5,12 +5,12 @@ tmp/
 configs/default.txt
 configs/*user*
 
+# secrets (shhhhh)
+.env
+
 # general filetypes
 *.pyc
 
 # package/editor files/folders
 .mypy_cache
 .vscode
-
-# secrets (shhhhh)
-.env
