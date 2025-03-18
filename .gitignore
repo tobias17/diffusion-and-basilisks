@@ -2,6 +2,8 @@
 saves/
 logs/
 tmp/
+configs/default.txt
+configs/*user*
 
 # general filetypes
 *.pyc
