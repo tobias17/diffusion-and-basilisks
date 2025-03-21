@@ -376,11 +376,6 @@ class Remove_Player_Unique_Item(Event):
 def remove_player_unique_item(game:Game, item_id:str, reason:str) -> Tuple[bool,str]:
    for event in reversed(game.events):
       if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
-         return False, f"The player already has an item with ID '{item_id}'"
-      if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
-         break
-   for event in reversed(game.events):
-      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
          game.add_event(Remove_Player_Unique_Item(item_id, reason))
          return True, ""
       if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
@@ -407,6 +402,9 @@ class Give_Player_Stackable_Items(Event):
 def give_player_stackable_items(game:Game, item_id:str, name:str, count:int, desc:str) -> Tuple[bool,str]:
    if count <= 0:
       return False, f"Cannot give non-positive amount {count} of items to player"
+   for event in game.events:
+      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
+         return False, f"The player already has a unique item with ID '{item_id}'"
    game.add_event(Give_Player_Stackable_Items(item_id, name, count, desc))
    return True, ""
 Function_Map.funcs.append(
@@ -429,6 +427,8 @@ class Remove_Player_Stackable_Items(Event):
    def player(self, game:Game) -> Optional[str]:
       return f"You lose {self.count} {game.get_item_name(self.item_id)}: {self.reason}"
 def remove_player_stackable_items(game:Game, item_id:str, count:int, reason:str) -> Tuple[bool,str]:
+   if count <= 0:
+      return False, f"Cannot remove non-positive amount {count} of items to player"
    current = 0
    for event in game.events:
       if isinstance(event, Give_Player_Stackable_Items) and event.item_id == item_id:
