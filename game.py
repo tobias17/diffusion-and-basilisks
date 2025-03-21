@@ -142,7 +142,8 @@ class Game:
             item.count += event.count
          elif isinstance(event, E.Remove_Player_Stackable_Items):
             inventory_items[event.item_id].count -= event.count
-
+      
+      inventory_items = { k:v for k,v in inventory_items.items() if not v.stackable or v.count > 0 }
       return sorted(list(inventory_items.values()), key=lambda a: a.last_seen, reverse=True)
 
    def get_curr_loc_id(self) -> str:
