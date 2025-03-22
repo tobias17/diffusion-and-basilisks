@@ -90,7 +90,34 @@ class Test_Game_Compute(unittest.TestCase):
         self.assertEqual(game.player_knows_about("locY"), True)
 
     def test_get_npc_infos(self):
-        pass # TODO
+        game = self.__make_game()
+        infos = game.get_npc_infos()
+        for info in infos:
+            if info.npc_id == "npc1":
+                self.assertEqual(info.npc_name, "First1 Last1")
+                self.assertEqual(info.loc_id,   "loc1")
+                self.assertEqual(info.loc_name, "Location 1")
+            elif info.npc_id == "npc2":
+                self.assertEqual(info.npc_name, "First2 Last2")
+                self.assertEqual(info.loc_id,   "loc2")
+                self.assertEqual(info.loc_name, "Location 2")
+            else:
+                raise ValueError(f"Got unexpected npc ID '{info.npc_id}' in npc info")
+
+        game.add_event(E.Move_Npc("npc1", "loc2"))
+        game.add_event(E.Move_Npc("npc2", "loc1"))
+        infos = game.get_npc_infos()
+        for info in infos:
+            if info.npc_id == "npc1":
+                self.assertEqual(info.npc_name, "First1 Last1")
+                self.assertEqual(info.loc_id,   "loc2")
+                self.assertEqual(info.loc_name, "Location 2")
+            elif info.npc_id == "npc2":
+                self.assertEqual(info.npc_name, "First2 Last2")
+                self.assertEqual(info.loc_id,   "loc1")
+                self.assertEqual(info.loc_name, "Location 1")
+            else:
+                raise ValueError(f"Got unexpected npc ID '{info.npc_id}' in npc info")
 
 
 if __name__ == "__main__":
