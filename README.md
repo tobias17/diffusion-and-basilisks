@@ -47,5 +47,5 @@ See the [Endpoints Setup Page](docs/endpoints_setup.md) for instructions to set 
 - Add combat events so it doesn't feel hollow
 - An actual character creator with more starting location variety
 - The `user_controller.py` file is a mess and needs to be refactored
-- Need to bring back unit tests that mock model responses and test game state transitions
 - Better "model failed" handling, rejecting last user input is kinda hacky
+- The way events are defined currently has a lot of copy-paste, could be compacted more

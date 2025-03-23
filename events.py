@@ -111,8 +111,11 @@ def create_npc(game:Game, npc_id:str, start_loc_id:str, first_name:str, last_nam
    for event in game.events:
       if isinstance(event, Create_Npc) and event.npc_id.lower() == npc_id.lower():
          return False, f"A character with the ID '{npc_id}' already exists"
-   game.add_event(Create_Npc(npc_id, start_loc_id, first_name, last_name, desc))
-   return True, ""
+   for event in game.events:
+      if isinstance(event, Create_Location) and event.loc_id == start_loc_id:
+         game.add_event(Create_Npc(npc_id, start_loc_id, first_name, last_name, desc))
+         return True, ""
+   return False, f"The starting location ID '{start_loc_id}' does not exist"
 Function_Map.funcs.append(
    create_npc_func := Function(
       create_npc, "GAME.create_npc",
@@ -164,7 +167,7 @@ def move_npc(game:Game, npc_id:str, to_loc_id:str) -> Tuple[bool,str]:
          if event.start_loc_id == to_loc_id and not found_move:
             return True, "" # The NPC got created here and has not moved since, no action needed
          found_npc = True
-      elif isinstance(event, Move_Npc) and not found_move:
+      elif isinstance(event, Move_Npc) and not found_move and event.npc_id == npc_id:
          if event.loc_id == to_loc_id:
             return True, "" # The NPC was last moved here, no action needed
          found_move = True
@@ -305,13 +308,14 @@ def start_quest(game:Game, quest_id:str, name:str, desc:str) -> Tuple[bool,str]:
    game.add_event(Start_Quest(quest_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   Function(
+   start_quest_func := Function(
       start_quest, "GAME.give_player_quest",
       Parameter("quest_id", str),
       Parameter("name", str),
       Parameter("desc", str),
    )
 )
+Start_Quest.system = (lambda e: start_quest_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -328,11 +332,12 @@ def end_quest(game:Game, quest_id:str) -> Tuple[bool,str]:
          return True, ""
    return False, f"Could not find quest with ID '{quest_id}'"
 Function_Map.funcs.append(
-   Function(
+   end_quest_func := Function(
       end_quest, "GAME.complete_quest",
       Parameter("quest_id", str),
    )
 )
+End_Quest.system = (lambda e: end_quest_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -373,11 +378,6 @@ class Remove_Player_Unique_Item(Event):
 def remove_player_unique_item(game:Game, item_id:str, reason:str) -> Tuple[bool,str]:
    for event in reversed(game.events):
       if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
-         return False, f"The player already has an item with ID '{item_id}'"
-      if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
-         break
-   for event in reversed(game.events):
-      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
          game.add_event(Remove_Player_Unique_Item(item_id, reason))
          return True, ""
       if isinstance(event, Remove_Player_Unique_Item) and event.item_id == item_id:
@@ -404,6 +404,9 @@ class Give_Player_Stackable_Items(Event):
 def give_player_stackable_items(game:Game, item_id:str, name:str, count:int, desc:str) -> Tuple[bool,str]:
    if count <= 0:
       return False, f"Cannot give non-positive amount {count} of items to player"
+   for event in game.events:
+      if isinstance(event, Give_Player_Unique_Item) and event.item_id == item_id:
+         return False, f"The player already has a unique item with ID '{item_id}'"
    game.add_event(Give_Player_Stackable_Items(item_id, name, count, desc))
    return True, ""
 Function_Map.funcs.append(
@@ -426,6 +429,8 @@ class Remove_Player_Stackable_Items(Event):
    def player(self, game:Game) -> Optional[str]:
       return f"You lose {self.count} {game.get_item_name(self.item_id)}: {self.reason}"
 def remove_player_stackable_items(game:Game, item_id:str, count:int, reason:str) -> Tuple[bool,str]:
+   if count <= 0:
+      return False, f"Cannot remove non-positive amount {count} of items to player"
    current = 0
    for event in game.events:
       if isinstance(event, Give_Player_Stackable_Items) and event.item_id == item_id:

@@ -142,7 +142,8 @@ class Game:
             item.count += event.count
          elif isinstance(event, E.Remove_Player_Stackable_Items):
             inventory_items[event.item_id].count -= event.count
-
+      
+      inventory_items = { k:v for k,v in inventory_items.items() if not v.stackable or v.count > 0 }
       return sorted(list(inventory_items.values()), key=lambda a: a.last_seen, reverse=True)
 
    def get_curr_loc_id(self) -> str:
@@ -181,11 +182,14 @@ class Game:
             curr_loc_id = event.loc_id
          elif isinstance(event, E.Create_Npc):
             assert curr_loc_id is not None, f"Found a create NPC event {event} before a location was established"
-            loc_name = loc_id_to_name.get(curr_loc_id, None)
+            loc_name = loc_id_to_name.get(event.start_loc_id, None)
             assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
             npc_infos[event.npc_id] = Npc_Info(event.npc_id, f"{event.first_name} {event.last_name}", event.start_loc_id, loc_name, i, event.image_uuid)
          elif isinstance(event, E.Move_Npc):
-            npc_infos[event.npc_id].loc_id = event.loc_id
+            loc_name = loc_id_to_name.get(event.loc_id, None)
+            assert loc_name is not None, f"Failed to find loc_name for loc_id '{curr_loc_id}' referenced by {event}"
+            npc_infos[event.npc_id].loc_id   = event.loc_id
+            npc_infos[event.npc_id].loc_name = loc_name
          elif isinstance(event, tuple(INTERACT_EVENT_MAP.keys())):
             attrs = INTERACT_EVENT_MAP[type(event)]
             for attr in attrs:

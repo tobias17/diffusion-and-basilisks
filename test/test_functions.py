@@ -3,10 +3,7 @@ from functions import parse_function, Function_Call_Data
 from typing import List, Dict
 import unittest
 
-def parse_function_helper():
-   pass
 class Test_Parse_Function(unittest.TestCase):
-
    def __happy(self, input:str, exp_func_name:str, exp_args:List, exp_kwargs:Dict):
       ctx = f"Input: <|{input}|>"
       out, err = parse_function(input)
