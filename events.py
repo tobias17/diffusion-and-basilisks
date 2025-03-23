@@ -308,13 +308,14 @@ def start_quest(game:Game, quest_id:str, name:str, desc:str) -> Tuple[bool,str]:
    game.add_event(Start_Quest(quest_id, name, desc))
    return True, ""
 Function_Map.funcs.append(
-   Function(
+   start_quest_func := Function(
       start_quest, "GAME.give_player_quest",
       Parameter("quest_id", str),
       Parameter("name", str),
       Parameter("desc", str),
    )
 )
+Start_Quest.system = (lambda e: start_quest_func.system(e)) # type: ignore
 
 
 @dataclass
@@ -331,11 +332,12 @@ def end_quest(game:Game, quest_id:str) -> Tuple[bool,str]:
          return True, ""
    return False, f"Could not find quest with ID '{quest_id}'"
 Function_Map.funcs.append(
-   Function(
+   end_quest_func := Function(
       end_quest, "GAME.complete_quest",
       Parameter("quest_id", str),
    )
 )
+End_Quest.system = (lambda e: end_quest_func.system(e)) # type: ignore
 
 
 @dataclass
