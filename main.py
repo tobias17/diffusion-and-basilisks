@@ -1,7 +1,7 @@
 from common import logger, LOG_FORMAT, Save_Data, Screen_Config
 import events as E
 from game import Game
-from user_controller import User_Controller, Peek_Terminal_Input
+from user import User_Controller, Peek_Terminal_Input
 from backends.ai_backend import AI_Backend
 
 import logging, os, json, threading, traceback, argparse
