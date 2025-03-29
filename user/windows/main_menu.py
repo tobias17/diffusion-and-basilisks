@@ -3,6 +3,9 @@ from user import Screen_Buffer, Rect, Special_Keys
 from typing import List, Optional, Union
 
 
+MAX_SAVE_NAME_LENGTH = 32
+
+
 class Main_Menu:
    screen_buffer: Screen_Buffer
    rect: Rect
@@ -58,7 +61,7 @@ class Main_Menu:
                   self.status = "Must provide input"
                elif save_name in self.selections:
                   self.status = "A save with that name already exists"
-               elif len(save_name) > 16:
+               elif len(save_name) > MAX_SAVE_NAME_LENGTH:
                   self.status = "Name too long"
                else:
                   self.status = "Generating start"
