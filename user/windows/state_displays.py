@@ -30,8 +30,8 @@ class Quests_Display(State_Display):
       if len(quests) == 0:
          self.lines.append("You have no quests.")
       else:
-         for item in quests:
-            self.lines += trim_text(f"{item.name}: {item.desc}", self.rect.w-2) + [""]
+         for quest in quests:
+            self.lines += trim_text(f"{quest.name}: {quest.desc}", self.rect.w-2) + [""]
          self.lines.pop(-1) # remove last newline
       self.index = 0
       self.write_to_buffer()

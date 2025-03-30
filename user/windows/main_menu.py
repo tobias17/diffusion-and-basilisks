@@ -5,7 +5,6 @@ from typing import List, Optional, Union
 
 MAX_SAVE_NAME_LENGTH = 32
 
-
 class Main_Menu:
    screen_buffer: Screen_Buffer
    rect: Rect

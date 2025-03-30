@@ -100,7 +100,7 @@ class Test_Function_Matching(unittest.TestCase):
       call, _ = match_function("basic_func", args=[], kwargs={"param1":'"a"', "param2":'"b"', "param3":'"c"'}, functions=function_library)
       self.assertIsNone(call)
    def test_pos_kwarg_overlap(self):
-      call, msg = match_function("basic_func", args=['"a"', '"b"'], kwargs={"param2":'"b"'}, functions=function_library)
+      call, _ = match_function("basic_func", args=['"a"', '"b"'], kwargs={"param2":'"b"'}, functions=function_library)
       self.assertIsNone(call)
    def test_function_not_found(self):
       call, _ = match_function("other_func", args=['"a"', '"b"'], kwargs={}, functions=function_library)

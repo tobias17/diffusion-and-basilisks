@@ -53,8 +53,9 @@ class Locations_Display(Game_Window):
 
    def write_to_buffer(self) -> None:
       self.screen_buffer.clear_text(self.rect)
-      assert len(self.locs) > 0
+
       # Normal buffer writing
+      assert len(self.locs) > 0
       selected_ptr = -1
       all_lines: List[str] = []
       for i, info in enumerate(self.locs):
