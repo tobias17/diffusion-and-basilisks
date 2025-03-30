@@ -1,11 +1,12 @@
 from typing import Optional
 from dataclasses import dataclass
-import os, sys, datetime
+import os, datetime
 
 import logging
 logger = logging.getLogger("Diff_and_Basi")
 logger.setLevel(logging.CRITICAL)
 LOG_FORMAT = logging.Formatter("%(levelname)s: %(message)s")
+
 
 class Screen_Config:
    WIDTH:  int   = 240
@@ -21,6 +22,7 @@ class Screen_Config:
       img_height = 1024
       img_width  = 768
       return int(Screen_Config.image_height() * (img_width / img_height) * Screen_Config.RATIO)
+
 
 class Save_Data:
    root: str
@@ -41,10 +43,12 @@ class Save_Data:
       os.makedirs(dirpath, exist_ok=True)
       return os.path.join(dirpath, path[-1]) if is_file else dirpath
 
+
 @dataclass
 class Image_Prompt:
    text: str
    uuid: str
+
 
 @dataclass
 class Event:
@@ -58,8 +62,3 @@ class Event:
       return False
    def image_prompt(self) -> Optional[Image_Prompt]:
       return None
-
-def exc_loc_str() -> str:
-   _, _, exc_tb = sys.exc_info()
-   if exc_tb is None: return "?:?"
-   return f"{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}"

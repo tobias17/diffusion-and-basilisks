@@ -160,15 +160,17 @@ def match_function(func_name:str, args:List, kwargs:Dict, functions:List[Functio
                   if value is None:
                      return None, err
                   cleaned_kwargs[param.name] = value
+               elif param.default is not None:
+                  cleaned_kwargs[param.name] = param.default
                else:
                   return None, f"Unknown keyword argument '{param.name}' to function '{func_name}'"
-         
+
          if arg_idx < len(args):
             return None, f"Found {len(args)} positional arguments but function '{func_name}' expected only {len(function.params)}"
          for name in kwargs.keys():
             if name not in cleaned_kwargs:
                return None, f"Unexpected keyword argument '{name}' for function '{func_name}'"
-         
+
          return (lambda s: function.call(s, *cleaned_args, **cleaned_kwargs)), ""
-   
+
    return None, f"Could not find function named '{func_name}'"

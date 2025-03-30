@@ -1,7 +1,8 @@
-from functions import parse_function, Function_Call_Data
+from functions import parse_function, Function_Call_Data, match_function, Function, Parameter
 
 from typing import List, Dict
 import unittest
+
 
 class Test_Parse_Function(unittest.TestCase):
    def __happy(self, input:str, exp_func_name:str, exp_args:List, exp_kwargs:Dict):
@@ -47,6 +48,64 @@ class Test_Parse_Function(unittest.TestCase):
       self.__sad('add_text("this is some text", "a mistmatched string)')
    def test_arg_after_kwarg(self):
       self.__sad('add_text(first="Hello,", " sailor!")')
+
+
+function_library: List[Function] = [
+   Function(lambda: None, "basic_func", Parameter("param1", str), Parameter("param2", str)),
+   Function(lambda: None, "mixed_dtypes", Parameter("str_param", str), Parameter("int_param", int), Parameter("bool_param", bool)),
+   Function(lambda: None, "default_values", Parameter("pos1", str), Parameter("pos2", str), Parameter("kwarg1", str, default="a"), Parameter("kwarg2", str, default="b"))
+]
+
+class Test_Function_Matching(unittest.TestCase):
+   def test_basic_pos_match(self):
+      call, msg = match_function("basic_func", args=['"a"', '"b"'], kwargs={}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_basic_kwarg_match(self):
+      call, msg = match_function("basic_func", args=[], kwargs={"param1":'"a"', "param2":'"b"'}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_basic_pos_and_kwarg_match(self):
+      call, msg = match_function("basic_func", args=['"a"'], kwargs={"param2":'"b"'}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_basic_flipped_kwarg_match(self):
+      call, msg = match_function("basic_func", args=[], kwargs={"param2":'"b"', "param1":'"a"'}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+
+   def test_mixed_dtypes_match(self):
+      call, msg = match_function("mixed_dtypes", args=['"some text"', "15", "True"], kwargs={}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_bad_int_cast(self):
+      call, _ = match_function("mixed_dtypes", args=['"some text"', "t15", "True"], kwargs={}, functions=function_library)
+      self.assertIsNone(call)
+   def test_bad_bool_cast(self):
+      call, _ = match_function("mixed_dtypes", args=['"some text"', "15", "maybe"], kwargs={}, functions=function_library)
+      self.assertIsNone(call)
+
+   def test_default_all_values_match(self):
+      call, msg = match_function("default_values", args=['"a"', '"b"'], kwargs={}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_default_some_values_match(self):
+      call, msg = match_function("default_values", args=['"a"', '"b"', '"c"'], kwargs={}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_default_no_values_match(self):
+      call, msg = match_function("default_values", args=['"a"', '"b"', '"c"', '"d"'], kwargs={}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+   def test_default_later_value_match(self):
+      call, msg = match_function("default_values", args=['"a"', '"b"'], kwargs={"kwarg2":'"d"'}, functions=function_library)
+      self.assertIsNotNone(call, msg)
+
+   def test_too_many_pos(self):
+      call, _ = match_function("basic_func", args=['"a"', '"b"', '"c"'], kwargs={}, functions=function_library)
+      self.assertIsNone(call)
+   def test_too_unknown_kwargs(self):
+      call, _ = match_function("basic_func", args=[], kwargs={"param1":'"a"', "param2":'"b"', "param3":'"c"'}, functions=function_library)
+      self.assertIsNone(call)
+   def test_pos_kwarg_overlap(self):
+      call, _ = match_function("basic_func", args=['"a"', '"b"'], kwargs={"param2":'"b"'}, functions=function_library)
+      self.assertIsNone(call)
+   def test_function_not_found(self):
+      call, _ = match_function("other_func", args=['"a"', '"b"'], kwargs={}, functions=function_library)
+      self.assertIsNone(call)
+
 
 if __name__ == "__main__":
    unittest.main()
